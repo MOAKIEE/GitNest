@@ -50,3 +50,4 @@ src/Properties/launchSettings.json
 .tools/
 artifacts/
 gitnest-data/
+AGENTS.md
