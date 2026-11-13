@@ -55,3 +55,16 @@
 详细步骤、命令和日志位置见 [批次 2.1 验证记录](verification/phase-2.1.md)。
 
 阶段二继续。下一批为 2.2：状态摘要、工作树任务概览、本地别名与快捷打开。
+
+## 2026-11-13 · 仓库协作：建立远程与 Windows CI
+
+- 前一批提交：`a10b90a7`（核心导航与首次引导）。
+- 在当前登录的 MOAKIEE 账号创建私有仓库 [GitNest](https://github.com/MOAKIEE/GitNest)，添加 `origin`；本地默认推送远端设为 `origin`。
+- 补齐原先浅克隆的上游历史，保留 SourceGit 导入提交与已有分批提交。
+- 保留 AvaloniaEdit 的固定子模块版本及工作区原有显示方式。
+- 将继承的上游构建、发布、Homebrew 通知及翻译改写工作流替换为 GitNest 的 Windows CI，检查构建、发布和集成测试，上传产物与日志。
+- README 增加远程地址和递归克隆方法，项目元数据指向 GitNest 仓库；协作约定见 [远程仓库与协作](repository-workflow.md)。
+
+本地验证：Windows Release 构建 0 警告、0 错误，自包含发布成功，26 项集成检查全部通过；工作流结构及解决方案中的工作流引用核对通过。
+
+本批随后推送 `main` 并核对 GitHub 上的分支和 CI 结果。推送结果在后续记录追加。

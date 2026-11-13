@@ -16,6 +16,9 @@
     <Company>GitNest contributors</Company>
     <Copyright>Copyright © $([System.DateTime]::Now.Year) GitNest contributors; SourceGit contributors.</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/MOAKIEE/GitNest</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/MOAKIEE/GitNest.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
     <DisableAOT Condition="'$(DisableAOT)' == ''">true</DisableAOT>
     <DisableUpdateDetection>true</DisableUpdateDetection>
   </PropertyGroup>

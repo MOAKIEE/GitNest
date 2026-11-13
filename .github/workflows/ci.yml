@@ -1,29 +1,58 @@
-name: Continuous Integration
+name: Windows CI
+
 on:
   push:
-    branches: [develop]
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
   pull_request:
-    branches: [develop]
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
   workflow_dispatch:
-  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
-    name: Build
-    uses: ./.github/workflows/build.yml
-  version:
-    name: Prepare version string
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
+    name: Build and test Windows x64
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
     steps:
-      - name: Checkout sources
+      - name: Checkout GitNest and pinned dependencies
         uses: actions/checkout@v6
-      - name: Output version string
-        id: version
-        run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
-  package:
-    needs: [build, version]
-    name: Package
-    uses: ./.github/workflows/package.yml
-    with:
-      version: ${{ needs.version.outputs.version }}
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - name: Set up the pinned .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Build and publish
+        run: ./build/scripts/build-gitnest.ps1 -Publish
+      - name: Run integration checks
+        run: ./build/scripts/test-gitnest.ps1 | Tee-Object -FilePath artifacts/logs/integration-tests.log
+      - name: Upload verification logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: GitNest-verification-logs
+          path: artifacts/logs/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Upload Windows x64 application
+        uses: actions/upload-artifact@v7
+        with:
+          name: GitNest-windows-x64
+          path: artifacts/windows-x64/
+          if-no-files-found: error
+          retention-days: 7

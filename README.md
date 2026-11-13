@@ -2,6 +2,8 @@
 
 面向使用 AI Agent 编程的 Git 初学者的中文 Windows 桌面客户端，基于 [SourceGit](https://github.com/sourcegit-scm/sourcegit) 改造。
 
+[GitNest 项目仓库](https://github.com/MOAKIEE/GitNest)
+
 GitNest 的目标是通过图形界面审阅 AI 的累计成果和未提交修改，选择提交、同步与合并，并清理任务遗留的工作树和分支。产品需求和操作约定见 [产品与技术设计](docs/design.md)。
 
 阶段一构建基线和阶段二批次 2.1 已完成，可构建并运行 GitNest `0.1.0-dev`。欢迎页提供 Git 检测、已有全局提交身份展示、打开／新建和克隆入口；仓库导航显示“提交历史／修改／暂存的工作”。底座为 SourceGit 稳定版 `v2026.24`，后续产品流程按 [实施计划](docs/implementation-plan.md) 逐批推进。[实施记录](docs/implementation-log.md) 保存每批变更与验证结果。
@@ -9,6 +11,13 @@ GitNest 的目标是通过图形界面审阅 AI 的累计成果和未提交修�
 ## 开发构建
 
 环境：Windows x64、Git for Windows 2.31.0 或更高版本、.NET 10 SDK。`global.json` 指定 SDK `10.0.404`，允许同一功能带的后续补丁。
+
+克隆源码及固定版本的 AvaloniaEdit 依赖：
+
+```powershell
+git clone --recurse-submodules https://github.com/MOAKIEE/GitNest.git
+cd GitNest
+```
 
 首次准备工具（SDK 安装在工作区 `.tools/dotnet/`）：
 
