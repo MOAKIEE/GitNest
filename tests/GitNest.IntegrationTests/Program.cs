@@ -155,6 +155,7 @@ internal static partial class Program
             File.WriteAllText(global, string.Empty);
             await RunWorktreeTestsAsync(realGit, root);
             await RunComparisonTestsAsync(realGit, root);
+            await RunConfigTestsAsync(realGit, root);
         }
         finally
         {

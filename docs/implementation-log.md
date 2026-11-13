@@ -1,5 +1,15 @@
 # GitNest 实施记录
 
+## 2026-11-13 · 批次 2.4a：配置来源、多值读取与脱敏基础
+
+- 前一批提交：`5cb3806e`。新增 `GitConfigSnapshot` 等配置模型，扩展 `Commands.Config` 的 `ReadSnapshotAsync`、`SetScopedAsync` 与 `InspectSigningStatus`。
+- 直接以 `ArgumentList` 调用 `git config --list --includes --show-origin --show-scope --null`（不混入 UI 内部 `-c` 参数），保留系统、全局、仓库、工作树、`include`/`includeIf` 与外部环境变量运行时来源，并结合 `rev-parse` 修正子目录打开与裸仓库下的配置文件定位。
+- 完整保留 `credential.helper` 多值顺序及空值重置、`remote.*` 多地址与 refspec、`http.<url>.proxy` URL 覆盖及无值布尔键；对 `http.extraheader`、敏感键和 URL 凭据做诊断脱敏。
+- 作用域写入区分显式空值覆盖与 `--unset` 恢复继承；未启用 `extensions.worktreeConfig` 时拒绝写入 `--worktree`，拒绝覆盖已有本地多值项；签名检查识别缺失密钥、缺失程序及 SSH 签名的 Git `2.34.0` 门槛。
+- Release 构建 0 警告、0 错误；102 项集成检查全部通过（新增 27 项配置检查）。详见 [2.4 验证记录](verification/phase-2.4.md)。
+
+接续：2.4b 重构常用设置编辑界面（来源、多值、远端、当前分支上游、代理、签名、高级换行与作用域保存）及 UI 探针截图核对。
+
 ## 2026-11-13 · 批次 2.3b：累计差异页面与快照失效
 
 - 前一批提交：`496fca47`。新增累计差异导航及工作树菜单入口，显式选择完整本地／远程引用，按工作树保存比较目标。
