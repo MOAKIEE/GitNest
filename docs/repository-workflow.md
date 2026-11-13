@@ -17,6 +17,7 @@ AvaloniaEdit 作为子模块固定在 `ddf00a91dc0da29b85c79b85c9583860213a99ff`
 - `upstream`：`https://github.com/sourcegit-scm/sourcegit.git`，用于核对及获取底座更新。
 - `main` 跟踪 `origin/main`，本地默认推送远端设为 `origin`，推送模式为 `simple`。
 - 本地已补齐 SourceGit 完整祖先历史，保留原有导入关系。
+- 本仓库提交邮箱使用 GitHub noreply 地址；首次推送前调整的提交号见 [提交映射](commit-email-migration.md)。
 
 每批完成对应验证、更新实施记录后提交。推送当前开发分支：
 
