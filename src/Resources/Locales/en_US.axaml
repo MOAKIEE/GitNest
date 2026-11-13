@@ -1159,4 +1159,26 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.Worktree.Task.OpenEditor" xml:space="preserve">Open in editor</x:String>
   <x:String x:Key="Text.Worktree.Task.SelectEditor" xml:space="preserve">Select editor executable…</x:String>
   <x:String x:Key="Text.Worktree.Task.OpenFailed" xml:space="preserve">Could not open tool: {0}</x:String>
+  <x:String x:Key="Text.TaskCompare.Title" xml:space="preserve">Task changes</x:String>
+  <x:String x:Key="Text.TaskCompare.Open" xml:space="preserve">Review this task's changes</x:String>
+  <x:String x:Key="Text.TaskCompare.Refresh" xml:space="preserve">Refresh comparison</x:String>
+  <x:String x:Key="Text.TaskCompare.Target" xml:space="preserve">Compare against</x:String>
+  <x:String x:Key="Text.TaskCompare.Mode" xml:space="preserve">Comparison mode</x:String>
+  <x:String x:Key="Text.TaskCompare.MergeBase" xml:space="preserve">Merge base → task HEAD (committed work)</x:String>
+  <x:String x:Key="Text.TaskCompare.TwoTips" xml:space="preserve">Target tip → task HEAD (two-tip diff)</x:String>
+  <x:String x:Key="Text.TaskCompare.ChooseTarget" xml:space="preserve">Choose a comparison target. It is saved locally for this worktree.</x:String>
+  <x:String x:Key="Text.TaskCompare.Source" xml:space="preserve">Task snapshot</x:String>
+  <x:String x:Key="Text.TaskCompare.TargetSnapshot" xml:space="preserve">Target snapshot</x:String>
+  <x:String x:Key="Text.TaskCompare.Base" xml:space="preserve">Merge base: {0}</x:String>
+  <x:String x:Key="Text.TaskCompare.TipBase" xml:space="preserve">Target tip base: {0}</x:String>
+  <x:String x:Key="Text.TaskCompare.Summary" xml:space="preserve">{0} files · text +{1} / −{2} lines · {3} binary files</x:String>
+  <x:String x:Key="Text.TaskCompare.Commits" xml:space="preserve">Task-only commits: showing {0} of {1} (up to 500)</x:String>
+  <x:String x:Key="Text.TaskCompare.Uncommitted" xml:space="preserve">Uncommitted changes (separate view)</x:String>
+  <x:String x:Key="Text.TaskCompare.Stale" xml:space="preserve">The branch, refs or worktree changed. This snapshot is out of date. Refresh before using it for further operations.</x:String>
+  <x:String x:Key="Text.TaskCompare.Unborn" xml:space="preserve">This worktree has no first commit to compare yet.</x:String>
+  <x:String x:Key="Text.TaskCompare.TargetMissing" xml:space="preserve">The selected comparison target is missing or invalid. Choose another branch.</x:String>
+  <x:String x:Key="Text.TaskCompare.NoMergeBase" xml:space="preserve">These histories have no common ancestor. Select the two-tip mode to compare their current versions.</x:String>
+  <x:String x:Key="Text.TaskCompare.MultipleMergeBases" xml:space="preserve">These histories have multiple merge bases. Select the two-tip mode or inspect the history in an external tool.</x:String>
+  <x:String x:Key="Text.TaskCompare.ReadFailed" xml:space="preserve">Could not read task changes. Check the worktree and Git state, then refresh.</x:String>
+  <x:String x:Key="Text.TaskCompare.CachedTarget" xml:space="preserve">The target is a local remote-tracking cache. Fetch updates before comparing again.</x:String>
 </ResourceDictionary>

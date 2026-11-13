@@ -97,6 +97,8 @@ namespace SourceGit.ViewModels
                     OnPropertyChanged(nameof(IsDashboardVisible));
                     OnPropertyChanged(nameof(IsWorkingCopyVisible));
                     OnPropertyChanged(nameof(IsStashesVisible));
+                    OnPropertyChanged(nameof(IsTaskComparisonVisible));
+                    if (value == 3) EnsureTaskComparison();
                 }
             }
         }
@@ -479,6 +481,7 @@ namespace SourceGit.ViewModels
 
         public void Close()
         {
+            _taskComparison?.Dispose();
             _isTaskOverviewClosed = true;
             Interlocked.Increment(ref _worktreeListGeneration);
             var commitMessage = _workingCopy.CommitMessage;

@@ -50,6 +50,7 @@ internal static partial class Program
             App.SetLocale("zh_CN");
             OS.SetupExternalTools();
             RunOverview();
+            if (args.Contains("--comparison")) RunComparison();
             _results.Add($"Passed {_checks} probe checks.");
             return 0;
         }
@@ -60,16 +61,18 @@ internal static partial class Program
         }
         finally
         {
-            _window?.Close();
-            if (_launcher != null)
-                foreach (var page in _launcher.Pages)
-                    if (page.Data is VM.Repository open) open.Close();
+            CloseFixture();
             Environment.SetEnvironmentVariable("GIT_CONFIG_GLOBAL", originalGlobal);
             Environment.SetEnvironmentVariable("GIT_CONFIG_NOSYSTEM", originalSystem);
             File.WriteAllLines(Path.Combine(_output, "results.txt"), _results);
-            Console.WriteLine(string.Join("\n", _results));
+            Console.WriteLine(_results[^1]);
             if (Directory.Exists(_root))
             {
+                var temporaryRoot = Path.GetFullPath(_root);
+                var expectedPrefix = Path.Combine(Path.GetTempPath(), "GitNest-probe-");
+                if (!temporaryRoot.StartsWith(expectedPrefix, StringComparison.OrdinalIgnoreCase) ||
+                    !Guid.TryParseExact(temporaryRoot[expectedPrefix.Length..], "N", out _))
+                    throw new InvalidOperationException("Refusing to recycle a directory outside the probe fixture.");
                 foreach (var file in Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories))
                     File.SetAttributes(file, FileAttributes.Normal);
                 Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(_root,
@@ -167,6 +170,19 @@ internal static partial class Program
         Await(() => File.Exists(output) && new FileInfo(output).Length > 0);
         Check(WorktreeTaskStore.PathsEqual(File.ReadAllLines(output)[0], taskPath), "Terminal starts in the selected worktree");
         Environment.SetEnvironmentVariable("GITNEST_PROBE_TOOL_OUTPUT", null);
+        CloseFixture();
+    }
+
+    private static void CloseFixture()
+    {
+        var window = _window;
+        var launcher = _launcher;
+        _window = null;
+        _launcher = null;
+        window?.Close();
+        if (launcher != null)
+            foreach (var page in launcher.Pages)
+                if (page.Data is VM.Repository open) open.Close();
     }
 
     private static void Check(bool condition, string message)
@@ -174,6 +190,7 @@ internal static partial class Program
         if (!condition) throw new Exception(message);
         _checks++;
         _results.Add("PASS " + message);
+        Console.WriteLine("PASS " + message);
     }
 
     private static void Pump()
@@ -214,5 +231,7 @@ internal static partial class Program
         if (process.ExitCode != 0) throw new Exception(error.GetAwaiter().GetResult());
         return output.GetAwaiter().GetResult().TrimEnd('\r', '\n');
     }
+
+    static partial void RunComparison();
 
 }

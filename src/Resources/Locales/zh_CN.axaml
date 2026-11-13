@@ -1163,4 +1163,26 @@
   <x:String x:Key="Text.Worktree.Task.OpenEditor" xml:space="preserve">在编辑器打开</x:String>
   <x:String x:Key="Text.Worktree.Task.SelectEditor" xml:space="preserve">选择编辑器程序…</x:String>
   <x:String x:Key="Text.Worktree.Task.OpenFailed" xml:space="preserve">打开工具失败：{0}</x:String>
+  <x:String x:Key="Text.TaskCompare.Title" xml:space="preserve">累计差异</x:String>
+  <x:String x:Key="Text.TaskCompare.Open" xml:space="preserve">查看本任务改动</x:String>
+  <x:String x:Key="Text.TaskCompare.Refresh" xml:space="preserve">刷新比较</x:String>
+  <x:String x:Key="Text.TaskCompare.Target" xml:space="preserve">比较目标</x:String>
+  <x:String x:Key="Text.TaskCompare.Mode" xml:space="preserve">比较方式</x:String>
+  <x:String x:Key="Text.TaskCompare.MergeBase" xml:space="preserve">共同祖先 → 任务 HEAD（已提交成果）</x:String>
+  <x:String x:Key="Text.TaskCompare.TwoTips" xml:space="preserve">目标当前版本 → 任务 HEAD（两端差异）</x:String>
+  <x:String x:Key="Text.TaskCompare.ChooseTarget" xml:space="preserve">请选择比较目标。目标保存在本机，供此工作树下次使用。</x:String>
+  <x:String x:Key="Text.TaskCompare.Source" xml:space="preserve">任务快照</x:String>
+  <x:String x:Key="Text.TaskCompare.TargetSnapshot" xml:space="preserve">目标快照</x:String>
+  <x:String x:Key="Text.TaskCompare.Base" xml:space="preserve">共同祖先基准：{0}</x:String>
+  <x:String x:Key="Text.TaskCompare.TipBase" xml:space="preserve">目标版本基准：{0}</x:String>
+  <x:String x:Key="Text.TaskCompare.Summary" xml:space="preserve">{0} 个文件 · 文本 +{1} / −{2} 行 · 二进制 {3} 个</x:String>
+  <x:String x:Key="Text.TaskCompare.Commits" xml:space="preserve">仅任务侧可达提交：显示 {0} / 共 {1} 条（最多 500 条）</x:String>
+  <x:String x:Key="Text.TaskCompare.Uncommitted" xml:space="preserve">未提交修改（单独查看）</x:String>
+  <x:String x:Key="Text.TaskCompare.Stale" xml:space="preserve">分支、引用或工作树状态已变化，此比较快照已过期。刷新后再用于后续操作。</x:String>
+  <x:String x:Key="Text.TaskCompare.Unborn" xml:space="preserve">此工作树还没有首次提交，暂时无法比较已提交成果。</x:String>
+  <x:String x:Key="Text.TaskCompare.TargetMissing" xml:space="preserve">所选比较目标不存在或不是有效分支，请重新选择。</x:String>
+  <x:String x:Key="Text.TaskCompare.NoMergeBase" xml:space="preserve">双方没有共同祖先。可选择“两端差异”直接比较当前版本。</x:String>
+  <x:String x:Key="Text.TaskCompare.MultipleMergeBases" xml:space="preserve">双方存在多个共同祖先。请选择“两端差异”，或在外部工具中检查历史。</x:String>
+  <x:String x:Key="Text.TaskCompare.ReadFailed" xml:space="preserve">无法读取累计差异，请检查工作树目录和 Git 状态后刷新。</x:String>
+  <x:String x:Key="Text.TaskCompare.CachedTarget" xml:space="preserve">目标来自本地远程跟踪缓存；“获取更新”后可重新比较。</x:String>
 </ResourceDictionary>

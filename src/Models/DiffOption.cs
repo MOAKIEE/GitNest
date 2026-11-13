@@ -11,6 +11,7 @@ namespace SourceGit.Models
         public List<string> Revisions => _revisions;
         public string Path => _path;
         public string OrgPath => _orgPath;
+        public bool DisableTextConversion { get; set; }
 
         /// <summary>
         ///     Only used for working copy changes

@@ -35,7 +35,7 @@ namespace SourceGit.Commands
             var snapshot = new Models.TaskComparison() { FullPath = _path, CommonDirectory = _commonDirectory, TargetRef = targetRef, Mode = mode };
             try
             {
-                var status = await new QueryWorktreeStatus(_path).GetResultAsync(_commonDirectory).ConfigureAwait(false);
+                var status = await new QueryWorktreeStatus(_path) { CancellationToken = cancellationToken }.GetResultAsync(_commonDirectory).ConfigureAwait(false);
                 snapshot.WorkingCopy = status;
                 if (!status.IsReadable)
                     snapshot.Error = status.Error;

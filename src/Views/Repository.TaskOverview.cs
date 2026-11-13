@@ -13,6 +13,9 @@ namespace SourceGit.Views
     {
         private void AddWorktreeTaskMenuItems(ContextMenu menu, ViewModels.Repository repo, ViewModels.Worktree worktree)
         {
+            var compare = new MenuItem() { Header = App.Text("TaskCompare.Open"), IsEnabled = Directory.Exists(worktree.FullPath) && !worktree.Backend.IsBare };
+            compare.Click += (_, e) => { repo.ShowTaskComparison(worktree); e.Handled = true; };
+            menu.Items.Add(compare);
             var edit = new MenuItem() { Header = App.Text("Worktree.Task.Edit") };
             edit.Click += (_, e) =>
             {

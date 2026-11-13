@@ -121,6 +121,12 @@
             <TextBlock Text="{DynamicResource Text.Stashes}" FontSize="12" HorizontalAlignment="Center"/>
           </StackPanel>
         </ListBoxItem>
+        <ListBoxItem IsVisible="{Binding !IsBare}" ToolTip.Tip="{DynamicResource Text.TaskCompare.Open}">
+          <StackPanel Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <Path Width="24" Height="24" Data="{StaticResource Icons.Compare}"/>
+            <TextBlock Text="{DynamicResource Text.TaskCompare.Title}" FontSize="12" HorizontalAlignment="Center"/>
+          </StackPanel>
+        </ListBoxItem>
       </ListBox>
       
       <Button Grid.Row="2"
@@ -922,6 +928,10 @@
               <!-- Stashes Page -->
               <Border IsVisible="{Binding IsStashesVisible, Mode=OneWay}" PropertyChanged="OnRightPagePropertyChanged">
                 <v:StashesPage DataContext="{Binding StashesPage, Mode=OneWay}"/>
+              </Border>
+
+              <Border IsVisible="{Binding IsTaskComparisonVisible}" PropertyChanged="OnRightPagePropertyChanged">
+                <v:TaskComparison DataContext="{Binding TaskComparison}"/>
               </Border>
 
               <!-- Auto-Fetch Notification -->

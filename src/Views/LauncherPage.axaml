@@ -50,6 +50,7 @@
 
               <v:Repository.IsNormalSidebarVisible>
                 <MultiBinding Converter="{x:Static BoolConverters.Or}">
+                  <Binding Path="IsTaskComparisonVisible"/>
                   <MultiBinding Converter="{x:Static BoolConverters.And}">
                     <Binding Path="IsDashboardVisible"/>
                     <Binding Path="Histories.IsSearchingCommits" Converter="{x:Static BoolConverters.Not}"/>

@@ -57,6 +57,7 @@
 
 	<Folder Name="/tests/">
 		<Project Path="tests/GitNest.IntegrationTests/GitNest.IntegrationTests.csproj" />
+		<Project Path="tests/GitNest.UIProbe/GitNest.UIProbe.csproj" />
 	</Folder>
 
 	<Folder Name="/files/">

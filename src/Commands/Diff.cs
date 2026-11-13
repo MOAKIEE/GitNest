@@ -47,6 +47,8 @@ namespace SourceGit.Commands
 
             var builder = new StringBuilder(256);
             builder.Append("diff --no-color --no-ext-diff --full-index --patch ");
+            if (opt.DisableTextConversion)
+                builder.Append("--no-textconv ");
             if (ignoreWhitespace)
                 builder.Append("--ignore-space-change --ignore-blank-lines ");
             if (ignoreCRAtEOL)
