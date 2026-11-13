@@ -1,29 +1,113 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:SourceGit.ViewModels"
+             xmlns:v="using:SourceGit.Views"
              x:Class="SourceGit.Views.GitSetup"
              x:DataType="vm:GitSetup">
-  <Border Padding="16" Margin="0,0,0,12" CornerRadius="8"
+  <Border Padding="14,12" Margin="0,0,0,10" CornerRadius="6"
           BorderThickness="1" BorderBrush="{DynamicResource Brush.Border0}"
           Background="{DynamicResource Brush.Contents}">
-    <StackPanel Spacing="8">
-      <TextBlock Text="{DynamicResource Text.GitSetup.Title}" FontSize="20" FontWeight="SemiBold"/>
-      <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap"/>
-      <TextBlock Text="{Binding Executable}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.FG2}"/>
-      <TextBlock Text="{Binding Version, StringFormat='Git {0}'}" IsVisible="{Binding HasVersion}"/>
-      <WrapPanel Orientation="Horizontal" IsEnabled="{Binding !IsChecking}">
-        <Button Margin="0,0,8,4" Padding="12,6" Content="{DynamicResource Text.GitSetup.Detect}" Click="OnDetect"/>
-        <Button Margin="0,0,8,4" Padding="12,6" Content="{DynamicResource Text.GitSetup.Select}" Click="OnSelect"/>
-        <Button Margin="0,0,0,4" Padding="12,6" Content="{DynamicResource Text.GitSetup.Download}" Click="OnDownload" IsVisible="{Binding !IsReady}"/>
-      </WrapPanel>
-      <TextBlock Text="{DynamicResource Text.GitSetup.Checking}" IsVisible="{Binding IsChecking}"/>
-      <TextBlock Text="{Binding IdentityMessage}" TextWrapping="Wrap"/>
-      <TextBlock Text="{DynamicResource Text.GitSetup.Authentication}" TextWrapping="Wrap"
-                 Foreground="{DynamicResource Brush.FG2}" FontSize="12"/>
-      <WrapPanel Orientation="Horizontal" IsEnabled="{Binding IsReady}">
-        <Button Margin="0,0,8,0" Padding="16,8" Content="{DynamicResource Text.Welcome.OpenOrInit}"
+    <StackPanel Spacing="6">
+      <!-- Header: Status + Version Pill + Git Tool Actions -->
+      <Grid ColumnDefinitions="*,Auto">
+        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+          <Path Width="15" Height="15" Margin="0,0,8,0" VerticalAlignment="Center"
+                Data="{StaticResource Icons.CheckCircled}" Fill="#2DA44E"
+                IsVisible="{Binding IsReady}"/>
+          <Path Width="15" Height="15" Margin="0,0,8,0" VerticalAlignment="Center"
+                Data="{StaticResource Icons.Error}" Fill="DarkOrange"
+                IsVisible="{Binding !IsReady}"/>
+          <TextBlock Text="{DynamicResource Text.GitSetup.Title}"
+                     FontSize="15" Classes="bold"
+                     Margin="0,0,8,0" VerticalAlignment="Center"/>
+
+          <Border Height="18" Padding="7,0" Margin="0,0,8,0"
+                  CornerRadius="9" VerticalAlignment="Center"
+                  BorderThickness="1" BorderBrush="#662DA44E"
+                  Background="#1C2DA44E"
+                  IsVisible="{Binding IsReady}">
+            <TextBlock Text="{Binding StatusMessage}"
+                       FontSize="11"
+                       Foreground="{DynamicResource Brush.FG1}"
+                       VerticalAlignment="Center"/>
+          </Border>
+
+          <Border Height="18" Padding="7,0" Margin="0,0,8,0"
+                  CornerRadius="9" VerticalAlignment="Center"
+                  BorderThickness="1" BorderBrush="{DynamicResource Brush.Border2}"
+                  Background="{DynamicResource Brush.Window}"
+                  IsVisible="{Binding HasVersion}">
+            <TextBlock Text="{Binding Version, StringFormat='Git {0}'}"
+                       FontSize="11"
+                       FontFamily="{DynamicResource Fonts.Monospace}"
+                       Foreground="{DynamicResource Brush.FG1}"
+                       VerticalAlignment="Center"/>
+          </Border>
+
+          <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center"
+                      IsVisible="{Binding IsChecking}">
+            <v:LoadingIcon Width="12" Height="12"/>
+            <TextBlock Text="{DynamicResource Text.GitSetup.Checking}"
+                       FontSize="11.5" Foreground="{DynamicResource Brush.FG2}"
+                       VerticalAlignment="Center"/>
+          </StackPanel>
+        </WrapPanel>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                    Margin="8,0,0,0" VerticalAlignment="Center"
+                    IsEnabled="{Binding !IsChecking}">
+          <Button Classes="flat" Height="26" Padding="10,0" CornerRadius="4"
+                  FontSize="12" FontWeight="Normal"
+                  Content="{DynamicResource Text.GitSetup.Detect}" Click="OnDetect"/>
+          <Button Classes="flat" Height="26" Padding="10,0" CornerRadius="4"
+                  FontSize="12" FontWeight="Normal"
+                  Content="{DynamicResource Text.GitSetup.Select}" Click="OnSelect"/>
+          <Button Classes="flat primary" Height="26" Padding="10,0" CornerRadius="4"
+                  FontSize="12" FontWeight="SemiBold"
+                  Content="{DynamicResource Text.GitSetup.Download}" Click="OnDownload"
+                  IsVisible="{Binding !IsReady}"/>
+        </StackPanel>
+      </Grid>
+
+      <!-- Warning when Git is unavailable or unsupported -->
+      <TextBlock Margin="23,0,0,0"
+                 Text="{Binding StatusMessage}"
+                 TextWrapping="Wrap"
+                 Foreground="DarkOrange"
+                 IsVisible="{Binding !IsReady}"/>
+
+      <!-- Executable & Identity Details -->
+      <Grid Margin="23,0,0,0" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*">
+        <TextBlock Grid.Row="0"
+                   Margin="0,0,0,3"
+                   Text="{Binding Executable}"
+                   FontSize="11.5"
+                   FontFamily="{DynamicResource Fonts.Monospace}"
+                   Foreground="{DynamicResource Brush.FG2}"
+                   TextTrimming="CharacterEllipsis"
+                   ToolTip.Tip="{Binding Executable}"
+                   IsVisible="{Binding Executable, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+        <TextBlock Grid.Row="1"
+                   Margin="0,0,0,3"
+                   Text="{Binding IdentityMessage}"
+                   FontSize="12"
+                   TextWrapping="Wrap"/>
+        <TextBlock Grid.Row="2"
+                   Text="{DynamicResource Text.GitSetup.Authentication}"
+                   TextWrapping="Wrap"
+                   Foreground="{DynamicResource Brush.FG2}"
+                   FontSize="11.5"/>
+      </Grid>
+
+      <!-- Primary Repository Actions -->
+      <WrapPanel Margin="23,4,0,0" Orientation="Horizontal" IsEnabled="{Binding IsReady}">
+        <Button Classes="flat primary" Height="28" Margin="0,0,8,2" Padding="12,0" CornerRadius="4"
+                FontWeight="SemiBold"
+                Content="{DynamicResource Text.Welcome.OpenOrInit}"
                 Command="{Binding Source={x:Static vm:Welcome.Instance}, Path=OpenLocalRepository}"/>
-        <Button Padding="16,8" Content="{DynamicResource Text.Welcome.Clone}"
+        <Button Classes="flat" Height="28" Margin="0,0,0,2" Padding="12,0" CornerRadius="4"
+                FontWeight="Normal"
+                Content="{DynamicResource Text.Welcome.Clone}"
                 Command="{Binding Source={x:Static vm:Welcome.Instance}, Path=Clone}"/>
       </WrapPanel>
     </StackPanel>

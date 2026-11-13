@@ -16,6 +16,7 @@ namespace SourceGit.ViewModels
         public string Branch { get; private set; }
         public Models.WorktreeTask Task { get; private set; } = new();
         public Models.WorktreeStatus Status { get; private set; }
+        public bool IsTaskCompleted => Task.IsCompleted;
         public string TaskState => App.Text(Task.IsCompleted ? "Worktree.Task.Completed" : "Worktree.Task.Active");
         public string BranchDescription => $"{Branch} · {TaskState}";
         public string ChangesDescription => DescribeChanges(Status);
@@ -74,6 +75,7 @@ namespace SourceGit.ViewModels
         public void NotifyTaskChanged()
         {
             OnPropertyChanged(nameof(Name));
+            OnPropertyChanged(nameof(IsTaskCompleted));
             OnPropertyChanged(nameof(TaskState));
             OnPropertyChanged(nameof(BranchDescription));
         }

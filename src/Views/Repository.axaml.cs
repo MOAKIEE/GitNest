@@ -275,9 +275,9 @@ namespace SourceGit.Views
                 {
                     var test = leftHeight - desiredBranches - desiredTag - desiredSubmodule;
                     if (test < 0)
-                        height = Math.Min(120, height);
+                        height = Math.Min(128, height);
                     else
-                        height = Math.Max(120, test);
+                        height = Math.Max(128, test);
                 }
 
                 leftHeight -= height;

@@ -275,10 +275,29 @@
                     Click="OnAbortInProgress"/>
           </Grid>
 
-          <Border Grid.Row="1" Background="{DynamicResource Brush.SubPanel}" BorderBrush="{DynamicResource Brush.Border0}" BorderThickness="0,0,0,1" Padding="10,6">
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Text="{Binding StatusSummary}" TextWrapping="Wrap" VerticalAlignment="Center" ToolTip.Tip="{Binding StatusSummaryDetail}"/>
-              <Button Grid.Column="1" Margin="12,0,0,0" Padding="8,3" Content="{DynamicResource Text.Repository.ViewChanges}" Command="{Binding ShowChanges}"/>
+          <Border Grid.Row="1" Background="{DynamicResource Brush.SubPanel}" BorderBrush="{DynamicResource Brush.Border0}" BorderThickness="0,0,0,1" Padding="10,5">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <Path Grid.Column="0" Width="12" Height="12" Margin="0,0,8,0"
+                    VerticalAlignment="Center"
+                    Fill="{DynamicResource Brush.FG2}"
+                    Data="{StaticResource Icons.Branch}"/>
+              <TextBlock Grid.Column="1"
+                         Text="{Binding StatusSummary}"
+                         FontSize="12"
+                         TextTrimming="CharacterEllipsis"
+                         VerticalAlignment="Center"
+                         ToolTip.Tip="{Binding StatusSummaryDetail}"/>
+              <Button Grid.Column="2"
+                      Classes="flat"
+                      Height="24"
+                      Margin="12,0,0,0"
+                      Padding="10,0"
+                      CornerRadius="4"
+                      FontSize="12"
+                      FontWeight="Normal"
+                      VerticalAlignment="Center"
+                      Content="{DynamicResource Text.Repository.ViewChanges}"
+                      Command="{Binding ShowChanges}"/>
             </Grid>
           </Border>
 
@@ -579,30 +598,84 @@
                             </Grid>
                           </StackPanel>
                         </ToolTip.Tip>
-                        <Grid RowDefinitions="24,20,20,20,20,20" ColumnDefinitions="9,Auto,Auto,*,22" VerticalAlignment="Center">
-                          <v:WorktreeDepthIcon Grid.Column="1" Brush="{DynamicResource Brush.Border1}"/>
-                          <v:WorktreeIcon Grid.Column="2"
-                                          Width="10" Height="10"
-                                          Margin="8,0,0,0"/>
-                          <TextBlock Grid.Column="3"
-                                     Margin="8,0,0,0"
-                                     Foreground="{DynamicResource Brush.FG2}"
-                                     TextTrimming="CharacterEllipsis">
-                            <Run Text="{Binding Name, Mode=OneWay}"
-                                 FontWeight="{Binding IsCurrent, Mode=OneWay, Converter={x:Static c:BoolConverters.IsBoldToFontWeight}}"
-                                 Foreground="{DynamicResource Brush.FG1}"/>
-                          </TextBlock>
-                          <Path Grid.Column="4"
-                                Width="10" Height="10"
-                                Margin="4,0,0,0"
-                                Data="{StaticResource Icons.Lock}"
-                                Fill="{DynamicResource Brush.FG2}"
-                                IsVisible="{Binding IsLocked, Mode=OneWay}"/>
-                          <TextBlock Grid.Row="1" Grid.ColumnSpan="5" Margin="8,0" Text="{Binding BranchDescription}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding BranchDescription}"/>
-                          <TextBlock Grid.Row="2" Grid.ColumnSpan="5" Margin="8,0" Text="{Binding FullPath}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding FullPath}" Foreground="{DynamicResource Brush.FG2}"/>
-                          <TextBlock Grid.Row="3" Grid.ColumnSpan="5" Margin="8,0" Text="{Binding ChangesDescription}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ChangesDescription}" FontSize="11"/>
-                          <TextBlock Grid.Row="4" Grid.ColumnSpan="5" Margin="8,0" Text="{Binding SyncDescription}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding SyncDescription}" FontSize="11"/>
-                          <TextBlock Grid.Row="5" Grid.ColumnSpan="5" Margin="8,0" Text="{Binding RefreshDescription}" FontSize="11" Foreground="{DynamicResource Brush.FG2}"/>
+                        <Grid>
+                          <Grid Margin="0,5,6,5" RowDefinitions="22,20,18,18,18,18" ColumnDefinitions="9,Auto,Auto,*,Auto" VerticalAlignment="Center">
+                            <v:WorktreeDepthIcon Grid.Column="1" Brush="{DynamicResource Brush.Border1}"/>
+                            <v:WorktreeIcon Grid.Column="2"
+                                            Width="11" Height="11"
+                                            Margin="8,0,0,0"
+                                            VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="3"
+                                       Margin="6,0,0,0"
+                                       VerticalAlignment="Center"
+                                       Foreground="{DynamicResource Brush.FG1}"
+                                       TextTrimming="CharacterEllipsis"
+                                       Text="{Binding Name, Mode=OneWay}"
+                                       FontWeight="{Binding IsCurrent, Mode=OneWay, Converter={x:Static c:BoolConverters.IsBoldToFontWeight}}"/>
+                            <Path Grid.Column="4"
+                                  Width="10" Height="10"
+                                  Margin="6,0,2,0"
+                                  VerticalAlignment="Center"
+                                  Data="{StaticResource Icons.Lock}"
+                                  Fill="{DynamicResource Brush.FG2}"
+                                  IsVisible="{Binding IsLocked, Mode=OneWay}"/>
+
+                            <Grid Grid.Row="1" Grid.ColumnSpan="5" Margin="16,0,0,0" ColumnDefinitions="Auto,*,Auto">
+                              <Path Grid.Column="0" Width="10" Height="10" Margin="0,0,5,0"
+                                    VerticalAlignment="Center"
+                                    Fill="{DynamicResource Brush.FG2}"
+                                    Data="{StaticResource Icons.Branch}"/>
+                              <TextBlock Grid.Column="1"
+                                         FontSize="12"
+                                         VerticalAlignment="Center"
+                                         Foreground="{DynamicResource Brush.FG1}"
+                                         Text="{Binding Branch}"
+                                         TextTrimming="CharacterEllipsis"
+                                         ToolTip.Tip="{Binding BranchDescription}"/>
+                              <Border Grid.Column="2" Margin="6,0,0,0" Height="16" Padding="5,0"
+                                      CornerRadius="3" VerticalAlignment="Center"
+                                      BorderThickness="1" BorderBrush="#662DA44E"
+                                      Background="#1C2DA44E"
+                                      IsVisible="{Binding IsTaskCompleted}">
+                                <TextBlock FontSize="10.5"
+                                           Foreground="{DynamicResource Brush.FG1}"
+                                           Text="{Binding TaskState}"
+                                           VerticalAlignment="Center"/>
+                              </Border>
+                              <Border Grid.Column="2" Margin="6,0,0,0" Height="16" Padding="5,0"
+                                      CornerRadius="3" VerticalAlignment="Center"
+                                      BorderThickness="1" BorderBrush="{DynamicResource Brush.Border2}"
+                                      IsVisible="{Binding !IsTaskCompleted}">
+                                <TextBlock FontSize="10.5"
+                                           Foreground="{DynamicResource Brush.FG2}"
+                                           Text="{Binding TaskState}"
+                                           VerticalAlignment="Center"/>
+                              </Border>
+                            </Grid>
+
+                            <TextBlock Grid.Row="2" Grid.ColumnSpan="5" Margin="16,0,0,0"
+                                       FontSize="11.5" VerticalAlignment="Center"
+                                       Text="{Binding FullPath}" TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding FullPath}" Foreground="{DynamicResource Brush.FG2}"/>
+                            <TextBlock Grid.Row="3" Grid.ColumnSpan="5" Margin="16,0,0,0"
+                                       FontSize="11.5" VerticalAlignment="Center"
+                                       Text="{Binding ChangesDescription}" TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding ChangesDescription}"/>
+                            <TextBlock Grid.Row="4" Grid.ColumnSpan="5" Margin="16,0,0,0"
+                                       FontSize="11.5" VerticalAlignment="Center"
+                                       Text="{Binding SyncDescription}" TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding SyncDescription}" Foreground="{DynamicResource Brush.FG2}"/>
+                            <TextBlock Grid.Row="5" Grid.ColumnSpan="5" Margin="16,0,0,0"
+                                       FontSize="11" VerticalAlignment="Center"
+                                       Text="{Binding RefreshDescription}" TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding RefreshDescription}" Foreground="{DynamicResource Brush.FG2}"/>
+                          </Grid>
+
+                          <Border Height="1" Margin="8,0"
+                                  VerticalAlignment="Bottom"
+                                  Background="{DynamicResource Brush.Border0}"
+                                  Opacity="0.45"
+                                  IsVisible="{Binding !IsLast}"/>
                         </Grid>
                       </Border>
                     </DataTemplate>

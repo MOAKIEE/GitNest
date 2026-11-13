@@ -1150,7 +1150,8 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.Worktree.Task.Active" xml:space="preserve">Not marked complete</x:String>
   <x:String x:Key="Text.Worktree.Task.Completed" xml:space="preserve">Marked complete</x:String>
   <x:String x:Key="Text.Worktree.Task.Edit" xml:space="preserve">Edit task alias and status</x:String>
-  <x:String x:Key="Text.Worktree.Task.Alias" xml:space="preserve">Task alias (empty uses branch/directory name)</x:String>
+  <x:String x:Key="Text.Worktree.Task.AliasLabel" xml:space="preserve">Task alias</x:String>
+  <x:String x:Key="Text.Worktree.Task.Alias" xml:space="preserve">Empty uses branch/directory name</x:String>
   <x:String x:Key="Text.Worktree.Task.LocalOnly" xml:space="preserve">Saved in GitNest settings on this computer. Git branch names stay unchanged.</x:String>
   <x:String x:Key="Text.Worktree.Task.MarkCompleted" xml:space="preserve">Manually mark this task complete</x:String>
   <x:String x:Key="Text.Worktree.Task.SaveFailed" xml:space="preserve">Could not save task settings: {0}</x:String>

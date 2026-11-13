@@ -1154,7 +1154,8 @@
   <x:String x:Key="Text.Worktree.Task.Active" xml:space="preserve">未标记完成</x:String>
   <x:String x:Key="Text.Worktree.Task.Completed" xml:space="preserve">已手动标记完成</x:String>
   <x:String x:Key="Text.Worktree.Task.Edit" xml:space="preserve">编辑任务别名与状态</x:String>
-  <x:String x:Key="Text.Worktree.Task.Alias" xml:space="preserve">任务别名（留空使用分支或目录名）</x:String>
+  <x:String x:Key="Text.Worktree.Task.AliasLabel" xml:space="preserve">任务别名</x:String>
+  <x:String x:Key="Text.Worktree.Task.Alias" xml:space="preserve">留空使用分支或目录名</x:String>
   <x:String x:Key="Text.Worktree.Task.LocalOnly" xml:space="preserve">保存在本机 GitNest 设置中，分支名称保持原值。</x:String>
   <x:String x:Key="Text.Worktree.Task.MarkCompleted" xml:space="preserve">手动标记此任务已完成</x:String>
   <x:String x:Key="Text.Worktree.Task.SaveFailed" xml:space="preserve">任务设置保存失败：{0}</x:String>
