@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -235,6 +236,92 @@ namespace SourceGit.Commands
         protected void RaiseException(string error)
         {
             Models.Notification.Send(Context, error, true);
+        }
+
+        internal static Result RedactResult(Result result)
+        {
+            if (result == null)
+                return Result.Failed("Unknown error.");
+
+            return new Result
+            {
+                IsSuccess = result.IsSuccess,
+                ExitCode = result.ExitCode,
+                StdOut = Models.GitConfigSnapshot.RedactText(result.StdOut),
+                StdErr = Models.GitConfigSnapshot.RedactText(result.StdErr),
+            };
+        }
+
+        internal static async Task<Result> RunGitDirectAsync(
+            string workingDirectory,
+            CancellationToken cancellationToken,
+            params string[] args)
+        {
+            var gitExecutable = Native.OS.GitExecutable;
+            if (string.IsNullOrWhiteSpace(gitExecutable) || !File.Exists(gitExecutable))
+                return Result.Failed("Git executable not found.");
+
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(10));
+
+            using var proc = new Process();
+            proc.StartInfo = new ProcessStartInfo(gitExecutable)
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
+            };
+
+            if (!string.IsNullOrEmpty(workingDirectory))
+                proc.StartInfo.WorkingDirectory = workingDirectory;
+
+            if (!OperatingSystem.IsLinux())
+                proc.StartInfo.Environment["DISPLAY"] = "required";
+            if (!OperatingSystem.IsWindows())
+            {
+                proc.StartInfo.Environment["LANG"] = "C";
+                proc.StartInfo.Environment["LC_ALL"] = "C";
+            }
+
+            foreach (var arg in args)
+                proc.StartInfo.ArgumentList.Add(arg);
+
+            var started = false;
+            try
+            {
+                proc.Start();
+                started = true;
+                var stdOut = proc.StandardOutput.ReadToEndAsync(timeout.Token);
+                var stdErr = proc.StandardError.ReadToEndAsync(timeout.Token);
+                await Task.WhenAll(stdOut, stdErr, proc.WaitForExitAsync(timeout.Token)).ConfigureAwait(false);
+                return new Result
+                {
+                    IsSuccess = proc.ExitCode == 0,
+                    ExitCode = proc.ExitCode,
+                    StdOut = await stdOut.ConfigureAwait(false),
+                    StdErr = await stdErr.ConfigureAwait(false),
+                };
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is OperationCanceledException or IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+            {
+                return Result.Failed(Models.GitConfigSnapshot.RedactText(ex.Message));
+            }
+            finally
+            {
+                if (started && !proc.HasExited)
+                {
+                    try { proc.Kill(true); }
+                    catch (InvalidOperationException) { }
+                    catch (System.ComponentModel.Win32Exception) { }
+                }
+            }
         }
 
         private void HandleOutput(string line, List<string> errs)

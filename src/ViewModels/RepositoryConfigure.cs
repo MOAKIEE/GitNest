@@ -1,30 +1,176 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
+using Avalonia;
 using Avalonia.Collections;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace SourceGit.ViewModels
 {
     public class RepositoryConfigure : ObservableObject
     {
+        public RepositoryConfigure(Repository repo)
+        {
+            _repo = repo;
+
+            UserNameField = new ConfigFieldItem("user.name");
+            UserEmailField = new ConfigFieldItem("user.email");
+            HttpProxyField = new ConfigFieldItem("http.proxy");
+            HttpsProxyField = new ConfigFieldItem("https.proxy");
+            SigningFormatField = new ConfigFieldItem("gpg.format");
+            SigningKeyField = new ConfigFieldItem("user.signingkey");
+            SshAllowedSignersField = new ConfigFieldItem("gpg.ssh.allowedsignersfile");
+            CommitSignField = new ConfigFieldItem("commit.gpgsign", isBoolean: true);
+            TagSignField = new ConfigFieldItem("tag.gpgsign", isBoolean: true);
+            AutoCrlfField = new ConfigFieldItem("core.autocrlf");
+            FetchPruneField = new ConfigFieldItem("fetch.prune", isBoolean: true);
+
+            _fields =
+            [
+                UserNameField,
+                UserEmailField,
+                HttpProxyField,
+                HttpsProxyField,
+                SigningFormatField,
+                SigningKeyField,
+                SshAllowedSignersField,
+                CommitSignField,
+                TagSignField,
+                AutoCrlfField,
+                FetchPruneField,
+            ];
+
+            foreach (var field in _fields)
+                field.StateChanged += OnAnyDraftStateChanged;
+
+            foreach (var remote in _repo.Remotes)
+                Remotes.Add(remote.Name);
+
+            foreach (var rule in _repo.IssueTrackers)
+            {
+                IssueTrackers.Add(new Models.IssueTracker
+                {
+                    IsShared = rule.IsShared,
+                    Name = rule.Name,
+                    RegexString = rule.RegexString,
+                    URLTemplate = rule.URLTemplate,
+                });
+            }
+
+            RebuildScopeOptions(worktreeEnabled: false);
+            RebuildSigningFormatOptions(currentFormat: "openpgp");
+            RebuildAutoCrlfOptions(currentValue: string.Empty);
+
+            _loadTask = ReloadAsync();
+        }
+
+        public ConfigFieldItem UserNameField { get; }
+        public ConfigFieldItem UserEmailField { get; }
+        public ConfigFieldItem HttpProxyField { get; }
+        public ConfigFieldItem HttpsProxyField { get; }
+        public ConfigFieldItem SigningFormatField { get; }
+        public ConfigFieldItem SigningKeyField { get; }
+        public ConfigFieldItem SshAllowedSignersField { get; }
+        public ConfigFieldItem CommitSignField { get; }
+        public ConfigFieldItem TagSignField { get; }
+        public ConfigFieldItem AutoCrlfField { get; }
+        public ConfigFieldItem FetchPruneField { get; }
+
         public string UserName
         {
-            get;
-            set;
+            get => UserNameField.EditText;
+            set
+            {
+                if (!string.Equals(UserNameField.EditText, value ?? string.Empty, StringComparison.Ordinal))
+                {
+                    UserNameField.EditText = value ?? string.Empty;
+                    OnPropertyChanged();
+                }
+            }
         }
 
         public string UserEmail
         {
-            get;
-            set;
+            get => UserEmailField.EditText;
+            set
+            {
+                if (!string.Equals(UserEmailField.EditText, value ?? string.Empty, StringComparison.Ordinal))
+                {
+                    UserEmailField.EditText = value ?? string.Empty;
+                    OnPropertyChanged();
+                }
+            }
         }
 
-        public List<string> Remotes
+        public string HttpProxy
         {
-            get;
+            get => HttpProxyField.EditText;
+            set
+            {
+                if (!string.Equals(HttpProxyField.EditText, value ?? string.Empty, StringComparison.Ordinal))
+                {
+                    HttpProxyField.EditText = value ?? string.Empty;
+                    OnPropertyChanged();
+                }
+            }
         }
+
+        public bool GPGCommitSigningEnabled
+        {
+            get => CommitSignField.EditBool;
+            set
+            {
+                if (CommitSignField.EditBool != value)
+                {
+                    CommitSignField.EditBool = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public bool GPGTagSigningEnabled
+        {
+            get => TagSignField.EditBool;
+            set
+            {
+                if (TagSignField.EditBool != value)
+                {
+                    TagSignField.EditBool = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string GPGUserSigningKey
+        {
+            get => SigningKeyField.EditText;
+            set
+            {
+                if (!string.Equals(SigningKeyField.EditText, value ?? string.Empty, StringComparison.Ordinal))
+                {
+                    SigningKeyField.EditText = value ?? string.Empty;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public bool EnablePruneOnFetch
+        {
+            get => FetchPruneField.EditBool;
+            set
+            {
+                if (FetchPruneField.EditBool != value)
+                {
+                    FetchPruneField.EditBool = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public AvaloniaList<string> Remotes { get; } = [];
 
         public string DefaultRemote
         {
@@ -52,30 +198,6 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public bool GPGCommitSigningEnabled
-        {
-            get;
-            set;
-        }
-
-        public bool GPGTagSigningEnabled
-        {
-            get;
-            set;
-        }
-
-        public string GPGUserSigningKey
-        {
-            get;
-            set;
-        }
-
-        public string HttpProxy
-        {
-            get => _httpProxy;
-            set => SetProperty(ref _httpProxy, value);
-        }
-
         public string ConventionalTypesOverride
         {
             get => _repo.Settings.ConventionalTypesOverride;
@@ -89,28 +211,33 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public bool EnablePruneOnFetch
-        {
-            get;
-            set;
-        }
-
         public bool AskBeforeAutoUpdatingSubmodules
         {
             get => _repo.Settings.AskBeforeAutoUpdatingSubmodules;
-            set => _repo.Settings.AskBeforeAutoUpdatingSubmodules = value;
+            set
+            {
+                if (_repo.Settings.AskBeforeAutoUpdatingSubmodules != value)
+                {
+                    _repo.Settings.AskBeforeAutoUpdatingSubmodules = value;
+                    OnPropertyChanged();
+                }
+            }
         }
 
         public bool EnableRecursiveWhenAutoUpdatingSubmodules
         {
             get => _repo.Settings.EnableRecursiveWhenAutoUpdatingSubmodules;
-            set => _repo.Settings.EnableRecursiveWhenAutoUpdatingSubmodules = value;
+            set
+            {
+                if (_repo.Settings.EnableRecursiveWhenAutoUpdatingSubmodules != value)
+                {
+                    _repo.Settings.EnableRecursiveWhenAutoUpdatingSubmodules = value;
+                    OnPropertyChanged();
+                }
+            }
         }
 
-        public AvaloniaList<Models.CommitTemplate> CommitTemplates
-        {
-            get => _repo.Settings.CommitTemplates;
-        }
+        public AvaloniaList<Models.CommitTemplate> CommitTemplates => _repo.Settings.CommitTemplates;
 
         public Models.CommitTemplate SelectedCommitTemplate
         {
@@ -118,10 +245,7 @@ namespace SourceGit.ViewModels
             set => SetProperty(ref _selectedCommitTemplate, value);
         }
 
-        public AvaloniaList<Models.IssueTracker> IssueTrackers
-        {
-            get;
-        } = [];
+        public AvaloniaList<Models.IssueTracker> IssueTrackers { get; } = [];
 
         public Models.IssueTracker SelectedIssueTracker
         {
@@ -131,20 +255,31 @@ namespace SourceGit.ViewModels
 
         public List<string> AvailableOpenAIServices
         {
-            get;
-            private set;
+            get
+            {
+                var services = Preferences.Instance.OpenAIServices;
+                var items = new List<string> { "---" };
+                foreach (var service in services)
+                    items.Add(service.Name);
+                return items;
+            }
         }
 
         public string PreferredOpenAIService
         {
-            get => _repo.Settings.PreferredOpenAIService;
-            set => _repo.Settings.PreferredOpenAIService = value;
+            get => string.IsNullOrEmpty(_repo.Settings.PreferredOpenAIService) ? "---" : _repo.Settings.PreferredOpenAIService;
+            set
+            {
+                var actual = value == "---" ? string.Empty : value;
+                if (_repo.Settings.PreferredOpenAIService != actual)
+                {
+                    _repo.Settings.PreferredOpenAIService = actual;
+                    OnPropertyChanged();
+                }
+            }
         }
 
-        public AvaloniaList<Models.CustomAction> CustomActions
-        {
-            get => _repo.Settings.CustomActions;
-        }
+        public AvaloniaList<Models.CustomAction> CustomActions => _repo.Settings.CustomActions;
 
         public Models.CustomAction SelectedCustomAction
         {
@@ -152,57 +287,410 @@ namespace SourceGit.ViewModels
             set => SetProperty(ref _selectedCustomAction, value);
         }
 
-        public RepositoryConfigure(Repository repo)
+        public AvaloniaList<ConfigScopeOption> AvailableWriteScopes { get; } = [];
+
+        public ConfigScopeOption SelectedScopeOption
         {
-            _repo = repo;
-
-            Remotes = new List<string>();
-            foreach (var remote in _repo.Remotes)
-                Remotes.Add(remote.Name);
-
-            AvailableOpenAIServices = new List<string>() { "---" };
-            foreach (var service in Preferences.Instance.OpenAIServices)
-                AvailableOpenAIServices.Add(service.Name);
-
-            if (!AvailableOpenAIServices.Contains(PreferredOpenAIService))
-                PreferredOpenAIService = "---";
-
-            _cached = new Commands.Config(repo.FullPath).ReadAll();
-            if (_cached.TryGetValue("user.name", out var name))
-                UserName = name;
-            if (_cached.TryGetValue("user.email", out var email))
-                UserEmail = email;
-            if (_cached.TryGetValue("commit.gpgsign", out var gpgCommitSign))
-                GPGCommitSigningEnabled = gpgCommitSign == "true";
-            if (_cached.TryGetValue("tag.gpgsign", out var gpgTagSign))
-                GPGTagSigningEnabled = gpgTagSign == "true";
-            if (_cached.TryGetValue("user.signingkey", out var signingKey))
-                GPGUserSigningKey = signingKey;
-            if (_cached.TryGetValue("http.proxy", out var proxy))
-                HttpProxy = proxy;
-            if (_cached.TryGetValue("fetch.prune", out var prune))
-                EnablePruneOnFetch = (prune == "true");
-
-            foreach (var rule in _repo.IssueTrackers)
+            get => AvailableWriteScopes.FirstOrDefault(x => x.Scope == _targetScope);
+            set
             {
-                IssueTrackers.Add(new()
-                {
-                    IsShared = rule.IsShared,
-                    Name = rule.Name,
-                    RegexString = rule.RegexString,
-                    URLTemplate = rule.URLTemplate,
-                });
+                if (value != null)
+                    TargetScope = value.Scope;
             }
+        }
+
+        public Models.GitConfigWriteScope TargetScope
+        {
+            get => _targetScope;
+            set
+            {
+                if (value == Models.GitConfigWriteScope.Worktree && !WorktreeConfigEnabled)
+                    return;
+
+                if (SetProperty(ref _targetScope, value))
+                {
+                    OnPropertyChanged(nameof(SelectedScopeOption));
+                    OnPropertyChanged(nameof(ShowGlobalScopeWarning));
+                    OnPropertyChanged(nameof(ScopeDescription));
+
+                    if (_snapshot != null)
+                    {
+                        foreach (var item in _fields)
+                            item.RefreshFromSnapshot(_snapshot, _targetScope);
+                        SyncOptionSelectionsFromFields();
+                    }
+
+                    UpdateSigningPreview();
+                    OnAnyDraftStateChanged();
+                }
+            }
+        }
+
+        public bool WorktreeConfigEnabled
+        {
+            get => _worktreeConfigEnabled;
+            private set => SetProperty(ref _worktreeConfigEnabled, value);
+        }
+
+        public bool ShowWorktreeDisabledHint => !WorktreeConfigEnabled;
+        public bool ShowGlobalScopeWarning => TargetScope == Models.GitConfigWriteScope.Global;
+        public string ScopeDescription => SelectedScopeOption?.Description ?? string.Empty;
+
+        public bool IsLoading
+        {
+            get => _isLoading;
+            private set => SetProperty(ref _isLoading, value);
+        }
+
+        public bool IsSaving
+        {
+            get => _isSaving;
+            private set => SetProperty(ref _isSaving, value);
+        }
+
+        public bool SnapshotReadFailed
+        {
+            get => _snapshotReadFailed;
+            private set => SetProperty(ref _snapshotReadFailed, value);
+        }
+
+        public string SnapshotError
+        {
+            get => _snapshotError;
+            private set => SetProperty(ref _snapshotError, value);
+        }
+
+        public AvaloniaList<ConfigChoiceOption> SigningFormatOptions { get; } = [];
+        public ConfigChoiceOption SelectedSigningFormatOption
+        {
+            get
+            {
+                var current = string.IsNullOrWhiteSpace(SigningFormatField.EditText) ? "openpgp" : SigningFormatField.EditText.Trim().ToLowerInvariant();
+                return SigningFormatOptions.FirstOrDefault(x => string.Equals(x.Value, current, StringComparison.OrdinalIgnoreCase));
+            }
+            set
+            {
+                if (value != null && !_syncingOptions)
+                {
+                    SigningFormatField.EditText = value.Value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public bool ShowSshSigningOptions
+        {
+            get
+            {
+                var fmt = SigningFormatField.EditText.Trim();
+                return fmt.Equals("ssh", StringComparison.OrdinalIgnoreCase) || SshAllowedSignersField.HasEffectiveValue || SshAllowedSignersField.HasTargetScopeEntry;
+            }
+        }
+
+        public AvaloniaList<ConfigChoiceOption> AutoCrlfOptions { get; } = [];
+        public ConfigChoiceOption SelectedAutoCrlfOption
+        {
+            get
+            {
+                if (AutoCrlfField.PendingUnset)
+                    return AutoCrlfOptions.FirstOrDefault(x => x.Value.Length == 0);
+
+                var current = AutoCrlfField.EditText.Trim();
+                if (current.Length == 0 && !AutoCrlfField.HasEffectiveValue && !AutoCrlfField.PendingExplicitEmpty)
+                    return AutoCrlfOptions.FirstOrDefault(x => x.Value.Length == 0);
+
+                return AutoCrlfOptions.FirstOrDefault(x => string.Equals(x.Value, current, StringComparison.OrdinalIgnoreCase))
+                       ?? AutoCrlfOptions.FirstOrDefault(x => x.Value.Length == 0);
+            }
+            set
+            {
+                if (value == null || _syncingOptions)
+                    return;
+
+                if (value.Value.Length == 0)
+                {
+                    if (AutoCrlfField.HasTargetScopeEntry)
+                        AutoCrlfField.MarkUnsetLayer();
+                    else
+                        AutoCrlfField.Revert();
+                }
+                else
+                {
+                    AutoCrlfField.EditText = value.Value;
+                }
+
+                OnPropertyChanged();
+            }
+        }
+
+        public AvaloniaList<RemoteConfigDraft> RemotesDrafts { get; } = [];
+        public RemoteConfigDraft SelectedRemoteDraft
+        {
+            get => _selectedRemoteDraft;
+            set
+            {
+                if (SetProperty(ref _selectedRemoteDraft, value))
+                    OnPropertyChanged(nameof(HasSelectedRemote));
+            }
+        }
+
+        public bool HasSelectedRemote => SelectedRemoteDraft != null;
+        public bool HasNoRemotes => RemotesDrafts.Count == 0;
+
+        public string NewRemoteName
+        {
+            get => _newRemoteName;
+            set => SetProperty(ref _newRemoteName, value ?? string.Empty);
+        }
+
+        public string NewRemoteUrl
+        {
+            get => _newRemoteUrl;
+            set => SetProperty(ref _newRemoteUrl, value ?? string.Empty);
+        }
+
+        public string RemoteStagingError
+        {
+            get => _remoteStagingError;
+            private set
+            {
+                if (SetProperty(ref _remoteStagingError, value ?? string.Empty))
+                    OnPropertyChanged(nameof(HasRemoteStagingError));
+            }
+        }
+
+        public bool HasRemoteStagingError => !string.IsNullOrEmpty(RemoteStagingError);
+
+        public string CurrentBranchName
+        {
+            get => _currentBranchName;
+            private set
+            {
+                if (SetProperty(ref _currentBranchName, value ?? string.Empty))
+                    OnPropertyChanged(nameof(IsDetachedHead));
+            }
+        }
+
+        public bool IsDetachedHead => string.IsNullOrEmpty(CurrentBranchName);
+
+        public string EffectiveUpstreamSummary
+        {
+            get => _effectiveUpstreamSummary;
+            private set => SetProperty(ref _effectiveUpstreamSummary, value ?? string.Empty);
+        }
+
+        public bool IsUpstreamUnfetched
+        {
+            get => _isUpstreamUnfetched;
+            private set => SetProperty(ref _isUpstreamUnfetched, value);
+        }
+
+        public AvaloniaList<string> UpstreamRemoteOptions { get; } = [];
+
+        public string SelectedUpstreamRemote
+        {
+            get => _selectedUpstreamRemote;
+            set
+            {
+                var next = value ?? string.Empty;
+                if (SetProperty(ref _selectedUpstreamRemote, next))
+                {
+                    RebuildUpstreamBranchOptions();
+                    OnAnyDraftStateChanged();
+                }
+            }
+        }
+
+        public AvaloniaList<string> UpstreamBranchOptions { get; } = [];
+        public bool HasUpstreamBranchOptions => UpstreamBranchOptions.Count > 0;
+
+        public string UpstreamTargetBranch
+        {
+            get => _upstreamTargetBranch;
+            set
+            {
+                var next = value ?? string.Empty;
+                if (SetProperty(ref _upstreamTargetBranch, next))
+                    OnAnyDraftStateChanged();
+            }
+        }
+
+        public AvaloniaList<ConfigReadOnlyEntry> UrlProxyOverrides { get; } = [];
+        public bool HasUrlProxyOverrides => UrlProxyOverrides.Count > 0;
+
+        public AvaloniaList<ConfigReadOnlyEntry> CredentialHelpers { get; } = [];
+        public bool HasCredentialHelpers => CredentialHelpers.Count > 0;
+
+        public AvaloniaList<ConfigReadOnlyEntry> SshAndRuntimeEntries { get; } = [];
+        public bool HasSshAndRuntimeEntries => SshAndRuntimeEntries.Count > 0;
+
+        public string SigningProgramReadOnly
+        {
+            get => _signingProgramReadOnly;
+            private set => SetProperty(ref _signingProgramReadOnly, value);
+        }
+
+        public string CoreEolReadOnly
+        {
+            get => _coreEolReadOnly;
+            private set => SetProperty(ref _coreEolReadOnly, value);
+        }
+
+        public bool SigningStatusHasIssue
+        {
+            get => _signingStatusHasIssue;
+            private set => SetProperty(ref _signingStatusHasIssue, value);
+        }
+
+        public bool SigningStatusIsReady
+        {
+            get => _signingStatusIsReady;
+            private set => SetProperty(ref _signingStatusIsReady, value);
+        }
+
+        public bool SigningStatusIsDisabled
+        {
+            get => _signingStatusIsDisabled;
+            private set => SetProperty(ref _signingStatusIsDisabled, value);
+        }
+
+        public string SigningStatusMessage
+        {
+            get => _signingStatusMessage;
+            private set => SetProperty(ref _signingStatusMessage, value);
+        }
+
+        public string SigningStatusSecondaryNote
+        {
+            get => _signingStatusSecondaryNote;
+            private set
+            {
+                if (SetProperty(ref _signingStatusSecondaryNote, value ?? string.Empty))
+                    OnPropertyChanged(nameof(HasSigningStatusSecondaryNote));
+            }
+        }
+
+        public bool HasSigningStatusSecondaryNote => !string.IsNullOrEmpty(SigningStatusSecondaryNote);
+
+        public string SanitizedDiagnostics
+        {
+            get => _sanitizedDiagnostics;
+            private set => SetProperty(ref _sanitizedDiagnostics, value ?? string.Empty);
+        }
+
+        public int PendingChangesCount
+        {
+            get => _pendingChangesCount;
+            private set
+            {
+                if (SetProperty(ref _pendingChangesCount, value))
+                    OnPropertyChanged(nameof(PendingChangesText));
+            }
+        }
+
+        public string PendingChangesText => PendingChangesCount > 0
+            ? ConfigureLocalizer.Text("Configure.Actions.PendingCount", "有 {0} 项待保存变更", PendingChangesCount)
+            : ConfigureLocalizer.Text("Configure.Actions.NoChanges", "暂无未保存修改");
+
+        public ConfigSaveSummary SaveFeedback
+        {
+            get => _saveFeedback;
+            private set => SetProperty(ref _saveFeedback, value);
+        }
+
+        public Task EnsureLoadedAsync() => _loadTask ?? Task.CompletedTask;
+
+        public async Task ReloadAsync()
+        {
+            IsLoading = true;
+            try
+            {
+                var snapshot = await new Commands.Config(_repo.FullPath).ReadSnapshotAsync();
+                var branches = snapshot.IsReadable
+                    ? await new Commands.QueryBranches(_repo.FullPath).GetResultAsync()
+                    : [];
+
+                ApplySnapshot(snapshot, branches);
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        public void StageAddRemote()
+        {
+            RemoteStagingError = string.Empty;
+            var name = NewRemoteName.Trim();
+            var url = NewRemoteUrl.Trim();
+
+            if (string.IsNullOrWhiteSpace(name) || name.StartsWith('-'))
+            {
+                RemoteStagingError = "请输入有效的远端名称（不能以 '-' 开头）。";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(url) || url.StartsWith('-'))
+            {
+                RemoteStagingError = "请输入有效的远端 URL（不能以 '-' 开头）。";
+                return;
+            }
+
+            if (RemotesDrafts.Any(x => !x.IsMarkedForRemoval && string.Equals(x.Name.Trim(), name, StringComparison.Ordinal)))
+            {
+                RemoteStagingError = $"远端 '{name}' 已存在。";
+                return;
+            }
+
+            var draft = RemoteConfigDraft.CreateNew(name, url);
+            draft.StateChanged += OnAnyDraftStateChanged;
+            RemotesDrafts.Add(draft);
+            SelectedRemoteDraft = draft;
+            NewRemoteName = string.Empty;
+            NewRemoteUrl = string.Empty;
+            OnPropertyChanged(nameof(HasNoRemotes));
+            RebuildUpstreamRemoteOptions();
+            OnAnyDraftStateChanged();
+        }
+
+        public void ToggleRemoveSelectedRemote()
+        {
+            if (SelectedRemoteDraft == null)
+                return;
+
+            RemoteStagingError = string.Empty;
+            if (SelectedRemoteDraft.IsNew)
+            {
+                SelectedRemoteDraft.StateChanged -= OnAnyDraftStateChanged;
+                RemotesDrafts.Remove(SelectedRemoteDraft);
+                SelectedRemoteDraft = RemotesDrafts.FirstOrDefault();
+                OnPropertyChanged(nameof(HasNoRemotes));
+                RebuildUpstreamRemoteOptions();
+                OnAnyDraftStateChanged();
+                return;
+            }
+
+            SelectedRemoteDraft.IsMarkedForRemoval = !SelectedRemoteDraft.IsMarkedForRemoval;
+            RebuildUpstreamRemoteOptions();
+        }
+
+        public void ClearUpstream()
+        {
+            SelectedUpstreamRemote = string.Empty;
+            UpstreamTargetBranch = string.Empty;
         }
 
         public void ClearHttpProxy()
         {
-            HttpProxy = string.Empty;
+            HttpProxyField.MarkUnsetLayer();
+            if (!HttpProxyField.HasTargetScopeEntry)
+                HttpProxyField.EditText = string.Empty;
+            OnPropertyChanged(nameof(HttpProxy));
         }
 
         public void AddCommitTemplate()
         {
-            var template = new Models.CommitTemplate() { Name = "New Template" };
+            var template = new Models.CommitTemplate { Name = "New Template" };
             _repo.Settings.CommitTemplates.Add(template);
             SelectedCommitTemplate = template;
         }
@@ -227,7 +715,7 @@ namespace SourceGit.ViewModels
 
         public void AddIssueTracker(string name, string regex, string url)
         {
-            var rule = new Models.IssueTracker()
+            var rule = new Models.IssueTracker
             {
                 IsShared = false,
                 Name = name,
@@ -270,25 +758,983 @@ namespace SourceGit.ViewModels
                 _repo.Settings.MoveCustomActionDown(_selectedCustomAction);
         }
 
-        public async Task SaveAsync()
+        public async Task<ConfigSaveSummary> SaveAsync()
         {
-            _repo.Settings.Save();
+            if (IsSaving)
+                return SaveFeedback;
 
-            await SetIfChangedAsync("user.name", UserName, "");
-            await SetIfChangedAsync("user.email", UserEmail, "");
-            await SetIfChangedAsync("commit.gpgsign", GPGCommitSigningEnabled ? "true" : "false", "false");
-            await SetIfChangedAsync("tag.gpgsign", GPGTagSigningEnabled ? "true" : "false", "false");
-            await SetIfChangedAsync("user.signingkey", GPGUserSigningKey, "");
-            await SetIfChangedAsync("http.proxy", HttpProxy, "");
-            await SetIfChangedAsync("fetch.prune", EnablePruneOnFetch ? "true" : "false", "false");
+            IsSaving = true;
+            try
+            {
+                _repo.Settings.Save();
+                await ApplyIssueTrackerChangesAsync();
 
-            await ApplyIssueTrackerChangesAsync();
+                var configCmd = new Commands.Config(_repo.FullPath);
+                var preSaveSnapshot = await configCmd.ReadSnapshotAsync();
+                if (!preSaveSnapshot.IsReadable)
+                {
+                    var unreadable = new ConfigSaveSummary
+                    {
+                        Severity = ConfigFeedbackSeverity.Error,
+                        Headline = ConfigureLocalizer.Text("Configure.Save.AllFailed", "保存失败（共 {0} 项未能写入）：", 1),
+                        FailedCount = 1,
+                    };
+                    unreadable.FailureAndConflictLines.Add(string.IsNullOrEmpty(preSaveSnapshot.Error) ? "Unable to read repository config." : preSaveSnapshot.Error);
+                    SaveFeedback = unreadable;
+                    return unreadable;
+                }
+
+                if (TargetScope == Models.GitConfigWriteScope.Worktree && !preSaveSnapshot.WorktreeConfigEnabled)
+                {
+                    var notEnabled = new ConfigSaveSummary
+                    {
+                        Severity = ConfigFeedbackSeverity.Error,
+                        Headline = ConfigureLocalizer.Text("Configure.Save.AllFailed", "保存失败（共 {0} 项未能写入）：", 1),
+                        FailedCount = 1,
+                    };
+                    notEnabled.FailureAndConflictLines.Add("extensions.worktreeConfig is not enabled for this repository.");
+                    SaveFeedback = notEnabled;
+                    return notEnabled;
+                }
+
+                var results = new List<ConfigSaveItemResult>();
+                var attemptedKeys = new List<(string Key, string IntendedValue, bool WasUnset)>();
+
+                await SaveScalarFieldsAsync(preSaveSnapshot, _snapshot, configCmd, results, attemptedKeys);
+                await SaveRemoteDraftsAsync(preSaveSnapshot, _snapshot, results);
+                await SaveUpstreamAsync(preSaveSnapshot, _snapshot, results);
+
+                var refreshedSnapshot = await configCmd.ReadSnapshotAsync();
+                var refreshedBranches = refreshedSnapshot.IsReadable
+                    ? await new Commands.QueryBranches(_repo.FullPath).GetResultAsync()
+                    : [];
+
+                if (refreshedSnapshot.IsReadable)
+                {
+                    ApplySnapshot(refreshedSnapshot, refreshedBranches);
+                    RefreshRepoRemotesAndBranches(refreshedSnapshot);
+                }
+
+                var summary = BuildSaveSummary(refreshedSnapshot, results, attemptedKeys);
+                SaveFeedback = summary;
+                return summary;
+            }
+            finally
+            {
+                IsSaving = false;
+            }
         }
 
-        private async Task SetIfChangedAsync(string key, string value, string defValue)
+        private async Task SaveScalarFieldsAsync(
+            Models.GitConfigSnapshot preSaveSnapshot,
+            Models.GitConfigSnapshot baseSnapshot,
+            Commands.Config configCmd,
+            List<ConfigSaveItemResult> results,
+            List<(string Key, string IntendedValue, bool WasUnset)> attempted)
         {
-            if (value != _cached.GetValueOrDefault(key, defValue))
-                await new Commands.Config(_repo.FullPath).SetAsync(key, value);
+            foreach (var field in _fields)
+            {
+                var op = field.ComputePendingOperation();
+                if (op.Kind == ConfigPendingOperationKind.None)
+                    continue;
+
+                var preScopeEntries = preSaveSnapshot.GetEntriesInScope(
+                    field.Key,
+                    ConfigureLocalizer.ToConfigScope(TargetScope),
+                    includeIncluded: false);
+                if (preScopeEntries.Count > 1)
+                {
+                    results.Add(new ConfigSaveItemResult
+                    {
+                        TargetName = field.Key,
+                        Succeeded = false,
+                        Detail = ConfigureLocalizer.Text("Configure.Field.MultiValueReadOnly", "目标作用域存在多条定义，为保护多值配置结构已设为只读。"),
+                    });
+                    continue;
+                }
+
+                if (HasTargetScopeConflict(baseSnapshot, preSaveSnapshot, field.Key, TargetScope, out var conflictDetail))
+                {
+                    results.Add(new ConfigSaveItemResult
+                    {
+                        TargetName = field.Key,
+                        Succeeded = false,
+                        SkippedConflict = true,
+                        Detail = conflictDetail,
+                    });
+                    continue;
+                }
+
+                var writeRes = await configCmd.SetScopedAsync(
+                    TargetScope,
+                    field.Key,
+                    op.Value,
+                    unset: op.Kind == ConfigPendingOperationKind.Unset,
+                    allowEmpty: op.AllowEmpty);
+
+                if (writeRes.IsSuccess)
+                {
+                    results.Add(new ConfigSaveItemResult
+                    {
+                        TargetName = field.Key,
+                        Succeeded = true,
+                    });
+                    attempted.Add((field.Key, op.Value, op.Kind == ConfigPendingOperationKind.Unset));
+                }
+                else
+                {
+                    results.Add(new ConfigSaveItemResult
+                    {
+                        TargetName = field.Key,
+                        Succeeded = false,
+                        Detail = FormatCommandFailure(writeRes),
+                    });
+                }
+            }
+        }
+
+        private async Task SaveRemoteDraftsAsync(
+            Models.GitConfigSnapshot preSaveSnapshot,
+            Models.GitConfigSnapshot baseSnapshot,
+            List<ConfigSaveItemResult> results)
+        {
+            var remoteCmd = new Commands.Remote(_repo.FullPath);
+            var baseRemotes = baseSnapshot?.GetRemotes().ToDictionary(x => x.Name, StringComparer.Ordinal)
+                              ?? new Dictionary<string, Models.GitConfigRemote>(StringComparer.Ordinal);
+            var liveRemotes = preSaveSnapshot.GetRemotes().ToDictionary(x => x.Name, StringComparer.Ordinal);
+
+            foreach (var draft in RemotesDrafts)
+            {
+                if (!draft.HasPendingChange)
+                    continue;
+
+                if (draft.IsNew)
+                {
+                    var addName = draft.Name.Trim();
+                    var addUrl = draft.PrimaryFetchUrl.Trim();
+                    if (liveRemotes.ContainsKey(addName))
+                    {
+                        results.Add(new ConfigSaveItemResult
+                        {
+                            TargetName = $"remote.{addName}",
+                            Succeeded = false,
+                            SkippedConflict = true,
+                            Detail = $"远端 '{addName}' 已存在于仓库配置中。",
+                        });
+                        continue;
+                    }
+
+                    var addRes = await remoteCmd.AddTargetedAsync(addName, addUrl);
+                    results.Add(new ConfigSaveItemResult
+                    {
+                        TargetName = $"remote.{addName}",
+                        Succeeded = addRes.IsSuccess,
+                        Detail = addRes.IsSuccess ? string.Empty : FormatCommandFailure(addRes),
+                    });
+
+                    if (addRes.IsSuccess && !string.IsNullOrWhiteSpace(draft.PrimaryPushUrl))
+                    {
+                        var pushRes = await remoteCmd.SetUrlTargetedAsync(addName, draft.PrimaryPushUrl.Trim(), null, isPush: true, isDelete: false);
+                        results.Add(new ConfigSaveItemResult
+                        {
+                            TargetName = $"remote.{addName}.pushurl",
+                            Succeeded = pushRes.IsSuccess,
+                            Detail = pushRes.IsSuccess ? string.Empty : FormatCommandFailure(pushRes),
+                        });
+                    }
+                    continue;
+                }
+
+                if (!liveRemotes.TryGetValue(draft.OriginalName, out var liveRemote))
+                {
+                    results.Add(new ConfigSaveItemResult
+                    {
+                        TargetName = $"remote.{draft.OriginalName}",
+                        Succeeded = false,
+                        SkippedConflict = true,
+                        Detail = "远端已被外部操作移除或重命名，跳过写入。",
+                    });
+                    continue;
+                }
+
+                if (draft.IsMarkedForRemoval)
+                {
+                    var delRes = await remoteCmd.DeleteTargetedAsync(draft.OriginalName);
+                    results.Add(new ConfigSaveItemResult
+                    {
+                        TargetName = $"remote.{draft.OriginalName}",
+                        Succeeded = delRes.IsSuccess,
+                        Detail = delRes.IsSuccess ? string.Empty : FormatCommandFailure(delRes),
+                    });
+                    continue;
+                }
+
+                var activeName = draft.OriginalName;
+                if (draft.IsRenamed)
+                {
+                    var nextName = draft.Name.Trim();
+                    var renameRes = await remoteCmd.RenameTargetedAsync(draft.OriginalName, nextName);
+                    results.Add(new ConfigSaveItemResult
+                    {
+                        TargetName = $"remote.{draft.OriginalName} -> {nextName}",
+                        Succeeded = renameRes.IsSuccess,
+                        Detail = renameRes.IsSuccess ? string.Empty : FormatCommandFailure(renameRes),
+                    });
+
+                    if (!renameRes.IsSuccess)
+                        continue;
+
+                    activeName = nextName;
+                }
+
+                if (draft.IsFetchUrlEdited)
+                {
+                    baseRemotes.TryGetValue(draft.OriginalName, out var baseRemote);
+                    var baseFirstFetch = baseRemote?.FetchUrls.FirstOrDefault()?.Value ?? string.Empty;
+                    var liveFirstFetch = liveRemote.FetchUrls.FirstOrDefault()?.Value ?? string.Empty;
+                    if (!string.Equals(baseFirstFetch, liveFirstFetch, StringComparison.Ordinal))
+                    {
+                        results.Add(new ConfigSaveItemResult
+                        {
+                            TargetName = $"remote.{activeName}.url",
+                            Succeeded = false,
+                            SkippedConflict = true,
+                            Detail = "保存前核对发现主获取 URL 已被外部修改，跳过覆盖。",
+                        });
+                    }
+                    else
+                    {
+                        var fetchRes = await remoteCmd.SetUrlTargetedAsync(
+                            activeName,
+                            draft.PrimaryFetchUrl.Trim(),
+                            draft.OriginalPrimaryFetchUrl,
+                            isPush: false,
+                            isDelete: false);
+                        results.Add(new ConfigSaveItemResult
+                        {
+                            TargetName = $"remote.{activeName}.url",
+                            Succeeded = fetchRes.IsSuccess,
+                            Detail = fetchRes.IsSuccess ? string.Empty : FormatCommandFailure(fetchRes),
+                        });
+                    }
+                }
+
+                if (draft.IsPushUrlEdited)
+                {
+                    baseRemotes.TryGetValue(draft.OriginalName, out var baseRemote);
+                    var baseFirstPush = baseRemote?.PushUrls.FirstOrDefault()?.Value ?? string.Empty;
+                    var liveFirstPush = liveRemote.PushUrls.FirstOrDefault()?.Value ?? string.Empty;
+                    if (!string.Equals(baseFirstPush, liveFirstPush, StringComparison.Ordinal))
+                    {
+                        results.Add(new ConfigSaveItemResult
+                        {
+                            TargetName = $"remote.{activeName}.pushurl",
+                            Succeeded = false,
+                            SkippedConflict = true,
+                            Detail = "保存前核对发现主推送 URL 已被外部修改，跳过覆盖。",
+                        });
+                    }
+                    else
+                    {
+                        var nextPush = draft.PrimaryPushUrl.Trim();
+                        var hasOriginalPush = !string.IsNullOrEmpty(draft.OriginalPrimaryPushUrl);
+                        Commands.Command.Result pushRes;
+
+                        if (nextPush.Length == 0 && hasOriginalPush)
+                            pushRes = await remoteCmd.SetUrlTargetedAsync(activeName, null, draft.OriginalPrimaryPushUrl, isPush: true, isDelete: true);
+                        else
+                            pushRes = await remoteCmd.SetUrlTargetedAsync(activeName, nextPush, hasOriginalPush ? draft.OriginalPrimaryPushUrl : null, isPush: true, isDelete: false);
+
+                        results.Add(new ConfigSaveItemResult
+                        {
+                            TargetName = $"remote.{activeName}.pushurl",
+                            Succeeded = pushRes.IsSuccess,
+                            Detail = pushRes.IsSuccess ? string.Empty : FormatCommandFailure(pushRes),
+                        });
+                    }
+                }
+            }
+        }
+
+        private async Task SaveUpstreamAsync(
+            Models.GitConfigSnapshot preSaveSnapshot,
+            Models.GitConfigSnapshot baseSnapshot,
+            List<ConfigSaveItemResult> results)
+        {
+            if (IsDetachedHead || !HasUpstreamPendingChange)
+                return;
+
+            var remoteKey = $"branch.{CurrentBranchName}.remote";
+            var mergeKey = $"branch.{CurrentBranchName}.merge";
+            if (!string.Equals(preSaveSnapshot.CurrentBranch, CurrentBranchName, StringComparison.Ordinal) ||
+                HasEffectiveValueChanged(baseSnapshot, preSaveSnapshot, remoteKey) ||
+                HasEffectiveValueChanged(baseSnapshot, preSaveSnapshot, mergeKey))
+            {
+                results.Add(new ConfigSaveItemResult
+                {
+                    TargetName = $"branch.{CurrentBranchName}.upstream",
+                    Succeeded = false,
+                    SkippedConflict = true,
+                    Detail = "当前分支或其上游配置已在外部变更，跳过覆盖，请确认最新状态。",
+                });
+                return;
+            }
+
+            var targetRemote = SelectedUpstreamRemote.Trim();
+            var targetBranch = UpstreamTargetBranch.Trim();
+            var branchCmd = new Commands.Branch(_repo.FullPath, CurrentBranchName);
+
+            if (targetRemote.Length == 0 && targetBranch.Length == 0)
+            {
+                var unsetRes = await branchCmd.UnsetUpstreamTargetedAsync();
+                results.Add(new ConfigSaveItemResult
+                {
+                    TargetName = $"branch.{CurrentBranchName}.upstream",
+                    Succeeded = unsetRes.IsSuccess,
+                    Detail = unsetRes.IsSuccess ? string.Empty : FormatCommandFailure(unsetRes),
+                });
+                return;
+            }
+
+            if (targetRemote.Length == 0 || targetBranch.Length == 0)
+            {
+                results.Add(new ConfigSaveItemResult
+                {
+                    TargetName = $"branch.{CurrentBranchName}.upstream",
+                    Succeeded = false,
+                    Detail = "设置上游时请同时指定目标远端与目标分支。",
+                });
+                return;
+            }
+
+            var setRes = await branchCmd.SetUpstreamTargetedAsync(targetRemote, targetBranch);
+            results.Add(new ConfigSaveItemResult
+            {
+                TargetName = $"branch.{CurrentBranchName}.upstream",
+                Succeeded = setRes.IsSuccess,
+                Detail = setRes.IsSuccess ? string.Empty : FormatCommandFailure(setRes),
+            });
+        }
+
+        private ConfigSaveSummary BuildSaveSummary(
+            Models.GitConfigSnapshot refreshed,
+            IReadOnlyList<ConfigSaveItemResult> results,
+            IReadOnlyList<(string Key, string IntendedValue, bool WasUnset)> attemptedKeys)
+        {
+            var succeeded = results.Count(x => x.Succeeded);
+            var failed = results.Count(x => !x.Succeeded && !x.SkippedConflict);
+            var conflicts = results.Count(x => x.SkippedConflict);
+
+            var failureLines = new List<string>();
+            foreach (var r in results.Where(x => !x.Succeeded))
+                failureLines.Add(r.DisplayLine);
+
+            var shadowedLines = new List<string>();
+            if (refreshed.IsReadable)
+            {
+                var targetRank = ConfigureLocalizer.GetWriteScopeRank(TargetScope);
+                foreach (var (key, intended, wasUnset) in attemptedKeys)
+                {
+                    var eff = refreshed.GetEffectiveEntry(key);
+                    if (eff == null)
+                        continue;
+
+                    var effRank = ConfigureLocalizer.GetScopeRank(eff.Scope);
+                    var isShadowed = !wasUnset &&
+                                     (effRank > targetRank ||
+                                      (effRank == targetRank && eff.IsIncluded) ||
+                                      !string.Equals(eff.Value, intended, StringComparison.Ordinal));
+
+                    if (isShadowed)
+                    {
+                        var scopeLabel = ConfigureLocalizer.FormatScopeBadge(eff.Scope, eff.IsIncluded);
+                        shadowedLines.Add($"{key}: 有效值仍为 \"{eff.DisplayValue}\" ({scopeLabel}, {eff.Origin})");
+                    }
+                }
+            }
+
+            ConfigFeedbackSeverity severity;
+            string headline;
+
+            if (results.Count == 0)
+            {
+                severity = ConfigFeedbackSeverity.Info;
+                headline = ConfigureLocalizer.Text("Configure.Save.NothingToSave", "未检测到需要写入 Git 配置的更改（仓库本地偏好已同步）。");
+            }
+            else if (failed > 0 && succeeded == 0)
+            {
+                severity = ConfigFeedbackSeverity.Error;
+                headline = ConfigureLocalizer.Text("Configure.Save.AllFailed", "保存失败（共 {0} 项未能写入）：", failed + conflicts);
+            }
+            else if (failed > 0 || conflicts > 0)
+            {
+                severity = conflicts > 0 && failed == 0 && succeeded == 0
+                    ? ConfigFeedbackSeverity.Warning
+                    : ConfigFeedbackSeverity.Error;
+                headline = conflicts > 0 && failed == 0
+                    ? ConfigureLocalizer.Text("Configure.Save.ExternalConflict", "保存前核对发现外部配置已变更，以下项目已跳过覆盖（请重新读取后再确认）：")
+                    : ConfigureLocalizer.Text("Configure.Save.PartialFailure", "部分设置未保存成功：成功 {0} 项，失败 {1} 项。逐项详情：", succeeded, failed + conflicts);
+            }
+            else if (shadowedLines.Count > 0)
+            {
+                severity = ConfigFeedbackSeverity.Warning;
+                headline = ConfigureLocalizer.Text("Configure.Save.HigherOverrideWarning", "请注意：以下项目已写入目标作用域，但仍被更高优先级配置覆盖，暂未作为有效值生效：");
+            }
+            else
+            {
+                severity = ConfigFeedbackSeverity.Success;
+                headline = ConfigureLocalizer.Text("Configure.Save.Success", "已成功保存 {0} 项设置并重新读取有效配置与来源。", succeeded);
+            }
+
+            var summary = new ConfigSaveSummary
+            {
+                Severity = severity,
+                Headline = headline,
+                SucceededCount = succeeded,
+                FailedCount = failed,
+                ConflictCount = conflicts,
+                ShadowedCount = shadowedLines.Count,
+            };
+
+            foreach (var line in failureLines)
+                summary.FailureAndConflictLines.Add(line);
+            foreach (var line in shadowedLines)
+                summary.ShadowedLines.Add(line);
+            foreach (var item in results)
+                summary.ItemResults.Add(item);
+
+            return summary;
+        }
+
+        private void RefreshRepoRemotesAndBranches(Models.GitConfigSnapshot snapshot)
+        {
+            var remoteNames = snapshot.GetRemotes().Select(x => x.Name).ToList();
+            Remotes.Clear();
+            foreach (var name in remoteNames)
+                Remotes.Add(name);
+
+            if (!string.IsNullOrEmpty(DefaultRemote) && !remoteNames.Contains(DefaultRemote, StringComparer.Ordinal))
+                DefaultRemote = remoteNames.FirstOrDefault() ?? string.Empty;
+
+            if (Application.Current != null)
+                Dispatcher.UIThread.Post(_repo.RefreshBranches);
+        }
+
+        private void ApplySnapshot(Models.GitConfigSnapshot snapshot, List<Models.Branch> branches)
+        {
+            _snapshot = snapshot;
+            _queriedBranches = branches ?? [];
+
+            SnapshotReadFailed = !snapshot.IsReadable;
+            SnapshotError = snapshot.Error ?? string.Empty;
+
+            WorktreeConfigEnabled = snapshot.WorktreeConfigEnabled;
+            OnPropertyChanged(nameof(ShowWorktreeDisabledHint));
+            RebuildScopeOptions(WorktreeConfigEnabled);
+
+            if (TargetScope == Models.GitConfigWriteScope.Worktree && !WorktreeConfigEnabled)
+                _targetScope = Models.GitConfigWriteScope.Local;
+
+            OnPropertyChanged(nameof(TargetScope));
+            OnPropertyChanged(nameof(SelectedScopeOption));
+            OnPropertyChanged(nameof(ShowGlobalScopeWarning));
+            OnPropertyChanged(nameof(ScopeDescription));
+
+            foreach (var field in _fields)
+                field.RefreshFromSnapshot(snapshot, TargetScope);
+
+            RebuildSigningFormatOptions(SigningFormatField.EditText);
+            RebuildAutoCrlfOptions(AutoCrlfField.EditText);
+            SyncOptionSelectionsFromFields();
+
+            RebuildRemotesDrafts(snapshot);
+            RebuildUpstreamState(snapshot);
+            RebuildReadOnlyCollections(snapshot);
+
+            SanitizedDiagnostics = snapshot.BuildSanitizedDiagnostics();
+            UpdateSigningPreview();
+            NotifyAllCompatibilityProperties();
+            UpdatePendingChangesCount();
+        }
+
+        private void RebuildScopeOptions(bool worktreeEnabled)
+        {
+            AvailableWriteScopes.Clear();
+            AvailableWriteScopes.Add(new ConfigScopeOption
+            {
+                Scope = Models.GitConfigWriteScope.Local,
+                Title = ConfigureLocalizer.Text("Configure.Scope.Local", "当前仓库 (--local)"),
+                Description = ConfigureLocalizer.Text("Configure.Scope.LocalHint", "写入当前仓库配置文件；同一仓库的多个工作树可能共享此配置。"),
+            });
+
+            if (worktreeEnabled)
+            {
+                AvailableWriteScopes.Add(new ConfigScopeOption
+                {
+                    Scope = Models.GitConfigWriteScope.Worktree,
+                    Title = ConfigureLocalizer.Text("Configure.Scope.Worktree", "当前工作树 (--worktree)"),
+                    Description = ConfigureLocalizer.Text("Configure.Scope.WorktreeHint", "已启用 extensions.worktreeConfig，保存将写入当前工作树独立配置。"),
+                });
+            }
+
+            AvailableWriteScopes.Add(new ConfigScopeOption
+            {
+                Scope = Models.GitConfigWriteScope.Global,
+                Title = ConfigureLocalizer.Text("Configure.Scope.Global", "此用户的全局配置 (--global)"),
+                Description = ConfigureLocalizer.Text("Configure.Scope.GlobalWarning", "注意：当前选择写入“此用户的全局配置 (--global)”，保存将影响此用户下的所有 Git 仓库。"),
+            });
+        }
+
+        private void RebuildSigningFormatOptions(string currentFormat)
+        {
+            SigningFormatOptions.Clear();
+            SigningFormatOptions.Add(new ConfigChoiceOption { Value = "openpgp", Label = "OpenPGP (gpg)" });
+            SigningFormatOptions.Add(new ConfigChoiceOption { Value = "ssh", Label = "SSH (ssh-keygen)" });
+            SigningFormatOptions.Add(new ConfigChoiceOption { Value = "x509", Label = "X.509 / S/MIME (gpgsm)" });
+
+            var trimmed = (currentFormat ?? string.Empty).Trim().ToLowerInvariant();
+            if (!string.IsNullOrEmpty(trimmed) && SigningFormatOptions.All(x => !x.Value.Equals(trimmed, StringComparison.OrdinalIgnoreCase)))
+                SigningFormatOptions.Add(new ConfigChoiceOption { Value = trimmed, Label = trimmed });
+        }
+
+        private void RebuildAutoCrlfOptions(string currentValue)
+        {
+            AutoCrlfOptions.Clear();
+            AutoCrlfOptions.Add(new ConfigChoiceOption
+            {
+                Value = string.Empty,
+                Label = ConfigureLocalizer.Text("Configure.Scope.Unset", "未设置"),
+            });
+            AutoCrlfOptions.Add(new ConfigChoiceOption { Value = "true", Label = "true" });
+            AutoCrlfOptions.Add(new ConfigChoiceOption { Value = "input", Label = "input" });
+            AutoCrlfOptions.Add(new ConfigChoiceOption { Value = "false", Label = "false" });
+
+            var trimmed = (currentValue ?? string.Empty).Trim();
+            if (!string.IsNullOrEmpty(trimmed) && AutoCrlfOptions.All(x => !x.Value.Equals(trimmed, StringComparison.OrdinalIgnoreCase)))
+                AutoCrlfOptions.Add(new ConfigChoiceOption { Value = trimmed, Label = trimmed });
+        }
+
+        private void RebuildRemotesDrafts(Models.GitConfigSnapshot snapshot)
+        {
+            var previousSelection = SelectedRemoteDraft?.OriginalName;
+            foreach (var old in RemotesDrafts)
+                old.StateChanged -= OnAnyDraftStateChanged;
+            RemotesDrafts.Clear();
+
+            var remoteModels = snapshot.GetRemotes();
+            Remotes.Clear();
+            foreach (var r in remoteModels)
+            {
+                Remotes.Add(r.Name);
+                var draft = RemoteConfigDraft.FromModel(r);
+                draft.StateChanged += OnAnyDraftStateChanged;
+                RemotesDrafts.Add(draft);
+            }
+
+            SelectedRemoteDraft = !string.IsNullOrEmpty(previousSelection)
+                ? RemotesDrafts.FirstOrDefault(x => string.Equals(x.OriginalName, previousSelection, StringComparison.Ordinal)) ?? RemotesDrafts.FirstOrDefault()
+                : RemotesDrafts.FirstOrDefault();
+
+            OnPropertyChanged(nameof(HasNoRemotes));
+        }
+
+        private void RebuildUpstreamState(Models.GitConfigSnapshot snapshot)
+        {
+            CurrentBranchName = snapshot.CurrentBranch ?? string.Empty;
+            RebuildUpstreamRemoteOptions();
+
+            if (IsDetachedHead)
+            {
+                _originalUpstreamRemote = string.Empty;
+                _originalUpstreamBranch = string.Empty;
+                _selectedUpstreamRemote = string.Empty;
+                _upstreamTargetBranch = string.Empty;
+                EffectiveUpstreamSummary = ConfigureLocalizer.Text("Configure.Upstream.DetachedHead", "当前处于游离 HEAD 状态，无可配置的分支上游。");
+                IsUpstreamUnfetched = false;
+                UpstreamBranchOptions.Clear();
+                OnPropertyChanged(nameof(SelectedUpstreamRemote));
+                OnPropertyChanged(nameof(UpstreamTargetBranch));
+                return;
+            }
+
+            var remoteVal = snapshot.GetEffectiveValue($"branch.{CurrentBranchName}.remote").Trim();
+            var mergeVal = snapshot.GetEffectiveValue($"branch.{CurrentBranchName}.merge").Trim();
+            var shortMerge = mergeVal.StartsWith("refs/heads/", StringComparison.Ordinal)
+                ? mergeVal.Substring("refs/heads/".Length)
+                : mergeVal;
+
+            _originalUpstreamRemote = remoteVal;
+            _originalUpstreamBranch = shortMerge;
+            _selectedUpstreamRemote = remoteVal;
+            _upstreamTargetBranch = shortMerge;
+
+            if (string.IsNullOrEmpty(remoteVal) || string.IsNullOrEmpty(shortMerge))
+            {
+                EffectiveUpstreamSummary = ConfigureLocalizer.Text("Configure.Upstream.NotSet", "未设置上游分支");
+                IsUpstreamUnfetched = false;
+            }
+            else
+            {
+                var trackingFull = remoteVal == "."
+                    ? $"refs/heads/{shortMerge}"
+                    : $"refs/remotes/{remoteVal}/{shortMerge}";
+                var trackingDisplay = remoteVal == "." ? shortMerge : $"{remoteVal}/{shortMerge}";
+                var hasRef = _queriedBranches.Any(b => string.Equals(b.FullName, trackingFull, StringComparison.Ordinal));
+                EffectiveUpstreamSummary = $"{CurrentBranchName} -> {trackingDisplay} ({mergeVal})";
+                IsUpstreamUnfetched = !hasRef;
+            }
+
+            RebuildUpstreamBranchOptions();
+            OnPropertyChanged(nameof(SelectedUpstreamRemote));
+            OnPropertyChanged(nameof(UpstreamTargetBranch));
+        }
+
+        private void RebuildUpstreamRemoteOptions()
+        {
+            UpstreamRemoteOptions.Clear();
+            UpstreamRemoteOptions.Add(string.Empty);
+
+            foreach (var r in RemotesDrafts.Where(x => !x.IsMarkedForRemoval))
+            {
+                var n = r.Name.Trim();
+                if (!string.IsNullOrEmpty(n) && !UpstreamRemoteOptions.Contains(n))
+                    UpstreamRemoteOptions.Add(n);
+            }
+
+            if (!string.IsNullOrEmpty(_selectedUpstreamRemote) && !UpstreamRemoteOptions.Contains(_selectedUpstreamRemote))
+                UpstreamRemoteOptions.Add(_selectedUpstreamRemote);
+        }
+
+        private void RebuildUpstreamBranchOptions()
+        {
+            UpstreamBranchOptions.Clear();
+            if (string.IsNullOrWhiteSpace(_selectedUpstreamRemote))
+            {
+                OnPropertyChanged(nameof(HasUpstreamBranchOptions));
+                return;
+            }
+
+            var remoteName = _selectedUpstreamRemote.Trim();
+            var names = _queriedBranches
+                .Where(b => remoteName == "."
+                    ? b.IsLocal && !b.IsDetachedHead
+                    : !b.IsLocal && string.Equals(b.Remote, remoteName, StringComparison.Ordinal))
+                .Select(b => b.Name)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(n => n, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var n in names)
+                UpstreamBranchOptions.Add(n);
+
+            OnPropertyChanged(nameof(HasUpstreamBranchOptions));
+        }
+
+        private void RebuildReadOnlyCollections(Models.GitConfigSnapshot snapshot)
+        {
+            UrlProxyOverrides.Clear();
+            foreach (var item in snapshot.GetUrlProxyOverrides())
+            {
+                UrlProxyOverrides.Add(new ConfigReadOnlyEntry
+                {
+                    Label = item.Pattern,
+                    Value = item.Entry.DisplayValue,
+                    SourceBadge = ConfigureLocalizer.FormatScopeBadge(item.Entry.Scope, item.Entry.IsIncluded),
+                    Origin = item.Entry.Origin,
+                });
+            }
+            OnPropertyChanged(nameof(HasUrlProxyOverrides));
+
+            CredentialHelpers.Clear();
+            var helpers = snapshot.GetEntries("credential.helper");
+            var lastResetIndex = -1;
+            for (var i = helpers.Count - 1; i >= 0; i--)
+            {
+                if (helpers[i].HasValue && helpers[i].Value.Length == 0)
+                {
+                    lastResetIndex = i;
+                    break;
+                }
+            }
+
+            for (var i = 0; i < helpers.Count; i++)
+            {
+                var h = helpers[i];
+                string displayVal;
+                if (h.HasValue && h.Value.Length == 0)
+                    displayVal = ConfigureLocalizer.Text("Configure.AuthSsh.EmptyHelperReset", "\"\"（显式重置前序助手链）");
+                else if (i < lastResetIndex)
+                    displayVal = $"{h.DisplayValue} (已被后续 \"\" 重置)";
+                else
+                    displayVal = h.DisplayValue;
+
+                CredentialHelpers.Add(new ConfigReadOnlyEntry
+                {
+                    Label = $"#{i + 1}",
+                    Value = displayVal,
+                    SourceBadge = ConfigureLocalizer.FormatScopeBadge(h.Scope, h.IsIncluded),
+                    Origin = h.Origin,
+                });
+            }
+            OnPropertyChanged(nameof(HasCredentialHelpers));
+
+            SshAndRuntimeEntries.Clear();
+            var sshEntry = snapshot.GetEffectiveEntry("core.sshcommand");
+            if (sshEntry != null)
+            {
+                SshAndRuntimeEntries.Add(new ConfigReadOnlyEntry
+                {
+                    Label = "core.sshCommand",
+                    Value = sshEntry.DisplayValue,
+                    SourceBadge = ConfigureLocalizer.FormatScopeBadge(sshEntry.Scope, sshEntry.IsIncluded),
+                    Origin = sshEntry.Origin,
+                });
+            }
+
+            foreach (var remote in snapshot.GetRemotes().Where(x => x.SshKey != null))
+            {
+                SshAndRuntimeEntries.Add(new ConfigReadOnlyEntry
+                {
+                    Label = $"remote.{remote.Name}.sshkey",
+                    Value = remote.SshKey.DisplayValue,
+                    SourceBadge = ConfigureLocalizer.FormatScopeBadge(remote.SshKey.Scope, remote.SshKey.IsIncluded),
+                    Origin = remote.SshKey.Origin,
+                });
+            }
+
+            foreach (var rt in snapshot.Entries.Where(x => x.IsRuntime))
+            {
+                SshAndRuntimeEntries.Add(new ConfigReadOnlyEntry
+                {
+                    Label = rt.Key,
+                    Value = rt.DisplayValue,
+                    SourceBadge = ConfigureLocalizer.FormatScopeBadge(rt.Scope, rt.IsIncluded),
+                    Origin = rt.Origin,
+                });
+            }
+            OnPropertyChanged(nameof(HasSshAndRuntimeEntries));
+
+            var fmt = string.IsNullOrWhiteSpace(SigningFormatField.EffectiveRawValue)
+                ? "openpgp"
+                : SigningFormatField.EffectiveRawValue.Trim().ToLowerInvariant();
+            var progEntry = fmt switch
+            {
+                "ssh" => snapshot.GetEffectiveEntry("gpg.ssh.program"),
+                "x509" => snapshot.GetEffectiveEntry("gpg.x509.program"),
+                _ => snapshot.GetEffectiveEntry("gpg.openpgp.program") ?? snapshot.GetEffectiveEntry("gpg.program"),
+            };
+            SigningProgramReadOnly = progEntry != null
+                ? $"{progEntry.DisplayValue} ({ConfigureLocalizer.FormatScopeBadge(progEntry.Scope, progEntry.IsIncluded)})"
+                : "PATH 默认程序";
+
+            var eolEntry = snapshot.GetEffectiveEntry("core.eol");
+            CoreEolReadOnly = eolEntry != null
+                ? $"{eolEntry.DisplayValue} ({ConfigureLocalizer.FormatScopeBadge(eolEntry.Scope, eolEntry.IsIncluded)})"
+                : "native (默认)";
+        }
+
+        private void UpdateSigningPreview()
+        {
+            if (_snapshot == null || !_snapshot.IsReadable)
+            {
+                SigningStatusIsDisabled = true;
+                SigningStatusIsReady = false;
+                SigningStatusHasIssue = false;
+                SigningStatusMessage = ConfigureLocalizer.Text("Configure.Signing.Disabled", "未启用提交或标签自动签名。");
+                SigningStatusSecondaryNote = string.Empty;
+                return;
+            }
+
+            var preview = new Models.GitConfigSnapshot { IsReadable = true };
+            preview.Entries.AddRange(_snapshot.Entries);
+
+            AppendPreviewEntry(preview, CommitSignField, CommitSignField.EditBool ? "true" : "false");
+            AppendPreviewEntry(preview, TagSignField, TagSignField.EditBool ? "true" : "false");
+            AppendPreviewEntry(preview, SigningFormatField, SigningFormatField.EditText);
+            AppendPreviewEntry(preview, SigningKeyField, SigningKeyField.EditText);
+            AppendPreviewEntry(preview, SshAllowedSignersField, SshAllowedSignersField.EditText);
+
+            var status = Commands.Config.InspectSigningStatus(preview, Native.OS.GitInstallation);
+            var enabled = status.CommitSigningEnabled || status.TagSigningEnabled;
+
+            if (!enabled)
+            {
+                SigningStatusIsDisabled = true;
+                SigningStatusIsReady = false;
+                SigningStatusHasIssue = false;
+                SigningStatusMessage = ConfigureLocalizer.Text("Configure.Signing.Disabled", "未启用提交或标签自动签名。");
+                SigningStatusSecondaryNote = !status.IsReady && !string.IsNullOrWhiteSpace(status.SigningKey)
+                    ? FormatSigningIssue(status)
+                    : string.Empty;
+                return;
+            }
+
+            SigningStatusIsDisabled = false;
+            if (status.IsReady)
+            {
+                SigningStatusIsReady = true;
+                SigningStatusHasIssue = false;
+                SigningStatusMessage = ConfigureLocalizer.Text("Configure.Signing.Ready", "签名配置与本地依赖检查通过，环境已就绪。");
+                SigningStatusSecondaryNote = status.Format == "ssh" && string.IsNullOrWhiteSpace(status.AllowedSignersFile)
+                    ? ConfigureLocalizer.Text("Configure.Signing.Issue.MissingAllowedSigners", "提示：未设置 gpg.ssh.allowedSignersFile，签名可正常生成，但本地验签需要该文件。")
+                    : string.Empty;
+            }
+            else
+            {
+                SigningStatusIsReady = false;
+                SigningStatusHasIssue = true;
+                SigningStatusMessage = FormatSigningIssue(status);
+                SigningStatusSecondaryNote = string.Empty;
+            }
+        }
+
+        private static string FormatSigningIssue(Models.GitConfigSigningStatus status)
+        {
+            var fallback = status.IssueKey switch
+            {
+                "Configure.Signing.UnsupportedFormat" => $"不支持的签名格式 ({status.IssueDetail})，请使用 openpgp、x509 或 ssh。",
+                "Configure.Signing.SshRequiresNewerGit" => $"SSH 签名需要 Git 2.34 及以上版本（当前版本：{status.IssueDetail}）。",
+                "Configure.Signing.MissingKey" => "已启用签名，但尚未配置签名密钥 (user.signingkey)。",
+                "Configure.Signing.MissingProgram" => $"未找到签名程序 ({status.IssueDetail})，执行提交或标签签名将失败。",
+                _ => status.IssueKey,
+            };
+
+            return ConfigureLocalizer.Text(status.IssueKey, fallback, status.IssueDetail);
+        }
+
+        private static void AppendPreviewEntry(Models.GitConfigSnapshot preview, ConfigFieldItem field, string value)
+        {
+            if (!field.HasPendingChange && !field.HasTargetScopeEntry)
+                return;
+
+            var op = field.ComputePendingOperation();
+            if (op.Kind == ConfigPendingOperationKind.Unset)
+            {
+                preview.Entries.RemoveAll(e => e.NormalizedKey == field.Key && e.Scope == Models.GitConfigScope.Local);
+                return;
+            }
+
+            preview.Entries.Add(new Models.GitConfigEntry
+            {
+                Key = field.Key,
+                NormalizedKey = field.Key,
+                Value = value ?? string.Empty,
+                HasValue = true,
+                Scope = Models.GitConfigScope.Command,
+            });
+        }
+
+        private void OnAnyDraftStateChanged()
+        {
+            SyncOptionSelectionsFromFields();
+            OnPropertyChanged(nameof(ShowSshSigningOptions));
+            UpdateSigningPreview();
+            NotifyAllCompatibilityProperties();
+            UpdatePendingChangesCount();
+        }
+
+        private void SyncOptionSelectionsFromFields()
+        {
+            _syncingOptions = true;
+            try
+            {
+                OnPropertyChanged(nameof(SelectedSigningFormatOption));
+                OnPropertyChanged(nameof(SelectedAutoCrlfOption));
+            }
+            finally
+            {
+                _syncingOptions = false;
+            }
+        }
+
+        private void NotifyAllCompatibilityProperties()
+        {
+            OnPropertyChanged(nameof(UserName));
+            OnPropertyChanged(nameof(UserEmail));
+            OnPropertyChanged(nameof(HttpProxy));
+            OnPropertyChanged(nameof(GPGCommitSigningEnabled));
+            OnPropertyChanged(nameof(GPGTagSigningEnabled));
+            OnPropertyChanged(nameof(GPGUserSigningKey));
+            OnPropertyChanged(nameof(EnablePruneOnFetch));
+        }
+
+        private bool HasUpstreamPendingChange =>
+            !IsDetachedHead &&
+            (!string.Equals(SelectedUpstreamRemote.Trim(), _originalUpstreamRemote, StringComparison.Ordinal) ||
+             !string.Equals(UpstreamTargetBranch.Trim(), _originalUpstreamBranch, StringComparison.Ordinal));
+
+        private void UpdatePendingChangesCount()
+        {
+            var count = 0;
+            foreach (var f in _fields)
+            {
+                if (f.HasPendingChange)
+                    count++;
+            }
+
+            foreach (var r in RemotesDrafts)
+            {
+                if (r.HasPendingChange)
+                    count++;
+            }
+
+            if (HasUpstreamPendingChange)
+                count++;
+
+            PendingChangesCount = count;
+        }
+
+        private static bool HasTargetScopeConflict(
+            Models.GitConfigSnapshot baseSnapshot,
+            Models.GitConfigSnapshot preSaveSnapshot,
+            string key,
+            Models.GitConfigWriteScope scope,
+            out string detail)
+        {
+            detail = string.Empty;
+            if (baseSnapshot == null)
+                return false;
+
+            var configScope = ConfigureLocalizer.ToConfigScope(scope);
+            var baseList = baseSnapshot.GetEntriesInScope(key, configScope, includeIncluded: false);
+            var liveList = preSaveSnapshot.GetEntriesInScope(key, configScope, includeIncluded: false);
+            if (baseList.Count != liveList.Count)
+            {
+                detail = "保存前核对发现该作用域中的条目数量已在外部发生改变，已跳过覆盖。";
+                return true;
+            }
+
+            if (baseList.Count == 1 && liveList.Count == 1 &&
+                (!string.Equals(baseList[0].Value, liveList[0].Value, StringComparison.Ordinal) ||
+                 baseList[0].HasValue != liveList[0].HasValue))
+            {
+                detail = $"保存前核对发现外部值已从 \"{baseList[0].DisplayValue}\" 变更为 \"{liveList[0].DisplayValue}\"，已跳过覆盖。";
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool HasEffectiveValueChanged(Models.GitConfigSnapshot baseSnapshot, Models.GitConfigSnapshot preSaveSnapshot, string key)
+        {
+            if (baseSnapshot == null)
+                return false;
+
+            var b = baseSnapshot.GetEffectiveValue(key);
+            var p = preSaveSnapshot.GetEffectiveValue(key);
+            return !string.Equals(b, p, StringComparison.Ordinal);
+        }
+
+        private static string FormatCommandFailure(Commands.Command.Result result)
+        {
+            var err = result?.StdErr?.Trim();
+            if (!string.IsNullOrEmpty(err))
+                return err;
+
+            var outMsg = result?.StdOut?.Trim();
+            if (!string.IsNullOrEmpty(outMsg))
+                return outMsg;
+
+            return $"Git 命令失败（退出码 {result?.ExitCode ?? -1}）。";
         }
 
         private async Task ApplyIssueTrackerChangesAsync()
@@ -335,7 +1781,6 @@ namespace SourceGit.ViewModels
             if (oldRules.Count > 0)
             {
                 changed = true;
-
                 foreach (var kv in oldRules)
                     await new Commands.IssueTracker(_repo.FullPath, kv.Value.IsShared).RemoveAsync(kv.Key);
             }
@@ -348,8 +1793,38 @@ namespace SourceGit.ViewModels
         }
 
         private readonly Repository _repo;
-        private readonly Dictionary<string, string> _cached;
-        private string _httpProxy;
+        private readonly ConfigFieldItem[] _fields;
+        private readonly Task _loadTask;
+        private Models.GitConfigSnapshot _snapshot;
+        private List<Models.Branch> _queriedBranches = [];
+        private Models.GitConfigWriteScope _targetScope = Models.GitConfigWriteScope.Local;
+        private bool _worktreeConfigEnabled;
+        private bool _isLoading;
+        private bool _isSaving;
+        private bool _snapshotReadFailed;
+        private string _snapshotError = string.Empty;
+        private RemoteConfigDraft _selectedRemoteDraft;
+        private string _newRemoteName = string.Empty;
+        private string _newRemoteUrl = string.Empty;
+        private string _remoteStagingError = string.Empty;
+        private string _currentBranchName = string.Empty;
+        private string _originalUpstreamRemote = string.Empty;
+        private string _originalUpstreamBranch = string.Empty;
+        private string _selectedUpstreamRemote = string.Empty;
+        private string _upstreamTargetBranch = string.Empty;
+        private string _effectiveUpstreamSummary = string.Empty;
+        private bool _isUpstreamUnfetched;
+        private string _signingProgramReadOnly = string.Empty;
+        private string _coreEolReadOnly = string.Empty;
+        private bool _signingStatusHasIssue;
+        private bool _signingStatusIsReady;
+        private bool _signingStatusIsDisabled = true;
+        private string _signingStatusMessage = string.Empty;
+        private string _signingStatusSecondaryNote = string.Empty;
+        private string _sanitizedDiagnostics = string.Empty;
+        private int _pendingChangesCount;
+        private ConfigSaveSummary _saveFeedback = new();
+        private bool _syncingOptions;
         private Models.CommitTemplate _selectedCommitTemplate = null;
         private Models.IssueTracker _selectedIssueTracker = null;
         private Models.CustomAction _selectedCustomAction = null;

@@ -6,7 +6,7 @@
 
 GitNest 的目标是通过图形界面审阅 AI 的累计成果和未提交修改，选择提交、同步与合并，并清理任务遗留的工作树和分支。产品需求和操作约定见 [产品与技术设计](docs/design.md)。
 
-阶段二已推进至批次 2.3，可构建并运行 GitNest `0.1.0-dev`。欢迎页提供 Git 检测、已有全局提交身份展示、打开／新建和克隆入口；仓库提供状态摘要、工作树任务别名及累计差异。底座为 SourceGit 稳定版 `v2026.24`，后续产品流程按 [实施计划](docs/implementation-plan.md) 逐批推进。[实施记录](docs/implementation-log.md) 保存每批变更与验证结果。
+阶段二已推进至批次 2.4，可构建并运行 GitNest `0.1.0-dev`。欢迎页提供 Git 检测、已有全局提交身份展示、打开／新建和克隆入口；仓库提供状态摘要、工作树任务别名、累计差异以及带来源标记／作用域切换／脱敏诊断的 Git 配置编辑器。底座为 SourceGit 稳定版 `v2026.24`，后续产品流程按 [实施计划](docs/implementation-plan.md) 逐批推进。[实施记录](docs/implementation-log.md) 保存每批变更与验证结果。
 
 在仓库导航选择“累计差异”，或在工作树菜单选择“查看本任务改动”，再选择比较目标。默认审阅共同祖先到任务 HEAD 的已提交成果，也可切换两端版本比较；未提交修改单独查看。比较目标保存在本机，分支或引用变化时提示快照过期，可点击“刷新比较”重新读取。
 
@@ -39,13 +39,13 @@ cd GitNest
 ./build/scripts/test-gitnest.ps1
 ```
 
-在交互式 Windows 会话运行界面探针并生成截图：
+在交互式 Windows 会话运行界面探针并生成截图（支持 `-Comparison` 与 `-Config`）：
 
 ```powershell
-./build/scripts/probe-gitnest.ps1 -Comparison
+./build/scripts/probe-gitnest.ps1 -Config
 ```
 
-探针结果与截图位于 `artifacts/probes/phase-2.3/`，检查范围见 [测试说明](tests/README.md)。
+探针结果与截图分别位于 `artifacts/probes/phase-2.2/`、`phase-2.3/` 与 `phase-2.4/`，检查范围见 [测试说明](tests/README.md)。
 
 发布可直接运行的 Windows x64 目录：
 

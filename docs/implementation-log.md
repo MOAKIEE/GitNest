@@ -1,5 +1,15 @@
 # GitNest 实施记录
 
+## 2026-11-14 · 批次 2.4b：配置来源 UI 与常用设置编辑
+
+- 前一批提交：`e630a315`（批次 2.4a 配置来源、多值读取与脱敏基础）。
+- 抽出 `Commands.Command.RunGitDirectAsync` 与 `RedactResult` 消除 `Commands.Config` 重复逻辑；新增 `Commands.Remote` 定向 URL／增删改操作（精准替换主获取／推送 URL 并保留附加 URL 与 refspec）及 `Commands.Branch` 定向设定／取消上游命令（兼容未 fetch 引用与 unborn 分支）。
+- 新增配置表单模型（`src/ViewModels/ConfigureModels.cs`）并升级 `RepositoryConfigure`，按 `extensions.worktreeConfig` 控制工作树作用域显示，区分继承、`为当前层覆盖`、`设为空值 ""`、`移除本层` 与高优先级覆盖警告；提供保存前外部变更冲突检测、部分失败逐项汇报及密码／令牌全程脱敏。
+- 对照 SourceGit 原生样式重构 `RepositoryConfigure.axaml` 与 `ConfigFieldMetaBar.axaml`：取消重边框卡片改为两列右对齐扁平表单与 `group_header_label` 分割线，高级设置采用原生 `ToggleButton.group_expander` 平铺面板；修复探针截图暴露出的窄窗横幅裁切、诊断框水平滚动条压字、左列标签折行与高优先级警告标题重复打印问题，双语词条对齐 1254 项。
+- 验证：Release 与 `-Publish` 构建 0 警告 0 错误（`artifacts/windows-x64/GitNest.exe`）；120 项集成检查全过；13 项 `-Config` UI 探针通过且 6 张浅色／深色／窄窗／工作树截图目视核对正常。详见 [2.4 验证记录](verification/phase-2.4.md)。
+
+接续：2.5 提交快照、获取、快进拉取、单分支普通推送（本批完成后按用户要求暂停）。
+
 ## 2026-11-13 · 批次 2.4a：配置来源、多值读取与脱敏基础
 
 - 前一批提交：`5cb3806e`。新增 `GitConfigSnapshot` 等配置模型，扩展 `Commands.Config` 的 `ReadSnapshotAsync`、`SetScopedAsync` 与 `InspectSigningStatus`。

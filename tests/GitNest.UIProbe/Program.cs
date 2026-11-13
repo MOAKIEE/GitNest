@@ -49,8 +49,15 @@ internal static partial class Program
             App.BuildAvaloniaApp().SetupWithoutStarting();
             App.SetLocale("zh_CN");
             OS.SetupExternalTools();
-            RunOverview();
-            if (args.Contains("--comparison")) RunComparison();
+            if (args.Contains("--config"))
+            {
+                RunConfig();
+            }
+            else
+            {
+                RunOverview();
+                if (args.Contains("--comparison")) RunComparison();
+            }
             _results.Add($"Passed {_checks} probe checks.");
             return 0;
         }
@@ -233,5 +240,6 @@ internal static partial class Program
     }
 
     static partial void RunComparison();
+    static partial void RunConfig();
 
 }

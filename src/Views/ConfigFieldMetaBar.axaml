@@ -1,0 +1,119 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:SourceGit.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="520"
+             x:Class="SourceGit.Views.ConfigFieldMetaBar"
+             x:DataType="vm:ConfigFieldItem">
+  <StackPanel Spacing="3" Margin="0,3,0,2">
+    <Grid ColumnDefinitions="*,Auto">
+      <Grid Grid.Column="0" ColumnDefinitions="Auto,Auto,*" VerticalAlignment="Center">
+        <Border Grid.Column="0"
+                Margin="0,0,6,0"
+                Padding="5,1"
+                CornerRadius="2"
+                Background="{DynamicResource Brush.Badge}"
+                VerticalAlignment="Center">
+          <TextBlock Classes="small"
+                     FontWeight="SemiBold"
+                     Foreground="{DynamicResource Brush.BadgeFG}"
+                     Text="{Binding SourceBadge}"/>
+        </Border>
+
+        <TextBlock Grid.Column="1"
+                   Classes="small"
+                   Margin="0,0,8,0"
+                   VerticalAlignment="Center"
+                   Foreground="{DynamicResource Brush.FG1}"
+                   IsVisible="{Binding HasEffectiveSummary}"
+                   Text="{Binding EffectiveSummaryText}"
+                   TextTrimming="CharacterEllipsis"
+                   MaxWidth="210"
+                   ToolTip.Tip="{Binding EffectiveDisplayValue}"/>
+
+        <TextBlock Grid.Column="2"
+                   Classes="small"
+                   VerticalAlignment="Center"
+                   Foreground="{DynamicResource Brush.FG2}"
+                   Text="{Binding SourceOrigin}"
+                   TextTrimming="CharacterEllipsis"
+                   ToolTip.Tip="{Binding SourceOrigin}"/>
+      </Grid>
+
+      <StackPanel Grid.Column="1"
+                  Orientation="Horizontal"
+                  Spacing="4"
+                  Margin="8,0,0,0"
+                  VerticalAlignment="Center">
+        <Button Classes="flat"
+                Padding="6,1"
+                Height="22"
+                IsVisible="{Binding ShowOverrideHereButton}"
+                Content="{DynamicResource Text.Configure.Field.OverrideCurrent}"
+                Click="OnOverrideHereClicked"/>
+        <Button Classes="flat"
+                Padding="6,1"
+                Height="22"
+                IsVisible="{Binding ShowUnsetLayerButton}"
+                Content="{DynamicResource Text.Configure.Field.UnsetLayer}"
+                Click="OnUnsetLayerClicked"/>
+        <Button Classes="flat"
+                Padding="6,1"
+                Height="22"
+                IsVisible="{Binding ShowSetEmptyButton}"
+                Content="{DynamicResource Text.Configure.Field.SetEmpty}"
+                Click="OnSetEmptyClicked"/>
+        <Button Classes="flat"
+                Padding="6,1"
+                Height="22"
+                IsVisible="{Binding ShowRevertButton}"
+                Content="{DynamicResource Text.Configure.Field.ResetField}"
+                Click="OnRevertClicked"/>
+      </StackPanel>
+    </Grid>
+
+    <!-- Plain small note for routine inheritance -->
+    <TextBlock Classes="small"
+               Foreground="{DynamicResource Brush.FG2}"
+               TextWrapping="Wrap"
+               IsVisible="{Binding HasStatusBanner}"
+               Text="{Binding StatusMessage}">
+      <TextBlock.IsVisible>
+        <MultiBinding Converter="{x:Static BoolConverters.And}">
+          <Binding Path="HasStatusBanner"/>
+          <Binding Path="!IsOverriddenByHigherScope"/>
+          <Binding Path="!PendingUnset"/>
+          <Binding Path="!PendingExplicitEmpty"/>
+        </MultiBinding>
+      </TextBlock.IsVisible>
+    </TextBlock>
+
+    <!-- Highlighted callout for higher-scope shadowing -->
+    <Border Padding="6,3"
+            CornerRadius="2"
+            Background="{DynamicResource Brush.Conflict}"
+            IsVisible="{Binding IsOverriddenByHigherScope}">
+      <TextBlock Classes="small"
+                 Foreground="{DynamicResource Brush.Conflict.Foreground}"
+                 TextWrapping="Wrap"
+                 Text="{Binding StatusMessage}"/>
+    </Border>
+
+    <!-- Left-accent callout for pending unset / explicit empty -->
+    <Border Padding="6,2"
+            BorderThickness="2,0,0,0"
+            BorderBrush="{DynamicResource Brush.Accent}">
+      <Border.IsVisible>
+        <MultiBinding Converter="{x:Static BoolConverters.Or}">
+          <Binding Path="PendingUnset"/>
+          <Binding Path="PendingExplicitEmpty"/>
+        </MultiBinding>
+      </Border.IsVisible>
+      <TextBlock Classes="small"
+                 Foreground="{DynamicResource Brush.FG1}"
+                 TextWrapping="Wrap"
+                 Text="{Binding StatusMessage}"/>
+    </Border>
+  </StackPanel>
+</UserControl>

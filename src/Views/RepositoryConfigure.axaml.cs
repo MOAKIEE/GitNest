@@ -13,12 +13,70 @@ namespace SourceGit.Views
             InitializeComponent();
         }
 
-        protected override async void OnClosing(WindowClosingEventArgs e)
+        protected override async void OnOpened(EventArgs e)
         {
-            base.OnClosing(e);
+            base.OnOpened(e);
 
             if (!Design.IsDesignMode && DataContext is ViewModels.RepositoryConfigure configure)
-                await configure.SaveAsync();
+                await configure.EnsureLoadedAsync();
+        }
+
+        private async void OnReloadClicked(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.RepositoryConfigure vm)
+                await vm.ReloadAsync();
+            e.Handled = true;
+        }
+
+        private async void OnSaveClicked(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.RepositoryConfigure vm)
+                await vm.SaveAsync();
+            e.Handled = true;
+        }
+
+        private void OnCloseClicked(object sender, RoutedEventArgs e)
+        {
+            Close();
+            e.Handled = true;
+        }
+
+        private void OnStageAddRemoteClicked(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.RepositoryConfigure vm)
+                vm.StageAddRemote();
+            e.Handled = true;
+        }
+
+        private void OnToggleRemoveRemoteClicked(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.RepositoryConfigure vm)
+                vm.ToggleRemoveSelectedRemote();
+            e.Handled = true;
+        }
+
+        private void OnClearUpstreamClicked(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.RepositoryConfigure vm)
+                vm.ClearUpstream();
+            e.Handled = true;
+        }
+
+        private void OnPickUpstreamSuggestionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is ComboBox { SelectedItem: string branch } &&
+                !string.IsNullOrEmpty(branch) &&
+                DataContext is ViewModels.RepositoryConfigure vm)
+            {
+                vm.UpstreamTargetBranch = branch;
+            }
+        }
+
+        private async void OnCopyDiagnosticsClicked(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.RepositoryConfigure vm && !string.IsNullOrEmpty(vm.SanitizedDiagnostics))
+                await this.CopyTextAsync(vm.SanitizedDiagnostics);
+            e.Handled = true;
         }
 
         private async void SelectConventionalTypesFile(object sender, RoutedEventArgs e)

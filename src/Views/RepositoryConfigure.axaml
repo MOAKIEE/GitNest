@@ -11,10 +11,11 @@
                     x:Name="ThisControl"
                     Icon="/App.ico"
                     Title="{DynamicResource Text.Configure}"
-                    Width="600" SizeToContent="Height"
-                    CanResize="False"
+                    Width="780" Height="640"
+                    MinWidth="640" MinHeight="480"
+                    CanResize="True"
                     WindowStartupLocation="CenterOwner">
-  <Grid RowDefinitions="Auto,Auto">
+  <Grid RowDefinitions="Auto,*,Auto,Auto">
     <!-- TitleBar -->
     <Grid Grid.Row="0" Height="28" IsVisible="{Binding !#ThisControl.UseSystemWindowFrame}">
       <Border Background="{DynamicResource Brush.TitleBar}"
@@ -44,149 +45,579 @@
           <TextBlock Classes="tab_header" Text="{DynamicResource Text.Configure.Git}"/>
         </TabItem.Header>
 
-        <Grid Margin="16,4,16,8" RowDefinitions="32,32,32,32,32,32,32,32,32,32,32,32" ColumnDefinitions="Auto,*">
-          <TextBlock Grid.Row="0" Grid.Column="0"
-                     HorizontalAlignment="Right" VerticalAlignment="Center"
-                     Margin="0,0,8,0"
-                     Text="{DynamicResource Text.Configure.User}"/>
-          <TextBox Grid.Row="0" Grid.Column="1"
-                   Height="28"
-                   CornerRadius="3"
-                   Watermark="{DynamicResource Text.Configure.User.Placeholder}"
-                   Text="{Binding UserName, Mode=TwoWay}"/>
+        <ScrollViewer x:Name="GitConfigScroller" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="16,8,16,12" Spacing="10">
+            <!-- Snapshot Error Banner -->
+            <Border Padding="8,6"
+                    CornerRadius="3"
+                    BorderThickness="1"
+                    BorderBrush="#D9534F"
+                    IsVisible="{Binding SnapshotReadFailed}">
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                <Path Grid.Column="0" Width="14" Height="14" Data="{StaticResource Icons.Error}" Fill="#D9534F" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding SnapshotError}" TextWrapping="Wrap"/>
+              </Grid>
+            </Border>
 
-          <TextBlock Grid.Row="1" Grid.Column="0"
-                     HorizontalAlignment="Right" VerticalAlignment="Center"
-                     Margin="0,0,8,0"
-                     Text="{DynamicResource Text.Configure.Email}"/>
-          <TextBox Grid.Row="1" Grid.Column="1"
-                   Height="28"
-                   CornerRadius="3"
-                   Watermark="{DynamicResource Text.Configure.Email.Placeholder}"
-                   Text="{Binding UserEmail, Mode=TwoWay}"/>
+            <!-- 0. Write Scope -->
+            <Grid ColumnDefinitions="144,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
+              <TextBlock Grid.Row="0" Grid.Column="0"
+                         HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0"
+                         Text="{DynamicResource Text.Configure.Scope.Label}"/>
+              <ComboBox Grid.Row="0" Grid.Column="1"
+                        x:Name="ScopeSelectorCombo"
+                        Height="28" Padding="8,0" HorizontalAlignment="Stretch"
+                        ItemsSource="{Binding AvailableWriteScopes}"
+                        SelectedItem="{Binding SelectedScopeOption, Mode=TwoWay}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate DataType="vm:ConfigScopeOption">
+                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
 
-          <TextBlock Grid.Row="2" Grid.Column="0"
-                     HorizontalAlignment="Right" VerticalAlignment="Center"
-                     Margin="0,0,8,0"
-                     Text="{DynamicResource Text.Configure.Git.DefaultRemote}"/>
-          <ComboBox Grid.Row="2" Grid.Column="1"
-                    Height="28" Padding="8,0"
-                    VerticalAlignment="Center" HorizontalAlignment="Stretch"
-                    ItemsSource="{Binding Remotes}"
-                    SelectedItem="{Binding DefaultRemote, Mode=TwoWay}">
-            <ComboBox.ItemTemplate>
-              <DataTemplate>
-                <StackPanel Orientation="Horizontal" Height="20" VerticalAlignment="Center">
-                  <Path Margin="0,2,8,0" Width="14" Height="14" Fill="{DynamicResource Brush.FG1}" Data="{StaticResource Icons.Remote}"/>
-                  <TextBlock Text="{Binding}"/>
-                </StackPanel>
-              </DataTemplate>
-            </ComboBox.ItemTemplate>
-          </ComboBox>
+              <TextBlock Grid.Row="1" Grid.Column="1" Classes="small"
+                         Foreground="{DynamicResource Brush.FG2}"
+                         TextWrapping="Wrap"
+                         IsVisible="{Binding !ShowGlobalScopeWarning}"
+                         Text="{Binding ScopeDescription}"/>
 
-          <TextBlock Grid.Row="3" Grid.Column="0"
-                     HorizontalAlignment="Right" VerticalAlignment="Center"
-                     Margin="0,0,8,0"
-                     Text="{DynamicResource Text.Configure.Git.PreferredMergeMode}"/>
-          <ComboBox Grid.Row="3" Grid.Column="1"
-                    Height="28" Padding="8,0"
-                    VerticalAlignment="Center" HorizontalAlignment="Stretch"
-                    ItemsSource="{Binding Source={x:Static m:MergeMode.Supported}}"
-                    SelectedIndex="{Binding PreferredMergeMode, Mode=TwoWay}"
-                    Grid.IsSharedSizeScope="True">
-            <ComboBox.ItemTemplate>
-              <DataTemplate DataType="m:MergeMode">
-                <Grid Height="20">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" SharedSizeGroup="MergeModeNameColumn"/>
-                    <ColumnDefinition Width="Auto" SharedSizeGroup="MergeModeDescriptionColumn"/>
-                    <ColumnDefinition Width="Auto" SharedSizeGroup="MergeModeOptionColumn"/>
-                  </Grid.ColumnDefinitions>
-
-                  <TextBlock Grid.Column="0" Text="{Binding Name}"/>
-                  <TextBlock Grid.Column="1" Text="{Binding Desc}" Margin="8,0" FontSize="11" Foreground="{DynamicResource Brush.FG2}"/>
-                  <TextBlock Grid.Column="2" Text="{Binding Arg}" HorizontalAlignment="Right" FontSize="11" Foreground="{DynamicResource Brush.FG2}"/>
+              <Border Grid.Row="1" Grid.Column="1" Padding="8,5" CornerRadius="3"
+                      Background="{DynamicResource Brush.Conflict}"
+                      IsVisible="{Binding ShowGlobalScopeWarning}">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
+                  <Path Grid.Column="0" Width="13" Height="13" Data="{StaticResource Icons.Error}" Fill="{DynamicResource Brush.Conflict.Foreground}" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="1" Classes="small" FontWeight="SemiBold"
+                             Foreground="{DynamicResource Brush.Conflict.Foreground}"
+                             TextWrapping="Wrap"
+                             Text="{DynamicResource Text.Configure.Scope.GlobalWarning}"/>
                 </Grid>
-              </DataTemplate>
-            </ComboBox.ItemTemplate>
+              </Border>
 
-            <ComboBox.SelectionBoxItemTemplate>
-              <DataTemplate DataType="m:MergeMode">
-                <Grid ColumnDefinitions="Auto,*">
-                  <TextBlock Grid.Column="0" Text="{Binding Name}" Margin="0,0,8,0"/>
-                  <TextBlock Grid.Column="1" Text="{Binding Desc}" HorizontalAlignment="Right" FontSize="11" Foreground="{DynamicResource Brush.FG2}"/>
+              <TextBlock Grid.Row="2" Grid.Column="1" Classes="small"
+                         Foreground="{DynamicResource Brush.FG2}"
+                         TextWrapping="Wrap"
+                         IsVisible="{Binding ShowWorktreeDisabledHint}"
+                         Text="{DynamicResource Text.Configure.Scope.WorktreeDisabledHint}"/>
+            </Grid>
+
+            <!-- 1. Identity -->
+            <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0">
+              <TextBlock Grid.Column="0" Classes="group_header_label" Text="{DynamicResource Text.Configure.Section.Identity}"/>
+              <Border Grid.Column="1" Height="1" Margin="8,0,0,0" Background="{DynamicResource Brush.Border0}" VerticalAlignment="Center"/>
+            </Grid>
+
+            <Grid ColumnDefinitions="144,*" RowDefinitions="Auto,Auto" RowSpacing="8">
+              <TextBlock Grid.Row="0" Grid.Column="0" Height="28" VerticalAlignment="Top"
+                         HorizontalAlignment="Right" Margin="0,0,12,0"
+                         Text="{DynamicResource Text.Configure.User}"/>
+              <StackPanel Grid.Row="0" Grid.Column="1" Spacing="2">
+                <TextBox Height="28" CornerRadius="3"
+                         Watermark="{DynamicResource Text.Configure.User.Placeholder}"
+                         IsReadOnly="{Binding UserNameField.IsReadOnly}"
+                         Text="{Binding UserNameField.EditText, Mode=TwoWay}"/>
+                <v:ConfigFieldMetaBar DataContext="{Binding UserNameField}"/>
+              </StackPanel>
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Height="28" VerticalAlignment="Top"
+                         HorizontalAlignment="Right" Margin="0,0,12,0"
+                         Text="{DynamicResource Text.Configure.Email}"/>
+              <StackPanel Grid.Row="1" Grid.Column="1" Spacing="2">
+                <TextBox Height="28" CornerRadius="3"
+                         Watermark="{DynamicResource Text.Configure.Email.Placeholder}"
+                         IsReadOnly="{Binding UserEmailField.IsReadOnly}"
+                         Text="{Binding UserEmailField.EditText, Mode=TwoWay}"/>
+                <v:ConfigFieldMetaBar DataContext="{Binding UserEmailField}"/>
+              </StackPanel>
+            </Grid>
+
+            <!-- 2. Remotes -->
+            <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0">
+              <TextBlock Grid.Column="0" Classes="group_header_label" Text="{DynamicResource Text.Configure.Section.Remotes}"/>
+              <Border Grid.Column="1" Height="1" Margin="8,0,0,0" Background="{DynamicResource Brush.Border0}" VerticalAlignment="Center"/>
+            </Grid>
+
+            <Grid ColumnDefinitions="144,*" RowDefinitions="Auto,Auto" RowSpacing="8">
+              <TextBlock Grid.Row="0" Grid.Column="0" Height="28" VerticalAlignment="Top"
+                         HorizontalAlignment="Right" Margin="0,0,12,0"
+                         Text="{DynamicResource Text.Configure.Remotes.Select}"/>
+
+              <StackPanel Grid.Row="0" Grid.Column="1" Spacing="6">
+                <TextBlock Classes="small" Foreground="{DynamicResource Brush.FG2}"
+                           IsVisible="{Binding HasNoRemotes}"
+                           Text="{DynamicResource Text.Configure.Remotes.Empty}"/>
+
+                <Grid ColumnDefinitions="148,10,*" IsVisible="{Binding !HasNoRemotes}">
+                  <Border Grid.Column="0"
+                          BorderThickness="1"
+                          BorderBrush="{DynamicResource Brush.Border2}"
+                          Background="{DynamicResource Brush.Contents}"
+                          CornerRadius="3"
+                          MaxHeight="145">
+                    <ListBox Background="Transparent"
+                             ItemsSource="{Binding RemotesDrafts}"
+                             SelectedItem="{Binding SelectedRemoteDraft, Mode=TwoWay}"
+                             SelectionMode="Single">
+                      <ListBox.Styles>
+                        <Style Selector="ListBoxItem">
+                          <Setter Property="MinHeight" Value="0"/>
+                          <Setter Property="Height" Value="24"/>
+                          <Setter Property="Padding" Value="6,2"/>
+                        </Style>
+                      </ListBox.Styles>
+                      <ListBox.ItemTemplate>
+                        <DataTemplate DataType="vm:RemoteConfigDraft">
+                          <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Width="12" Height="12" Data="{StaticResource Icons.Remote}" Fill="{DynamicResource Brush.FG1}"/>
+                            <TextBlock Text="{Binding DisplayHeader}" TextTrimming="CharacterEllipsis"/>
+                          </StackPanel>
+                        </DataTemplate>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
+                  </Border>
+
+                  <Panel Grid.Column="2" IsVisible="{Binding HasSelectedRemote}">
+                    <StackPanel Spacing="6" DataContext="{Binding SelectedRemoteDraft}" x:DataType="vm:RemoteConfigDraft">
+                      <Grid ColumnDefinitions="82,*,Auto">
+                        <TextBlock Grid.Column="0" HorizontalAlignment="Right" Margin="0,0,8,0" Text="{DynamicResource Text.Configure.Remotes.Name}"/>
+                        <TextBox Grid.Column="1" Height="28" CornerRadius="3"
+                                 IsReadOnly="{Binding IsMarkedForRemoval}"
+                                 Text="{Binding Name, Mode=TwoWay}"/>
+                        <Button Grid.Column="2" Classes="flat" Margin="6,0,0,0" Height="28" Padding="8,0"
+                                Content="{Binding ToggleRemoveLabel}"
+                                Click="OnToggleRemoveRemoteClicked"/>
+                      </Grid>
+
+                      <Grid ColumnDefinitions="82,*">
+                        <TextBlock Grid.Column="0" HorizontalAlignment="Right" Margin="0,0,8,0" Text="{DynamicResource Text.Configure.Remotes.FetchUrl}"/>
+                        <TextBox Grid.Column="1" Height="28" CornerRadius="3"
+                                 IsReadOnly="{Binding IsMarkedForRemoval}"
+                                 Text="{Binding PrimaryFetchUrl, Mode=TwoWay}"/>
+                      </Grid>
+
+                      <Grid ColumnDefinitions="82,*">
+                        <TextBlock Grid.Column="0" HorizontalAlignment="Right" Margin="0,0,8,0" Text="{DynamicResource Text.Configure.Remotes.PushUrl}"/>
+                        <TextBox Grid.Column="1" Height="28" CornerRadius="3"
+                                 Watermark="{DynamicResource Text.Configure.Remotes.PushUrlPlaceholder}"
+                                 IsReadOnly="{Binding IsMarkedForRemoval}"
+                                 Text="{Binding PrimaryPushUrl, Mode=TwoWay}"/>
+                      </Grid>
+
+                      <TextBlock Classes="small" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap"
+                                 IsVisible="{Binding HasPreservedDetails}"
+                                 Text="{Binding PreservedDetailsText}"/>
+                      <TextBlock Classes="small" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap"
+                                 IsVisible="{Binding HasSensitiveUrl}"
+                                 Text="{DynamicResource Text.Configure.Remotes.SensitiveHint}"/>
+                      <TextBlock Classes="small" Foreground="{DynamicResource Brush.FG2}"
+                                 IsVisible="{Binding HasSshKey}"
+                                 Text="{Binding SshKeyDisplay, StringFormat='SSH Key: {0}'}"/>
+                    </StackPanel>
+                  </Panel>
                 </Grid>
-              </DataTemplate>
-            </ComboBox.SelectionBoxItemTemplate>
-          </ComboBox>
+              </StackPanel>
 
-          <TextBlock Grid.Row="4" Grid.Column="0"
-                     HorizontalAlignment="Right" VerticalAlignment="Center"
-                     Margin="0,0,8,0"
-                     Text="{DynamicResource Text.Configure.Proxy}"/>
-          <TextBox Grid.Row="4" Grid.Column="1"
-                   Height="28"
-                   CornerRadius="3"
-                   Watermark="{DynamicResource Text.Configure.Proxy.Placeholder}"
-                   Text="{Binding HttpProxy, Mode=TwoWay}">
-            <TextBox.InnerRightContent>
-              <Button Classes="icon_button"
-                      Focusable="False"
-                      IsVisible="{Binding HttpProxy, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                      Command="{Binding ClearHttpProxy}">
-                <Path Width="16" Height="16" Margin="0,0,0,0" Data="{StaticResource Icons.Clear}" Fill="{DynamicResource Brush.FG1}"/>
-              </Button>
-            </TextBox.InnerRightContent>
-          </TextBox>
+              <TextBlock Grid.Row="1" Grid.Column="0" Height="28" VerticalAlignment="Top"
+                         HorizontalAlignment="Right" Margin="0,0,12,0"
+                         Text="{DynamicResource Text.Configure.Remotes.AddSection}"/>
+              <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4">
+                <Grid ColumnDefinitions="158,6,*,6,Auto">
+                  <TextBox Grid.Column="0" Height="28" CornerRadius="3"
+                           Watermark="{DynamicResource Text.Configure.Remotes.NewNamePlaceholder}"
+                           Text="{Binding NewRemoteName, Mode=TwoWay}"/>
+                  <TextBox Grid.Column="2" Height="28" CornerRadius="3"
+                           Watermark="{DynamicResource Text.Configure.Remotes.NewUrlPlaceholder}"
+                           Text="{Binding NewRemoteUrl, Mode=TwoWay}"/>
+                  <Button Grid.Column="4" Classes="flat" Height="28" Padding="10,0"
+                          Content="{DynamicResource Text.Configure.Remotes.StageAdd}"
+                          Click="OnStageAddRemoteClicked"/>
+                </Grid>
+                <TextBlock Classes="small" Foreground="#D9534F"
+                           IsVisible="{Binding HasRemoteStagingError}"
+                           Text="{Binding RemoteStagingError}"/>
+              </StackPanel>
+            </Grid>
 
-          <TextBlock Grid.Row="5" Grid.Column="0"
-                     HorizontalAlignment="Right" VerticalAlignment="Center"
-                     Margin="0,0,8,0"
-                     Text="{DynamicResource Text.Preferences.GPG.UserKey}"/>
-          <TextBox Grid.Row="5" Grid.Column="1"
-                   Height="28"
-                   CornerRadius="3"
-                   Watermark="{DynamicResource Text.Preferences.GPG.UserKey.Placeholder}"
-                   Text="{Binding GPGUserSigningKey, Mode=TwoWay}"/>
+            <!-- 3. Current Branch Upstream -->
+            <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0">
+              <TextBlock Grid.Column="0" Classes="group_header_label" Text="{DynamicResource Text.Configure.Section.Upstream}"/>
+              <Border Grid.Column="1" Height="1" Margin="8,0,0,0" Background="{DynamicResource Brush.Border0}" VerticalAlignment="Center"/>
+            </Grid>
 
-          <TextBlock Grid.Row="6" Grid.Column="0"
-                     Text="{DynamicResource Text.Configure.Git.ConventionalTypesOverride}"
-                     HorizontalAlignment="Right"
-                     Margin="0,0,8,0"/>
-          <TextBox Grid.Row="6" Grid.Column="1"
-                   Height="28"
-                   CornerRadius="3"
-                   Text="{Binding ConventionalTypesOverride, Mode=TwoWay}">
-            <TextBox.InnerRightContent>
-              <Button Classes="icon_button" Width="30" Height="30" Click="SelectConventionalTypesFile">
-                <Path Data="{StaticResource Icons.Folder.Open}" Fill="{DynamicResource Brush.FG1}"/>
-              </Button>
-            </TextBox.InnerRightContent>
-          </TextBox>
+            <Grid ColumnDefinitions="144,*" RowDefinitions="Auto,Auto" RowSpacing="6">
+              <TextBlock Grid.Row="0" Grid.Column="0" HorizontalAlignment="Right" Margin="0,0,12,0"
+                         Text="{DynamicResource Text.Configure.Upstream.EffectiveMapping}"/>
+              <StackPanel Grid.Row="0" Grid.Column="1" Spacing="2">
+                <TextBlock Classes="small" Foreground="{DynamicResource Brush.FG2}"
+                           IsVisible="{Binding IsDetachedHead}"
+                           Text="{DynamicResource Text.Configure.Upstream.DetachedHead}"/>
+                <TextBlock TextWrapping="Wrap"
+                           IsVisible="{Binding !IsDetachedHead}"
+                           Text="{Binding EffectiveUpstreamSummary}"/>
+                <TextBlock Classes="small" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap"
+                           IsVisible="{Binding IsUpstreamUnfetched}"
+                           Text="{DynamicResource Text.Configure.Upstream.UnfetchedNote}"/>
+              </StackPanel>
 
-          <CheckBox Grid.Row="7" Grid.Column="1"
-                    Content="{DynamicResource Text.Preferences.GPG.CommitEnabled}"
-                    IsChecked="{Binding GPGCommitSigningEnabled, Mode=TwoWay}"
-                    ToolTip.Tip="commit.gpgsign=true"/>
+              <TextBlock Grid.Row="1" Grid.Column="0" Height="28" VerticalAlignment="Top"
+                         HorizontalAlignment="Right" Margin="0,0,12,0"
+                         IsVisible="{Binding !IsDetachedHead}"
+                         Text="{DynamicResource Text.Configure.Upstream.TargetBranch}"/>
+              <Grid Grid.Row="1" Grid.Column="1" ColumnDefinitions="148,8,*,8,Auto" IsVisible="{Binding !IsDetachedHead}">
+                <ComboBox Grid.Column="0" Height="28" Padding="8,0"
+                          ItemsSource="{Binding UpstreamRemoteOptions}"
+                          SelectedItem="{Binding SelectedUpstreamRemote, Mode=TwoWay}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                      <Panel>
+                        <TextBlock Text="{Binding}" IsVisible="{Binding, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        <TextBlock Text="{DynamicResource Text.Configure.Scope.Unset}" Foreground="{DynamicResource Brush.FG2}"
+                                   IsVisible="{Binding, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
+                      </Panel>
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
 
-          <CheckBox Grid.Row="8" Grid.Column="1"
-                    Content="{DynamicResource Text.Preferences.GPG.TagEnabled}"
-                    IsChecked="{Binding GPGTagSigningEnabled, Mode=TwoWay}"
-                    ToolTip.Tip="tag.gpgsign=true"/>
+                <Grid Grid.Column="2" ColumnDefinitions="*,Auto">
+                  <TextBox Grid.Column="0" Height="28" CornerRadius="3"
+                           Watermark="{DynamicResource Text.Configure.Upstream.TargetBranchPlaceholder}"
+                           Text="{Binding UpstreamTargetBranch, Mode=TwoWay}"/>
+                  <ComboBox Grid.Column="1" Width="32" Height="28" Margin="4,0,0,0"
+                            IsVisible="{Binding HasUpstreamBranchOptions}"
+                            ItemsSource="{Binding UpstreamBranchOptions}"
+                            SelectionChanged="OnPickUpstreamSuggestionChanged"
+                            ToolTip.Tip="{DynamicResource Text.Configure.Upstream.TargetBranch}"/>
+                </Grid>
 
-          <CheckBox Grid.Row="9" Grid.Column="1"
-                    Content="{DynamicResource Text.Preferences.Git.EnablePruneOnFetch}"
-                    IsChecked="{Binding EnablePruneOnFetch, Mode=TwoWay}"
-                    ToolTip.Tip="fetch.prune=true"/>
+                <Button Grid.Column="4" Classes="flat" Height="28" Padding="10,0"
+                        Content="{DynamicResource Text.Configure.Upstream.Clear}"
+                        Click="OnClearUpstreamClicked"/>
+              </Grid>
+            </Grid>
 
-          <CheckBox Grid.Row="10" Grid.Column="1"
-                    Content="{DynamicResource Text.Configure.Git.EnableRecursiveWhenAutoUpdatingSubmodules}"
-                    IsChecked="{Binding EnableRecursiveWhenAutoUpdatingSubmodules, Mode=TwoWay}"/>
+            <!-- 4. Proxy & URL Overrides -->
+            <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0">
+              <TextBlock Grid.Column="0" Classes="group_header_label" Text="{DynamicResource Text.Configure.Section.Proxy}"/>
+              <Border Grid.Column="1" Height="1" Margin="8,0,0,0" Background="{DynamicResource Brush.Border0}" VerticalAlignment="Center"/>
+            </Grid>
 
-          <CheckBox Grid.Row="11" Grid.Column="1"
-                    Content="{DynamicResource Text.Configure.Git.AskBeforeAutoUpdatingSubmodules}"
-                    IsChecked="{Binding AskBeforeAutoUpdatingSubmodules, Mode=TwoWay}"/>
-        </Grid>
+            <Grid ColumnDefinitions="144,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+              <TextBlock Grid.Row="0" Grid.Column="0" Height="28" VerticalAlignment="Top"
+                         HorizontalAlignment="Right" Margin="0,0,12,0"
+                         Text="{DynamicResource Text.Configure.Proxy}"/>
+              <StackPanel Grid.Row="0" Grid.Column="1" Spacing="2">
+                <TextBox Height="28" CornerRadius="3"
+                         Watermark="{DynamicResource Text.Configure.Proxy.Placeholder}"
+                         IsReadOnly="{Binding HttpProxyField.IsReadOnly}"
+                         Text="{Binding HttpProxyField.EditText, Mode=TwoWay}">
+                  <TextBox.InnerRightContent>
+                    <Button Classes="icon_button" Focusable="False"
+                            IsVisible="{Binding HttpProxyField.EditText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                            Command="{Binding ClearHttpProxy}">
+                      <Path Width="14" Height="14" Data="{StaticResource Icons.Clear}" Fill="{DynamicResource Brush.FG1}"/>
+                    </Button>
+                  </TextBox.InnerRightContent>
+                </TextBox>
+                <v:ConfigFieldMetaBar DataContext="{Binding HttpProxyField}"/>
+              </StackPanel>
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Height="28" VerticalAlignment="Top"
+                         HorizontalAlignment="Right" Margin="0,0,12,0"
+                         Text="{DynamicResource Text.Configure.Proxy.Https}"/>
+              <StackPanel Grid.Row="1" Grid.Column="1" Spacing="2">
+                <TextBox Height="28" CornerRadius="3"
+                         Watermark="{DynamicResource Text.Configure.Proxy.HttpsPlaceholder}"
+                         IsReadOnly="{Binding HttpsProxyField.IsReadOnly}"
+                         Text="{Binding HttpsProxyField.EditText, Mode=TwoWay}"/>
+                <v:ConfigFieldMetaBar DataContext="{Binding HttpsProxyField}"/>
+              </StackPanel>
+
+              <TextBlock Grid.Row="2" Grid.Column="0" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
+                         VerticalAlignment="Top" Margin="0,3,12,0"
+                         Text="{DynamicResource Text.Configure.Proxy.UrlOverrides}"/>
+              <StackPanel Grid.Row="2" Grid.Column="1" Spacing="3">
+                <TextBlock Classes="small" Foreground="{DynamicResource Brush.FG2}"
+                           IsVisible="{Binding !HasUrlProxyOverrides}"
+                           Text="{DynamicResource Text.Configure.Proxy.NoUrlOverrides}"/>
+                <ItemsControl ItemsSource="{Binding UrlProxyOverrides}" IsVisible="{Binding HasUrlProxyOverrides}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:ConfigReadOnlyEntry">
+                      <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,2">
+                        <Border Grid.Column="0" Margin="0,0,6,0" Padding="5,1" CornerRadius="2" Background="{DynamicResource Brush.Badge}">
+                          <TextBlock Classes="small" Foreground="{DynamicResource Brush.BadgeFG}" Text="{Binding SourceBadge}"/>
+                        </Border>
+                        <TextBlock Grid.Column="1" Classes="small" FontWeight="SemiBold" Margin="0,0,8,0" Text="{Binding Label}"/>
+                        <TextBlock Grid.Column="2" Classes="small" Text="{Binding Value}" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Grid.Column="3" Classes="small" Margin="8,0,0,0" Foreground="{DynamicResource Brush.FG2}" Text="{Binding Origin}" TextTrimming="CharacterEllipsis" MaxWidth="170" ToolTip.Tip="{Binding Origin}"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Grid>
+
+            <!-- 5. Commit & Tag Signing -->
+            <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0">
+              <TextBlock Grid.Column="0" Classes="group_header_label" Text="{DynamicResource Text.Configure.Section.Signing}"/>
+              <Border Grid.Column="1" Height="1" Margin="8,0,0,0" Background="{DynamicResource Brush.Border0}" VerticalAlignment="Center"/>
+            </Grid>
+
+            <Grid ColumnDefinitions="144,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
+              <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4">
+                <Border Padding="8,5" CornerRadius="3" BorderThickness="1"
+                        IsVisible="{Binding SigningStatusIsReady}"
+                        Background="{DynamicResource Brush.SubPanel}" BorderBrush="#2EA043">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
+                    <Path Grid.Column="0" Width="13" Height="13" Data="{StaticResource Icons.CheckCircled}" Fill="#2EA043" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Classes="small" TextWrapping="Wrap" Text="{Binding SigningStatusMessage}"/>
+                  </Grid>
+                </Border>
+
+                <TextBlock Classes="small" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap"
+                           IsVisible="{Binding SigningStatusIsDisabled}"
+                           Text="{Binding SigningStatusMessage}"/>
+
+                <Border Padding="8,5" CornerRadius="3"
+                        IsVisible="{Binding SigningStatusHasIssue}"
+                        Background="{DynamicResource Brush.Conflict}">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
+                    <Path Grid.Column="0" Width="13" Height="13" Data="{StaticResource Icons.Error}" Fill="{DynamicResource Brush.Conflict.Foreground}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Classes="small" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Conflict.Foreground}" TextWrapping="Wrap" Text="{Binding SigningStatusMessage}"/>
+                  </Grid>
+                </Border>
+
+                <TextBlock Classes="small" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap"
+                           IsVisible="{Binding HasSigningStatusSecondaryNote}"
+                           Text="{Binding SigningStatusSecondaryNote}"/>
+              </StackPanel>
+
+              <StackPanel Grid.Row="1" Grid.Column="1" Spacing="2">
+                <CheckBox Content="{DynamicResource Text.Preferences.GPG.CommitEnabled}"
+                          IsEnabled="{Binding !CommitSignField.IsReadOnly}"
+                          IsChecked="{Binding CommitSignField.EditBool, Mode=TwoWay}"/>
+                <v:ConfigFieldMetaBar DataContext="{Binding CommitSignField}"/>
+              </StackPanel>
+
+              <StackPanel Grid.Row="2" Grid.Column="1" Spacing="2">
+                <CheckBox Content="{DynamicResource Text.Preferences.GPG.TagEnabled}"
+                          IsEnabled="{Binding !TagSignField.IsReadOnly}"
+                          IsChecked="{Binding TagSignField.EditBool, Mode=TwoWay}"/>
+                <v:ConfigFieldMetaBar DataContext="{Binding TagSignField}"/>
+              </StackPanel>
+
+              <TextBlock Grid.Row="3" Grid.Column="0" Height="28" VerticalAlignment="Top"
+                         HorizontalAlignment="Right" Margin="0,0,12,0"
+                         Text="{DynamicResource Text.Configure.Signing.Format}"/>
+              <StackPanel Grid.Row="3" Grid.Column="1" Spacing="2">
+                <ComboBox Height="28" Padding="8,0" HorizontalAlignment="Stretch"
+                          IsEnabled="{Binding !SigningFormatField.IsReadOnly}"
+                          ItemsSource="{Binding SigningFormatOptions}"
+                          SelectedItem="{Binding SelectedSigningFormatOption, Mode=TwoWay}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate DataType="vm:ConfigChoiceOption">
+                      <TextBlock Text="{Binding Label}"/>
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <v:ConfigFieldMetaBar DataContext="{Binding SigningFormatField}"/>
+              </StackPanel>
+
+              <TextBlock Grid.Row="4" Grid.Column="0" Height="28" VerticalAlignment="Top"
+                         HorizontalAlignment="Right" Margin="0,0,12,0"
+                         Text="{DynamicResource Text.Preferences.GPG.UserKey}"/>
+              <StackPanel Grid.Row="4" Grid.Column="1" Spacing="2">
+                <TextBox Height="28" CornerRadius="3"
+                         Watermark="{DynamicResource Text.Preferences.GPG.UserKey.Placeholder}"
+                         IsReadOnly="{Binding SigningKeyField.IsReadOnly}"
+                         Text="{Binding SigningKeyField.EditText, Mode=TwoWay}"/>
+                <v:ConfigFieldMetaBar DataContext="{Binding SigningKeyField}"/>
+              </StackPanel>
+
+              <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Top" Margin="0,4,12,0"
+                         HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
+                         IsVisible="{Binding ShowSshSigningOptions}"
+                         Text="{DynamicResource Text.Configure.Signing.AllowedSigners}"/>
+              <StackPanel Grid.Row="5" Grid.Column="1" Spacing="2" IsVisible="{Binding ShowSshSigningOptions}">
+                <TextBox Height="28" CornerRadius="3"
+                         Watermark="{DynamicResource Text.Configure.Signing.AllowedSignersPlaceholder}"
+                         IsReadOnly="{Binding SshAllowedSignersField.IsReadOnly}"
+                         Text="{Binding SshAllowedSignersField.EditText, Mode=TwoWay}"/>
+                <v:ConfigFieldMetaBar DataContext="{Binding SshAllowedSignersField}"/>
+              </StackPanel>
+
+              <TextBlock Grid.Row="6" Grid.Column="0" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
+                         Margin="0,0,12,0"
+                         Text="{DynamicResource Text.Configure.Signing.Program}"/>
+              <TextBlock Grid.Row="6" Grid.Column="1" Classes="small" Foreground="{DynamicResource Brush.FG2}"
+                         Text="{Binding SigningProgramReadOnly}" TextTrimming="CharacterEllipsis"/>
+            </Grid>
+
+            <!-- 6. Credential Helpers & SSH (Read-Only) -->
+            <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0">
+              <TextBlock Grid.Column="0" Classes="group_header_label" Text="{DynamicResource Text.Configure.Section.AuthSsh}"/>
+              <Border Grid.Column="1" Height="1" Margin="8,0,0,0" Background="{DynamicResource Brush.Border0}" VerticalAlignment="Center"/>
+            </Grid>
+
+            <Grid ColumnDefinitions="144,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
+              <TextBlock Grid.Row="0" Grid.Column="1" Classes="small" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap"
+                         Text="{DynamicResource Text.Configure.AuthSsh.PolicyNote}"/>
+
+              <TextBlock Grid.Row="1" Grid.Column="0" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
+                         VerticalAlignment="Top" Margin="0,2,12,0"
+                         Text="{DynamicResource Text.Configure.AuthSsh.CredentialChain}"/>
+              <StackPanel Grid.Row="1" Grid.Column="1" Spacing="2">
+                <TextBlock Classes="small" Foreground="{DynamicResource Brush.FG2}"
+                           IsVisible="{Binding !HasCredentialHelpers}"
+                           Text="{DynamicResource Text.Configure.AuthSsh.NoHelpers}"/>
+                <ItemsControl ItemsSource="{Binding CredentialHelpers}" IsVisible="{Binding HasCredentialHelpers}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:ConfigReadOnlyEntry">
+                      <Grid ColumnDefinitions="26,Auto,*,Auto" Margin="0,2">
+                        <TextBlock Grid.Column="0" Classes="small" Foreground="{DynamicResource Brush.FG2}" Text="{Binding Label}" VerticalAlignment="Center"/>
+                        <Border Grid.Column="1" Margin="0,0,6,0" Padding="5,1" CornerRadius="2" Background="{DynamicResource Brush.Badge}" VerticalAlignment="Center">
+                          <TextBlock Classes="small" Foreground="{DynamicResource Brush.BadgeFG}" Text="{Binding SourceBadge}"/>
+                        </Border>
+                        <TextBlock Grid.Column="2" Classes="small" Text="{Binding Value}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="3" Classes="small" Margin="8,0,0,0" Foreground="{DynamicResource Brush.FG2}" Text="{Binding Origin}" TextTrimming="CharacterEllipsis" MaxWidth="170" VerticalAlignment="Center" ToolTip.Tip="{Binding Origin}"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+
+              <TextBlock Grid.Row="2" Grid.Column="0" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
+                         VerticalAlignment="Top" Margin="0,2,12,0"
+                         Text="{DynamicResource Text.Configure.AuthSsh.SshSummary}"/>
+              <StackPanel Grid.Row="2" Grid.Column="1" Spacing="2">
+                <TextBlock Classes="small" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap"
+                           IsVisible="{Binding !HasSshAndRuntimeEntries}"
+                           Text="{DynamicResource Text.Configure.AuthSsh.NoSshOverrides}"/>
+                <ItemsControl ItemsSource="{Binding SshAndRuntimeEntries}" IsVisible="{Binding HasSshAndRuntimeEntries}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:ConfigReadOnlyEntry">
+                      <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,2">
+                        <Border Grid.Column="0" Margin="0,0,6,0" Padding="5,1" CornerRadius="2" Background="{DynamicResource Brush.Badge}" VerticalAlignment="Center">
+                          <TextBlock Classes="small" Foreground="{DynamicResource Brush.BadgeFG}" Text="{Binding SourceBadge}"/>
+                        </Border>
+                        <TextBlock Grid.Column="1" Classes="small" Margin="0,0,6,0" FontWeight="SemiBold" Text="{Binding Label}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Classes="small" Text="{Binding Value}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="3" Classes="small" Margin="8,0,0,0" Foreground="{DynamicResource Brush.FG2}" Text="{Binding Origin}" TextTrimming="CharacterEllipsis" MaxWidth="160" VerticalAlignment="Center" ToolTip.Tip="{Binding Origin}"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Grid>
+
+            <!-- 7. Advanced & Repo Preferences -->
+            <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0">
+              <ToggleButton x:Name="AdvancedExpander"
+                            Grid.Column="0"
+                            Classes="group_expander"
+                            Margin="0"
+                            IsChecked="False">
+                <TextBlock Classes="group_header_label" VerticalAlignment="Center"
+                           Text="{DynamicResource Text.Configure.Section.Advanced}"/>
+              </ToggleButton>
+              <Border Grid.Column="1" Height="1" Margin="8,0,0,0" Background="{DynamicResource Brush.Border0}" VerticalAlignment="Center"/>
+            </Grid>
+
+            <Grid IsVisible="{Binding #AdvancedExpander.IsChecked}"
+                  ColumnDefinitions="144,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8" Margin="0,2,0,0">
+              <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Top" Margin="0,4,12,0"
+                         HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
+                         Text="{DynamicResource Text.Configure.Advanced.AutoCrlf}"/>
+              <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4">
+                <ComboBox Height="28" Padding="8,0" HorizontalAlignment="Stretch"
+                          IsEnabled="{Binding !AutoCrlfField.IsReadOnly}"
+                          ItemsSource="{Binding AutoCrlfOptions}"
+                          SelectedItem="{Binding SelectedAutoCrlfOption, Mode=TwoWay}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate DataType="vm:ConfigChoiceOption">
+                      <TextBlock Text="{Binding Label}"/>
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Border Padding="6,4" CornerRadius="2" Background="{DynamicResource Brush.Conflict}">
+                  <TextBlock Classes="small" Foreground="{DynamicResource Brush.Conflict.Foreground}" TextWrapping="Wrap"
+                             Text="{DynamicResource Text.Configure.Advanced.AutoCrlfWarning}"/>
+                </Border>
+                <v:ConfigFieldMetaBar DataContext="{Binding AutoCrlfField}"/>
+              </StackPanel>
+
+              <TextBlock Grid.Row="1" Grid.Column="0" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
+                         VerticalAlignment="Center" Margin="0,0,12,0"
+                         Text="{DynamicResource Text.Configure.Advanced.EolReadOnly}"/>
+              <TextBlock Grid.Row="1" Grid.Column="1" Classes="small" Foreground="{DynamicResource Brush.FG2}"
+                         VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding CoreEolReadOnly}"/>
+
+              <StackPanel Grid.Row="2" Grid.Column="1" Spacing="2">
+                <CheckBox Content="{DynamicResource Text.Preferences.Git.EnablePruneOnFetch}"
+                          IsEnabled="{Binding !FetchPruneField.IsReadOnly}"
+                          IsChecked="{Binding FetchPruneField.EditBool, Mode=TwoWay}"/>
+                <v:ConfigFieldMetaBar DataContext="{Binding FetchPruneField}"/>
+              </StackPanel>
+
+              <TextBlock Grid.Row="3" Grid.Column="0" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
+                         VerticalAlignment="Center" Margin="0,0,12,0"
+                         Text="{DynamicResource Text.Configure.Git.DefaultRemote}"/>
+              <ComboBox Grid.Row="3" Grid.Column="1" Height="28" Padding="8,0" HorizontalAlignment="Stretch"
+                        ItemsSource="{Binding Remotes}"
+                        SelectedItem="{Binding DefaultRemote, Mode=TwoWay}"/>
+
+              <TextBlock Grid.Row="4" Grid.Column="0" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
+                         VerticalAlignment="Center" Margin="0,0,12,0"
+                         Text="{DynamicResource Text.Configure.Git.PreferredMergeMode}"/>
+              <ComboBox Grid.Row="4" Grid.Column="1" Height="28" Padding="8,0" HorizontalAlignment="Stretch"
+                        ItemsSource="{Binding Source={x:Static m:MergeMode.Supported}}"
+                        SelectedIndex="{Binding PreferredMergeMode, Mode=TwoWay}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate DataType="m:MergeMode">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Text="{Binding Name}"/>
+                      <TextBlock Text="{Binding Desc}" Classes="small" Foreground="{DynamicResource Brush.FG2}"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+
+              <TextBlock Grid.Row="5" Grid.Column="0" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
+                         VerticalAlignment="Center" Margin="0,0,12,0"
+                         Text="{DynamicResource Text.Configure.Git.ConventionalTypesOverride}"/>
+              <TextBox Grid.Row="5" Grid.Column="1" Height="28" CornerRadius="3"
+                       Text="{Binding ConventionalTypesOverride, Mode=TwoWay}">
+                <TextBox.InnerRightContent>
+                  <Button Classes="icon_button" Width="28" Height="28" Click="SelectConventionalTypesFile">
+                    <Path Width="14" Height="14" Data="{StaticResource Icons.Folder.Open}" Fill="{DynamicResource Brush.FG1}"/>
+                  </Button>
+                </TextBox.InnerRightContent>
+              </TextBox>
+
+              <CheckBox Grid.Row="6" Grid.Column="1"
+                        Content="{DynamicResource Text.Configure.Git.EnableRecursiveWhenAutoUpdatingSubmodules}"
+                        IsChecked="{Binding EnableRecursiveWhenAutoUpdatingSubmodules, Mode=TwoWay}"/>
+              <CheckBox Grid.Row="7" Grid.Column="1"
+                        Content="{DynamicResource Text.Configure.Git.AskBeforeAutoUpdatingSubmodules}"
+                        IsChecked="{Binding AskBeforeAutoUpdatingSubmodules, Mode=TwoWay}"/>
+
+              <TextBlock Grid.Row="8" Grid.Column="0" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
+                         VerticalAlignment="Top" Margin="0,4,12,0"
+                         Text="{DynamicResource Text.Configure.Advanced.Diagnostics}"/>
+              <StackPanel Grid.Row="8" Grid.Column="1" Spacing="4">
+                <TextBox Height="96"
+                         FontFamily="{DynamicResource Fonts.Monospace}"
+                         IsReadOnly="True"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         Text="{Binding SanitizedDiagnostics}"/>
+                <Button Classes="flat" HorizontalAlignment="Left" Padding="8,3"
+                        Content="{DynamicResource Text.Configure.Advanced.CopyDiagnostics}"
+                        Click="OnCopyDiagnosticsClicked"/>
+              </StackPanel>
+            </Grid>
+          </StackPanel>
+        </ScrollViewer>
       </TabItem>
 
       <TabItem>
@@ -553,5 +984,97 @@
         </Grid>
       </TabItem>
     </TabControl>
+
+    <!-- Save Feedback Banner -->
+    <Border Grid.Row="2"
+            Margin="16,4,16,4"
+            Padding="10,6"
+            CornerRadius="3"
+            BorderThickness="1"
+            IsVisible="{Binding SaveFeedback.IsVisible}"
+            Classes.save_error="{Binding SaveFeedback.IsError}"
+            Classes.save_warning="{Binding SaveFeedback.IsWarning}"
+            Classes.save_success="{Binding SaveFeedback.IsSuccess}">
+      <Border.Styles>
+        <Style Selector="Border">
+          <Setter Property="Background" Value="{DynamicResource Brush.SubPanel}"/>
+          <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border2}"/>
+        </Style>
+        <Style Selector="Border.save_success">
+          <Setter Property="BorderBrush" Value="#2EA043"/>
+        </Style>
+        <Style Selector="Border.save_warning">
+          <Setter Property="Background" Value="{DynamicResource Brush.Conflict}"/>
+          <Setter Property="BorderBrush" Value="{DynamicResource Brush.Conflict}"/>
+        </Style>
+        <Style Selector="Border.save_warning TextBlock">
+          <Setter Property="Foreground" Value="{DynamicResource Brush.Conflict.Foreground}"/>
+        </Style>
+        <Style Selector="Border.save_error">
+          <Setter Property="BorderBrush" Value="#D9534F"/>
+        </Style>
+      </Border.Styles>
+
+      <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="3">
+          <TextBlock FontWeight="SemiBold" TextWrapping="Wrap"
+                     Text="{Binding SaveFeedback.Headline}"/>
+
+          <ItemsControl ItemsSource="{Binding SaveFeedback.FailureAndConflictLines}"
+                        IsVisible="{Binding SaveFeedback.HasFailureAndConflictLines}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Classes="small" TextWrapping="Wrap" Foreground="#D9534F" Text="{Binding}"/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <TextBlock Classes="small" FontWeight="SemiBold" TextWrapping="Wrap"
+                     IsVisible="{Binding SaveFeedback.ShowSecondaryShadowedHeader}"
+                     Text="{DynamicResource Text.Configure.Save.HigherOverrideWarning}"/>
+
+          <ItemsControl ItemsSource="{Binding SaveFeedback.ShadowedLines}"
+                        IsVisible="{Binding SaveFeedback.HasShadowedLines}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Classes="small" TextWrapping="Wrap" Text="{Binding}"/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+
+    <!-- Bottom Action Bar -->
+    <Border Grid.Row="3"
+            Margin="16,4,16,12"
+            Padding="0,10,0,0"
+            BorderBrush="{DynamicResource Brush.Border0}"
+            BorderThickness="0,1,0,0">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Grid.Column="0"
+                   Classes="small"
+                   VerticalAlignment="Center"
+                   Foreground="{DynamicResource Brush.FG2}"
+                   Text="{Binding PendingChangesText}"/>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+          <Button Classes="flat"
+                  Height="28" Padding="12,0"
+                  IsEnabled="{Binding !IsLoading}"
+                  Content="{DynamicResource Text.Configure.Actions.Reload}"
+                  Click="OnReloadClicked"/>
+          <Button Classes="flat"
+                  Height="28" Padding="12,0"
+                  Content="{DynamicResource Text.Configure.Actions.Close}"
+                  Click="OnCloseClicked"/>
+          <Button Classes="flat primary"
+                  Height="28" Padding="14,0"
+                  IsEnabled="{Binding !IsSaving}"
+                  Content="{DynamicResource Text.Configure.Actions.Save}"
+                  Click="OnSaveClicked"/>
+        </StackPanel>
+      </Grid>
+    </Border>
   </Grid>
 </v:ChromelessWindow>

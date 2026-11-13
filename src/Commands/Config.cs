@@ -130,7 +130,7 @@ namespace SourceGit.Commands
 
             if (_isLocal)
             {
-                var identity = await RunGitAsync(gitExecutable, WorkingDirectory, cancellationToken,
+                var identity = await RunGitDirectAsync(WorkingDirectory, cancellationToken,
                     "rev-parse", "--path-format=absolute", "--is-bare-repository", "--git-dir", "--git-common-dir", "--git-path", "config", "--git-path", "config.worktree").ConfigureAwait(false);
                 if (!identity.IsSuccess)
                     return new Models.GitConfigSnapshot { IsReadable = false, Error = Models.GitConfigSnapshot.RedactText(identity.StdErr.Trim()) };
@@ -147,19 +147,19 @@ namespace SourceGit.Commands
 
                 if (!isBare)
                 {
-                    var top = await RunGitAsync(gitExecutable, WorkingDirectory, cancellationToken, "rev-parse", "--path-format=absolute", "--show-toplevel").ConfigureAwait(false);
+                    var top = await RunGitDirectAsync(WorkingDirectory, cancellationToken, "rev-parse", "--path-format=absolute", "--show-toplevel").ConfigureAwait(false);
                     if (top.IsSuccess)
                         topLevel = NormalizePath(top.StdOut.Trim());
                 }
 
-                var branch = await RunGitAsync(gitExecutable, WorkingDirectory, cancellationToken, "symbolic-ref", "-q", "--short", "HEAD").ConfigureAwait(false);
+                var branch = await RunGitDirectAsync(WorkingDirectory, cancellationToken, "symbolic-ref", "-q", "--short", "HEAD").ConfigureAwait(false);
                 if (branch.IsSuccess)
                     currentBranch = branch.StdOut.Trim();
             }
 
             // Invoke git directly without Command.CreateGitStartInfo's synthetic -c overrides so runtime
             // environment overrides remain authentic and credential.helper is not masked.
-            var listResult = await RunGitAsync(gitExecutable, WorkingDirectory, cancellationToken,
+            var listResult = await RunGitDirectAsync(WorkingDirectory, cancellationToken,
                 "config", "--list", "--includes", "--show-origin", "--show-scope", "--null").ConfigureAwait(false);
             if (!listResult.IsSuccess)
                 return new Models.GitConfigSnapshot { IsReadable = false, Error = Models.GitConfigSnapshot.RedactText(listResult.StdErr.Trim()) };
@@ -235,14 +235,14 @@ namespace SourceGit.Commands
 
             if (unset || (!allowEmpty && string.IsNullOrWhiteSpace(value)))
             {
-                var unsetResult = await RunGitAsync(gitExecutable, WorkingDirectory, cancellationToken, "config", scopeFlag, "--unset", "--", key).ConfigureAwait(false);
+                var unsetResult = await RunGitDirectAsync(WorkingDirectory, cancellationToken, "config", scopeFlag, "--unset", "--", key).ConfigureAwait(false);
                 // Exit code 5 means key was not present in that scope (unless multiple values existed).
                 if (unsetResult.ExitCode == 5 && !unsetResult.StdErr.Contains("multiple values", StringComparison.OrdinalIgnoreCase))
                     unsetResult.IsSuccess = true;
-                return unsetResult;
+                return RedactResult(unsetResult);
             }
 
-            return await RunGitAsync(gitExecutable, WorkingDirectory, cancellationToken, "config", scopeFlag, "--", key, value ?? string.Empty).ConfigureAwait(false);
+            return RedactResult(await RunGitDirectAsync(WorkingDirectory, cancellationToken, "config", scopeFlag, "--", key, value ?? string.Empty).ConfigureAwait(false));
         }
 
         public static Models.GitConfigSigningStatus InspectSigningStatus(Models.GitConfigSnapshot snapshot, Models.GitInstallation gitInstallation)
@@ -529,69 +529,6 @@ namespace SourceGit.Commands
 
             var cmp = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
             return NormalizePath(a).Equals(NormalizePath(b), cmp);
-        }
-
-        private static async Task<Result> RunGitAsync(string gitExecutable, string workingDirectory, CancellationToken cancellationToken, params string[] args)
-        {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(TimeSpan.FromSeconds(10));
-
-            using var proc = new Process();
-            proc.StartInfo = new ProcessStartInfo(gitExecutable)
-            {
-                WorkingDirectory = workingDirectory,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8,
-            };
-
-            if (!OperatingSystem.IsLinux())
-                proc.StartInfo.Environment["DISPLAY"] = "required";
-            if (!OperatingSystem.IsWindows())
-            {
-                proc.StartInfo.Environment["LANG"] = "C";
-                proc.StartInfo.Environment["LC_ALL"] = "C";
-            }
-
-            foreach (var arg in args)
-                proc.StartInfo.ArgumentList.Add(arg);
-
-            var started = false;
-            try
-            {
-                proc.Start();
-                started = true;
-                var stdOut = proc.StandardOutput.ReadToEndAsync(timeout.Token);
-                var stdErr = proc.StandardError.ReadToEndAsync(timeout.Token);
-                await Task.WhenAll(stdOut, stdErr, proc.WaitForExitAsync(timeout.Token)).ConfigureAwait(false);
-                return new Result
-                {
-                    IsSuccess = proc.ExitCode == 0,
-                    ExitCode = proc.ExitCode,
-                    StdOut = await stdOut.ConfigureAwait(false),
-                    StdErr = await stdErr.ConfigureAwait(false),
-                };
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex) when (ex is OperationCanceledException or IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
-            {
-                return Result.Failed(ex.Message);
-            }
-            finally
-            {
-                if (started && !proc.HasExited)
-                {
-                    try { proc.Kill(true); }
-                    catch (InvalidOperationException) { }
-                    catch (System.ComponentModel.Win32Exception) { }
-                }
-            }
         }
 
         private bool _isLocal = false;

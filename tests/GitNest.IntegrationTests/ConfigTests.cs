@@ -177,5 +177,169 @@ internal static partial class Program
               "Malformed Git config reports a readable failure with error details");
 
         File.WriteAllText(globalCfg, string.Empty);
+
+        await RunConfigureWorkflowTestsAsync(realGit, work, globalCfg);
+    }
+
+    private static Task<string> GitInAsync(string git, string workDir, params string[] arguments)
+    {
+        var allArgs = new string[arguments.Length + 2];
+        allArgs[0] = "-C";
+        allArgs[1] = workDir;
+        Array.Copy(arguments, 0, allArgs, 2, arguments.Length);
+        return GitAsync(git, allArgs);
+    }
+
+    private static async Task RunConfigureWorkflowTestsAsync(string realGit, string root, string globalCfg)
+    {
+        // 1. Targeted remote URL editing preserves extra URLs and custom refspecs
+        var remoteRepo = Path.Combine(root, "remote-preserve");
+        await GitAsync(realGit, "init", "-b", "main", remoteRepo);
+        await GitInAsync(realGit, remoteRepo, "config", "--local", "user.name", "Tester");
+        await GitInAsync(realGit, remoteRepo, "config", "--local", "user.email", "tester@example.invalid");
+        File.WriteAllText(Path.Combine(remoteRepo, "a.txt"), "hi\n");
+        await GitInAsync(realGit, remoteRepo, "add", ".");
+        await GitInAsync(realGit, remoteRepo, "commit", "-m", "init");
+
+        await GitInAsync(realGit, remoteRepo, "remote", "add", "origin", "https://example.com/repo.git?x=1&a+b");
+        await GitInAsync(realGit, remoteRepo, "remote", "set-url", "--add", "origin", "https://example.com/repo.git?x=12");
+        await GitInAsync(realGit, remoteRepo, "remote", "set-url", "--push", "--add", "origin", "git@example.com:push1.git");
+        await GitInAsync(realGit, remoteRepo, "remote", "set-url", "--push", "--add", "origin", "git@example.com:push2.git");
+        await GitInAsync(realGit, remoteRepo, "config", "--local", "--add", "remote.origin.fetch", "+refs/notes/*:refs/notes/*");
+
+        var remoteCmd = new SourceGit.Commands.Remote(remoteRepo);
+        var editFetchRes = await remoteCmd.SetUrlTargetedAsync(
+            "origin",
+            "https://updated-primary.example/repo.git",
+            "https://example.com/repo.git?x=1&a+b",
+            isPush: false,
+            isDelete: false);
+        Check(editFetchRes.IsSuccess, "Targeted SetUrlTargetedAsync replaces only matching primary fetch URL");
+
+        var afterRemoteSnap = await new Config(remoteRepo).ReadSnapshotAsync();
+        var originRemote = afterRemoteSnap.GetRemotes().Single(x => x.Name == "origin");
+        Check(originRemote.FetchUrls.Count == 2 &&
+              originRemote.FetchUrls[0].Value == "https://updated-primary.example/repo.git" &&
+              originRemote.FetchUrls[1].Value == "https://example.com/repo.git?x=12" &&
+              originRemote.PushUrls.Count == 2 &&
+              originRemote.FetchRefspecs.Count == 2,
+              "Targeted remote URL update preserves secondary fetch URLs, push URLs, and custom fetch refspecs");
+
+        var mismatchRes = await remoteCmd.SetUrlTargetedAsync(
+            "origin",
+            "https://other.example/repo.git",
+            "https://nonexistent.example/old.git",
+            isPush: false,
+            isDelete: false);
+        Check(!mismatchRes.IsSuccess, "Targeted remote URL update fails safely when expected old URL does not match disk");
+
+        // 2. Upstream config set/unset works both with local tracking refs and unborn/unfetched branches
+        var branchCmd = new SourceGit.Commands.Branch(remoteRepo, "main");
+        var setUpRes = await branchCmd.SetUpstreamTargetedAsync("origin", "main");
+        Check(setUpRes.IsSuccess, "SetUpstreamTargetedAsync sets local branch.<name>.remote/merge even before remote-tracking ref is fetched");
+
+        var upSnap = await new Config(remoteRepo).ReadSnapshotAsync();
+        Check(upSnap.GetEffectiveValue("branch.main.remote") == "origin" &&
+              upSnap.GetEffectiveValue("branch.main.merge") == "refs/heads/main",
+              "Branch upstream keys are written cleanly");
+
+        var unsetUpRes = await branchCmd.UnsetUpstreamTargetedAsync();
+        Check(unsetUpRes.IsSuccess, "UnsetUpstreamTargetedAsync cleanly removes upstream config");
+        var afterUnsetUpSnap = await new Config(remoteRepo).ReadSnapshotAsync();
+        Check(string.IsNullOrEmpty(afterUnsetUpSnap.GetEffectiveValue("branch.main.remote")) &&
+              string.IsNullOrEmpty(afterUnsetUpSnap.GetEffectiveValue("branch.main.merge")),
+              "UnsetUpstreamTargetedAsync leaves branch without upstream tracking keys");
+
+        // 3. ViewModel end-to-end: inheritance vs explicit empty "" vs --unset, multi-value preservation, and diagnostics redaction
+        File.WriteAllText(globalCfg,
+            "[user]\n\tname = Global Author\n\temail = global@example.invalid\n" +
+            "[http]\n\tproxy = http://global-proxy:8080\n" +
+            "[credential]\n\thelper =\n\thelper = cache --timeout=60\n" +
+            "[http \"https://secret.example\"]\n\tproxy = http://alice:super_secret_token_xyz@proxy.local:3128\n");
+
+        var wfRepo = Path.Combine(root, "configure-vm");
+        await GitAsync(realGit, "init", "-b", "main", wfRepo);
+        await GitInAsync(realGit, wfRepo, "remote", "add", "origin", "https://example.com/a.git");
+        await GitInAsync(realGit, wfRepo, "remote", "set-url", "--add", "origin", "https://example.com/b.git");
+        await GitInAsync(realGit, wfRepo, "config", "--local", "--add", "remote.origin.fetch", "+refs/tags/*:refs/tags/*");
+        await GitInAsync(realGit, wfRepo, "config", "--local", "custom.keep", "must-stay");
+        await GitInAsync(realGit, wfRepo, "config", "--local", "user.name", "Local Base");
+
+        var repoVm = new SourceGit.ViewModels.Repository(false, wfRepo, Path.Combine(wfRepo, ".git"));
+        var cfgVm = new SourceGit.ViewModels.RepositoryConfigure(repoVm);
+        await cfgVm.EnsureLoadedAsync();
+
+        Check(!cfgVm.WorktreeConfigEnabled &&
+              cfgVm.AvailableWriteScopes.All(s => s.Scope != GitConfigWriteScope.Worktree),
+              "RepositoryConfigure hides worktree scope when extensions.worktreeConfig is disabled");
+        Check(!cfgVm.UserNameField.IsInherited && cfgVm.UserNameField.SourceBadge == "Local" &&
+              cfgVm.UserEmailField.IsInherited && cfgVm.UserEmailField.SourceBadge == "Global",
+              "RepositoryConfigure identifies Local vs inherited Global field sources accurately");
+        Check(cfgVm.CredentialHelpers.Count == 2 &&
+              cfgVm.CredentialHelpers[0].Value.Contains("重置") &&
+              cfgVm.UrlProxyOverrides.Count == 1 &&
+              cfgVm.UrlProxyOverrides[0].Value.Contains("***") &&
+              !cfgVm.SanitizedDiagnostics.Contains("super_secret_token_xyz", StringComparison.Ordinal),
+              "RepositoryConfigure preserves credential helper chains and redacts secrets in UI/diagnostics");
+
+        // Test explicit empty "" on inherited http.proxy vs --unset on local user.name
+        cfgVm.HttpProxyField.MarkExplicitEmpty();
+        cfgVm.UserNameField.MarkUnsetLayer();
+        cfgVm.SelectedRemoteDraft!.PrimaryFetchUrl = "https://example.com/a-updated.git";
+        var summary1 = await cfgVm.SaveAsync();
+        Check(summary1.IsSuccess && summary1.SucceededCount == 3 && summary1.FailedCount == 0,
+              "RepositoryConfigure saves explicit empty, unset, and primary remote URL edit cleanly");
+
+        var verifySnap1 = await new Config(wfRepo).ReadSnapshotAsync();
+        var localProxyEntries = verifySnap1.GetEntriesInScope("http.proxy", GitConfigScope.Local);
+        Check(localProxyEntries.Count == 1 && localProxyEntries[0].HasValue && localProxyEntries[0].Value.Length == 0 &&
+              verifySnap1.GetEffectiveValue("http.proxy").Length == 0,
+              "Explicit empty \"\" shadows inherited global proxy instead of unsetting");
+        Check(verifySnap1.GetEntriesInScope("user.name", GitConfigScope.Local).Count == 0 &&
+              verifySnap1.GetEffectiveValue("user.name") == "Global Author",
+              "Unset layer removes local override and restores global inherited user.name");
+        Check(verifySnap1.GetEffectiveValue("custom.keep") == "must-stay" &&
+              verifySnap1.GetEntries("credential.helper").Count == 2 &&
+              verifySnap1.GetEffectiveCredentialHelpers().Count == 1 &&
+              verifySnap1.GetRemotes().Single(x => x.Name == "origin").FetchUrls.Count == 2 &&
+              verifySnap1.GetRemotes().Single(x => x.Name == "origin").FetchRefspecs.Count == 2,
+              "Unrelated keys, multi-value helpers, extra remote URLs, and refspecs stay untouched");
+
+        // 4. Higher-scope override detection when writing Global while Local shadows it
+        await GitInAsync(realGit, wfRepo, "config", "--local", "user.email", "local-shadow@example.invalid");
+        await cfgVm.ReloadAsync();
+        cfgVm.TargetScope = GitConfigWriteScope.Global;
+        cfgVm.UserEmailField.EditText = "global-new@example.invalid";
+        var shadowSummary = await cfgVm.SaveAsync();
+        Check(shadowSummary.IsWarning && shadowSummary.ShadowedCount == 1 &&
+              shadowSummary.ShadowedLines.Any(l => l.Contains("user.email", StringComparison.Ordinal)),
+              "Saving into Global when Local shadows it reports an explicit higher-scope override warning");
+
+        // 5. Pre-save conflict check & partial failure isolation
+        cfgVm.TargetScope = GitConfigWriteScope.Local;
+        await cfgVm.ReloadAsync();
+        await GitInAsync(realGit, wfRepo, "config", "--local", "user.email", "external-race@example.invalid");
+        cfgVm.UserEmailField.EditText = "ui-overwrite@example.invalid";
+        cfgVm.UserNameField.EditText = "Partial Winner";
+        var conflictSummary = await cfgVm.SaveAsync();
+        Check(conflictSummary.SucceededCount == 1 && conflictSummary.ConflictCount == 1 &&
+              conflictSummary.FailureAndConflictLines.Any(l => l.Contains("user.email", StringComparison.Ordinal)),
+              "Pre-save check skips overwriting externally changed key while reporting conflict accurately");
+
+        var afterConflictSnap = await new Config(wfRepo).ReadSnapshotAsync();
+        Check(afterConflictSnap.GetEffectiveValue("user.email") == "external-race@example.invalid" &&
+              afterConflictSnap.GetEffectiveValue("user.name") == "Partial Winner",
+              "External change on user.email was preserved while non-conflicting user.name saved cleanly");
+
+        // 6. Partial failure (one valid field + incomplete upstream) does not report full success
+        cfgVm.UserNameField.EditText = "Before Partial Fail";
+        cfgVm.SelectedUpstreamRemote = "origin";
+        cfgVm.UpstreamTargetBranch = string.Empty; // Invalid half-specified upstream
+        var partialSummary = await cfgVm.SaveAsync();
+        Check(partialSummary.IsError && partialSummary.SucceededCount == 1 && partialSummary.FailedCount == 1 &&
+              partialSummary.FailureAndConflictLines.Any(l => l.Contains("upstream", StringComparison.Ordinal)),
+              "Partial failure reports exact per-item failure rather than overall success");
+
+        File.WriteAllText(globalCfg, string.Empty);
     }
 }

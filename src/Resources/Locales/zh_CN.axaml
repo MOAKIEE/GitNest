@@ -309,6 +309,98 @@
   <x:String x:Key="Text.Configure.Proxy.Placeholder" xml:space="preserve">HTTP网络代理</x:String>
   <x:String x:Key="Text.Configure.User" xml:space="preserve">用户名</x:String>
   <x:String x:Key="Text.Configure.User.Placeholder" xml:space="preserve">应用于本仓库的用户名</x:String>
+  <x:String x:Key="Text.Configure.Scope.Label" xml:space="preserve">写入作用域</x:String>
+  <x:String x:Key="Text.Configure.Scope.Local" xml:space="preserve">当前仓库 (--local)</x:String>
+  <x:String x:Key="Text.Configure.Scope.Worktree" xml:space="preserve">当前工作树 (--worktree)</x:String>
+  <x:String x:Key="Text.Configure.Scope.Global" xml:space="preserve">此用户的全局配置 (--global)</x:String>
+  <x:String x:Key="Text.Configure.Scope.System" xml:space="preserve">系统 (只读)</x:String>
+  <x:String x:Key="Text.Configure.Scope.Included" xml:space="preserve">包含文件 (只读)</x:String>
+  <x:String x:Key="Text.Configure.Scope.Runtime" xml:space="preserve">运行时覆盖 (只读)</x:String>
+  <x:String x:Key="Text.Configure.Scope.Unset" xml:space="preserve">未设置</x:String>
+  <x:String x:Key="Text.Configure.Scope.LocalHint" xml:space="preserve">写入当前仓库配置文件；同一仓库的多个工作树可能共享此配置。</x:String>
+  <x:String x:Key="Text.Configure.Scope.WorktreeHint" xml:space="preserve">已启用 extensions.worktreeConfig，保存将写入当前工作树独立配置。</x:String>
+  <x:String x:Key="Text.Configure.Scope.WorktreeDisabledHint" xml:space="preserve">未启用 extensions.worktreeConfig，不提供工作树独立写入作用域（不会自动启用或迁移配置）。</x:String>
+  <x:String x:Key="Text.Configure.Scope.GlobalWarning" xml:space="preserve">注意：当前选择写入“此用户的全局配置 (--global)”，保存将影响此用户下的所有 Git 仓库。</x:String>
+  <x:String x:Key="Text.Configure.Field.InheritedHint" xml:space="preserve">当前使用上层继承值；修改内容或点击“为当前层覆盖”将写入目标作用域。</x:String>
+  <x:String x:Key="Text.Configure.Field.TargetValuePresent" xml:space="preserve">目标作用域已有显式设置。</x:String>
+  <x:String x:Key="Text.Configure.Field.MultiValueReadOnly" xml:space="preserve">目标作用域存在多条定义，为保护多值配置结构已设为只读。</x:String>
+  <x:String x:Key="Text.Configure.Field.HigherOverrideHint" xml:space="preserve">当前生效值由更高优先级（{0}）决定；写入目标作用域后仍会被上层覆盖。</x:String>
+  <x:String x:Key="Text.Configure.Field.PendingUnsetHint" xml:space="preserve">待执行：保存时从目标作用域移除本层设置，恢复使用上层继承值。</x:String>
+  <x:String x:Key="Text.Configure.Field.PendingEmptyHint" xml:space="preserve">待执行：保存时显式写入空字符串 ""，以屏蔽上层继承配置。</x:String>
+  <x:String x:Key="Text.Configure.Field.OverrideCurrent" xml:space="preserve">为当前层覆盖</x:String>
+  <x:String x:Key="Text.Configure.Field.UnsetLayer" xml:space="preserve">移除本层</x:String>
+  <x:String x:Key="Text.Configure.Field.SetEmpty" xml:space="preserve">设为空值 ""</x:String>
+  <x:String x:Key="Text.Configure.Field.ResetField" xml:space="preserve">还原</x:String>
+  <x:String x:Key="Text.Configure.Field.EffectiveValuePrefix" xml:space="preserve">当前生效：</x:String>
+  <x:String x:Key="Text.Configure.Section.Identity" xml:space="preserve">提交姓名与邮箱</x:String>
+  <x:String x:Key="Text.Configure.Section.Remotes" xml:space="preserve">远程仓库管理</x:String>
+  <x:String x:Key="Text.Configure.Remotes.Select" xml:space="preserve">选择远端</x:String>
+  <x:String x:Key="Text.Configure.Remotes.Name" xml:space="preserve">远端名称</x:String>
+  <x:String x:Key="Text.Configure.Remotes.FetchUrl" xml:space="preserve">主获取 URL</x:String>
+  <x:String x:Key="Text.Configure.Remotes.PushUrl" xml:space="preserve">主推送 URL</x:String>
+  <x:String x:Key="Text.Configure.Remotes.PushUrlPlaceholder" xml:space="preserve">留空则沿用主获取 URL</x:String>
+  <x:String x:Key="Text.Configure.Remotes.ExtraUrlsHint" xml:space="preserve">编辑主 URL 时保留原有规则：附加获取 URL {0} 条、附加推送 URL {1} 条、fetch refspec {2} 条</x:String>
+  <x:String x:Key="Text.Configure.Remotes.SensitiveHint" xml:space="preserve">检测到 URL 包含敏感凭据并已脱敏显示；仅在输入新 URL 时覆盖原值。</x:String>
+  <x:String x:Key="Text.Configure.Remotes.AddSection" xml:space="preserve">添加新远端</x:String>
+  <x:String x:Key="Text.Configure.Remotes.NewNamePlaceholder" xml:space="preserve">远端名 (如 upstream)</x:String>
+  <x:String x:Key="Text.Configure.Remotes.NewUrlPlaceholder" xml:space="preserve">远端仓库 URL</x:String>
+  <x:String x:Key="Text.Configure.Remotes.StageAdd" xml:space="preserve">加入待添加</x:String>
+  <x:String x:Key="Text.Configure.Remotes.StageRemove" xml:space="preserve">标记删除远端</x:String>
+  <x:String x:Key="Text.Configure.Remotes.UndoRemove" xml:space="preserve">撤销删除</x:String>
+  <x:String x:Key="Text.Configure.Remotes.PendingAddBadge" xml:space="preserve">待添加</x:String>
+  <x:String x:Key="Text.Configure.Remotes.PendingRemoveBadge" xml:space="preserve">待删除</x:String>
+  <x:String x:Key="Text.Configure.Remotes.Empty" xml:space="preserve">当前仓库尚未配置远程仓库</x:String>
+  <x:String x:Key="Text.Configure.Section.Upstream" xml:space="preserve">当前分支上游</x:String>
+  <x:String x:Key="Text.Configure.Upstream.CurrentBranch" xml:space="preserve">当前分支</x:String>
+  <x:String x:Key="Text.Configure.Upstream.DetachedHead" xml:space="preserve">当前处于游离 HEAD 状态，无可配置的分支上游。</x:String>
+  <x:String x:Key="Text.Configure.Upstream.EffectiveMapping" xml:space="preserve">实际对应关系</x:String>
+  <x:String x:Key="Text.Configure.Upstream.NotSet" xml:space="preserve">未设置上游分支</x:String>
+  <x:String x:Key="Text.Configure.Upstream.UnfetchedNote" xml:space="preserve">（已配置 branch.*，但本地尚无对应的 refs/remotes 跟踪引用）</x:String>
+  <x:String x:Key="Text.Configure.Upstream.Remote" xml:space="preserve">目标远端</x:String>
+  <x:String x:Key="Text.Configure.Upstream.TargetBranch" xml:space="preserve">目标分支</x:String>
+  <x:String x:Key="Text.Configure.Upstream.TargetBranchPlaceholder" xml:space="preserve">例如 main</x:String>
+  <x:String x:Key="Text.Configure.Upstream.Clear" xml:space="preserve">取消上游</x:String>
+  <x:String x:Key="Text.Configure.Section.Proxy" xml:space="preserve">代理与 URL 特定覆盖</x:String>
+  <x:String x:Key="Text.Configure.Proxy.Https" xml:space="preserve">HTTPS 代理</x:String>
+  <x:String x:Key="Text.Configure.Proxy.HttpsPlaceholder" xml:space="preserve">HTTPS 网络代理（可选）</x:String>
+  <x:String x:Key="Text.Configure.Proxy.UrlOverrides" xml:space="preserve">URL 特定代理覆盖（只读来源）</x:String>
+  <x:String x:Key="Text.Configure.Proxy.NoUrlOverrides" xml:space="preserve">未配置 URL 特定代理覆盖。</x:String>
+  <x:String x:Key="Text.Configure.Section.Signing" xml:space="preserve">提交与标签签名</x:String>
+  <x:String x:Key="Text.Configure.Signing.Format" xml:space="preserve">签名格式</x:String>
+  <x:String x:Key="Text.Configure.Signing.AllowedSigners" xml:space="preserve">SSH 允许签名者文件</x:String>
+  <x:String x:Key="Text.Configure.Signing.AllowedSignersPlaceholder" xml:space="preserve">gpg.ssh.allowedSignersFile 路径</x:String>
+  <x:String x:Key="Text.Configure.Signing.Program" xml:space="preserve">签名程序（只读）</x:String>
+  <x:String x:Key="Text.Configure.Signing.Ready" xml:space="preserve">签名配置与本地依赖检查通过，环境已就绪。</x:String>
+  <x:String x:Key="Text.Configure.Signing.Disabled" xml:space="preserve">未启用提交或标签自动签名。</x:String>
+  <x:String x:Key="Text.Configure.Signing.UnsupportedFormat" xml:space="preserve">不支持的签名格式 ({0})，请使用 openpgp、x509 或 ssh。</x:String>
+  <x:String x:Key="Text.Configure.Signing.SshRequiresNewerGit" xml:space="preserve">SSH 签名需要 Git 2.34 及以上版本（当前版本：{0}）。</x:String>
+  <x:String x:Key="Text.Configure.Signing.MissingKey" xml:space="preserve">已启用签名，但尚未配置签名密钥 (user.signingkey)。</x:String>
+  <x:String x:Key="Text.Configure.Signing.MissingProgram" xml:space="preserve">未找到签名程序 ({0})，执行提交或标签签名将失败。</x:String>
+  <x:String x:Key="Text.Configure.Signing.Issue.MissingAllowedSigners" xml:space="preserve">提示：未设置 gpg.ssh.allowedSignersFile，签名可正常生成，但本地验签需要该文件。</x:String>
+  <x:String x:Key="Text.Configure.Section.AuthSsh" xml:space="preserve">认证助手链与 SSH 环境（只读）</x:String>
+  <x:String x:Key="Text.Configure.AuthSsh.PolicyNote" xml:space="preserve">GitNest 自动复用当前系统的凭据助手链与 SSH 配置文件，不会在此处覆盖 credential.helper 链或 ~/.ssh/config。</x:String>
+  <x:String x:Key="Text.Configure.AuthSsh.CredentialChain" xml:space="preserve">认证助手链 (credential.helper)</x:String>
+  <x:String x:Key="Text.Configure.AuthSsh.NoHelpers" xml:space="preserve">当前配置中未检测到 credential.helper 条目。</x:String>
+  <x:String x:Key="Text.Configure.AuthSsh.EmptyHelperReset" xml:space="preserve">""（显式重置前序助手链）</x:String>
+  <x:String x:Key="Text.Configure.AuthSsh.SshSummary" xml:space="preserve">SSH 与运行时覆盖</x:String>
+  <x:String x:Key="Text.Configure.AuthSsh.NoSshOverrides" xml:space="preserve">未检测到自定义 SSH 命令、远端专用密钥或运行时配置覆盖。</x:String>
+  <x:String x:Key="Text.Configure.Section.Advanced" xml:space="preserve">高级设置与仓库偏好</x:String>
+  <x:String x:Key="Text.Configure.Advanced.AutoCrlf" xml:space="preserve">换行处理 (core.autocrlf)</x:String>
+  <x:String x:Key="Text.Configure.Advanced.AutoCrlfWarning" xml:space="preserve">仅影响后续检出与提交；不会自动重新规范化工作区中已有文件。</x:String>
+  <x:String x:Key="Text.Configure.Advanced.EolReadOnly" xml:space="preserve">当前 core.eol（只读）</x:String>
+  <x:String x:Key="Text.Configure.Advanced.Diagnostics" xml:space="preserve">脱敏诊断摘要</x:String>
+  <x:String x:Key="Text.Configure.Advanced.CopyDiagnostics" xml:space="preserve">复制脱敏诊断</x:String>
+  <x:String x:Key="Text.Configure.Actions.PendingCount" xml:space="preserve">有 {0} 项待保存变更</x:String>
+  <x:String x:Key="Text.Configure.Actions.NoChanges" xml:space="preserve">暂无未保存修改</x:String>
+  <x:String x:Key="Text.Configure.Actions.Reload" xml:space="preserve">重新读取</x:String>
+  <x:String x:Key="Text.Configure.Actions.Save" xml:space="preserve">保存设置</x:String>
+  <x:String x:Key="Text.Configure.Actions.Close" xml:space="preserve">关闭</x:String>
+  <x:String x:Key="Text.Configure.Save.Success" xml:space="preserve">已成功保存 {0} 项设置并重新读取有效配置与来源。</x:String>
+  <x:String x:Key="Text.Configure.Save.PartialFailure" xml:space="preserve">部分设置未保存成功：成功 {0} 项，失败 {1} 项。逐项详情：</x:String>
+  <x:String x:Key="Text.Configure.Save.AllFailed" xml:space="preserve">保存失败（共 {0} 项未能写入）：</x:String>
+  <x:String x:Key="Text.Configure.Save.HigherOverrideWarning" xml:space="preserve">请注意：以下项目已写入目标作用域，但仍被更高优先级配置覆盖，暂未作为有效值生效：</x:String>
+  <x:String x:Key="Text.Configure.Save.ExternalConflict" xml:space="preserve">保存前核对发现外部配置已变更，以下项目已跳过覆盖（请重新读取后再确认）：</x:String>
+  <x:String x:Key="Text.Configure.Save.NothingToSave" xml:space="preserve">未检测到需要写入 Git 配置的更改（仓库本地偏好已同步）。</x:String>
   <x:String x:Key="Text.ConfigureCustomActionControls" xml:space="preserve">编辑自定义操作输入控件</x:String>
   <x:String x:Key="Text.ConfigureCustomActionControls.CheckedValue" xml:space="preserve">启用时命令行参数 ：</x:String>
   <x:String x:Key="Text.ConfigureCustomActionControls.CheckedValue.Tip" xml:space="preserve">此CheckBox勾选后，该值会被应用于命令行参数</x:String>

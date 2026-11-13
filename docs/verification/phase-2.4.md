@@ -33,3 +33,34 @@
 | 签名依赖检查 | 缺失密钥、缺失签名程序与旧版 Git 下 SSH 签名均准确报告原因 |
 
 接续批次 2.4b：重构 `RepositoryConfigure` 常用设置编辑界面（来源标签、多值展示、远端与当前分支上游、代理、签名检查、高级换行与作用域保存），并补齐 UI 探针与截图核对。
+
+## 2.4b · 配置来源 UI 与常用设置编辑（2026-11-14）
+
+在 2.4a 读取与脱敏基础上，补齐 `Remote`／`Branch` 定向写操作与共享直连 Git 执行器，按 SourceGit 原生扁平分组表单风格重构“仓库配置 → GIT配置”页，并补充 `RepositoryConfigure` 工作流集成测试与 `-Config` 交互探针：
+
+- **共享直连与定向写入**：在 `Commands.Command` 提取共享 `RunGitDirectAsync` 与 `RedactResult`（`Commands.Config` 复用并移除重复实现）；在 `Commands.Remote` 新增 `AddTargetedAsync`、`DeleteTargetedAsync`、`RenameTargetedAsync`、`SetUrlTargetedAsync`（精确 POSIX ERE `^...$` 匹配主获取／推送 URL，保留附加 URL 与自定义 fetch refspec）；在 `Commands.Branch` 新增 `SetUpstreamTargetedAsync` 与 `UnsetUpstreamTargetedAsync`（兼容未拉取远程引用和 unborn 分支）。
+- **ViewModel 与状态交互**：新增 `ConfigScopeOption`、`ConfigChoiceOption`、`ConfigFieldItem`、`RemoteConfigDraft`、`ConfigReadOnlyEntry`、`ConfigSaveSummary`（`src/ViewModels/ConfigureModels.cs`）并更新 `RepositoryConfigure.cs`；`extensions.worktreeConfig` 未开启时隐藏工作树作用域；区分继承态、`为当前层覆盖`、`设为空值 ""`、`移除本层` 与单字段还原；完整展示 `credential.helper` 有序链（含 `""` 重置条目）；保存前核对目标作用域外部变更防止误覆盖，保存后重新读取快照并报告部分失败或被更高优先级作用域覆盖提示。
+- **SourceGit 原生风格界面对齐与视觉修正**：新增 `ConfigFieldMetaBar` 并重构 `RepositoryConfigure.axaml`（保留提交信息模板／ISSUE追踪／自定义操作／AI 既有页签兼容）。取消外层重卡片边框，统一采用两列右对齐标签（`144,*`）、`group_header_label` + `1px` 分割线、`small` 辅助字号与 `28px` 控件高度；将高级设置区从默认圆角 `Expander` 改为原生 `ToggleButton.group_expander` 平铺折叠面板；将提示横幅由横向 `StackPanel` 改为 `Grid` 修复窄窗口右裁切，折行左侧长标签，启用 `SanitizedDiagnostics` 自动换行消除水平滚动条遮挡，并消除高优先级覆盖保存警告标题重复输出；同步扩展 `en_US.axaml`／`zh_CN.axaml` 对应词条。
+
+验证命令：
+
+```powershell
+./build/scripts/build-gitnest.ps1 -Publish
+./build/scripts/test-gitnest.ps1
+./build/scripts/probe-gitnest.ps1 -Config
+```
+
+结果：
+- Release 构建与 Windows x64 自包含发布 **0 警告、0 错误**（输出 `artifacts/windows-x64/GitNest.exe`，日志 `artifacts/logs/2.4b-build.log`）。
+- 双语资源键对齐核对（PowerShell XML 比对 `en_US.axaml` 与 `zh_CN.axaml`）：**1254** 条键完全对称（注：`localization-check.js` 因本机未安装 npm `fs-extra` 模块改由 PowerShell 直接比对）。
+- **120 项集成检查全部通过**（既有 102 项 + 2.4b 新增 18 项定向远端/上游及保存冲突/部分失败检查，日志 `artifacts/logs/2.4b-integration-tests.log`）。
+- **13 项 UI 探针检查全部通过**（`artifacts/probes/phase-2.4/results.txt`、`artifacts/logs/2.4b-probe.log`），以下 6 张实机截图已完成目视核对：
+
+| 场景与截图文件 | 验证要点与目视结论 |
+| --- | --- |
+| `artifacts/probes/phase-2.4/config-light-overview.png` | 浅色模式 `820×660`：作用域选择、工作树禁用说明、`Global`/`Local` 来源徽章、完整“远端名 (如 upstream)”输入框、保留附加 URL/refspec 提示及当前分支上游映射排版清晰 |
+| `artifacts/probes/phase-2.4/config-light-signing-auth.png` | 浅色模式：URL 特定代理脱敏展示、`未找到签名程序` 警告横幅与 `#1 "" 重置`/`#2 manager` 只读认证助手链折行整齐 |
+| `artifacts/probes/phase-2.4/config-light-signing-advanced.png` | 浅色模式：原生 `ToggleButton.group_expander` 折叠区块、`core.autocrlf` 不自动重规范化提示、`core.eol` 只读值与折行脱敏诊断摘要无裁切 |
+| `artifacts/probes/phase-2.4/config-dark-narrow-shadow-warning.png` | 深色模式 `680×560` 窄窗口：选择 Global 写入时黄色警告与“当前生效值由更高优先级 Local 决定”提示换行完整，底部阴影覆盖警告单行无重复 |
+| `artifacts/probes/phase-2.4/config-dark-partial-failure.png` | 深色模式：部分保存成功场景将合法字段 `user.name` 写入 `.git/config`，并在底部错误栏逐项列出未指定远端分支的上游保存失败明细 |
+| `artifacts/probes/phase-2.4/config-worktree-scope.png` | 启用 `extensions.worktreeConfig` 时显示 `--worktree` 作用域，并通过点击“设为空值 ""”独立覆写目标工作树 `http.proxy`（不影响主工作树与全局） |

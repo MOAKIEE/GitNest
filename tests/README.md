@@ -21,3 +21,5 @@
 在交互式 Windows 会话运行。探针加载实际应用资源、控件和 ViewModel，使用隔离配置及真实 Git 工作树，触发控件绑定和双击路由事件，等待文件监听刷新，并以 `RenderTargetBitmap` 保存截图。结果与 PNG 位于 `artifacts/probes/phase-2.2/`；临时仓库完成后移至回收站。编辑器和终端使用探针进程记录实际收到的路径及工作目录。原生文件选择器与资源管理器窗口需要另行桌面验收。
 
 运行 `./build/scripts/probe-gitnest.ps1 -Comparison` 另加累计差异页面检查，包含目标持久化、两种比较方式、文本／二进制查看、未提交修改单独展示、定时过期检查、刷新、目标删除、快速切换目标以及关闭后丢弃旧请求。结果与截图写入 `artifacts/probes/phase-2.3/`。
+
+运行 `./build/scripts/probe-gitnest.ps1 -Config` 检查仓库配置界面，包含 `Global`/`Local`/`Worktree` 来源标签、敏感凭据与诊断脱敏、URL 特定代理覆盖、`credential.helper` 有序重置链、签名依赖提示、浅色／深色窄窗口高优先级覆盖提示、保存前冲突保护与部分失败逐项汇报。结果与截图写入 `artifacts/probes/phase-2.4/`。
