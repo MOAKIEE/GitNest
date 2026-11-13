@@ -45,3 +45,8 @@ SourceGit.app/
 build.command
 src/Properties/launchSettings.json
 *.lscache
+
+# GitNest local toolchain and build output
+.tools/
+artifacts/
+gitnest-data/

@@ -509,6 +509,6 @@ namespace SourceGit.Views
         }
 
         private bool _firstSelectionChangedHandled;
-        private readonly DataFormat<string> _dndItemFormat = DataFormat.CreateStringApplicationFormat("sourcegit-dnd-ir-item");
+        private readonly DataFormat<string> _dndItemFormat = DataFormat.CreateStringApplicationFormat("gitnest-dnd-ir-item");
     }
 }

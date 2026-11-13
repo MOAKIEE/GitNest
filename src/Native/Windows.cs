@@ -58,7 +58,7 @@ namespace SourceGit.Native
         {
             var dirs = new OS.Directories();
             var execFile = Environment.ProcessPath;
-            var portableDir = Path.Combine(Path.GetDirectoryName(execFile)!, "data");
+            var portableDir = Path.Combine(Path.GetDirectoryName(execFile)!, "gitnest-data");
             if (Directory.Exists(portableDir))
             {
                 dirs.ConfigDir = portableDir;
@@ -68,7 +68,7 @@ namespace SourceGit.Native
             {
                 var appDataDir = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "SourceGit");
+                    "GitNest");
 
                 if (!Directory.Exists(appDataDir))
                     Directory.CreateDirectory(appDataDir);
@@ -528,7 +528,7 @@ namespace SourceGit.Native
             var blobPtr = Marshal.AllocCoTaskMem(secretBytes.Length);
             Marshal.Copy(secretBytes, 0, blobPtr, secretBytes.Length);
 
-            var target = $"SourceGit - {username}@{host}";
+            var target = $"GitNest - {username}@{host}";
             var targetPtr = Marshal.StringToCoTaskMemUni(target);
             var accountPtr = Marshal.StringToCoTaskMemUni(username);
 
@@ -566,7 +566,7 @@ namespace SourceGit.Native
 
         public string Read(string host, string username)
         {
-            var target = $"SourceGit - {username}@{host}";
+            var target = $"GitNest - {username}@{host}";
             if (!CredReadW(target, CRED_TYPE_GENERIC, 0, out var credentialPtr))
             {
                 var error = Marshal.GetLastWin32Error();
@@ -592,7 +592,7 @@ namespace SourceGit.Native
 
         public void Erase(string host, string username)
         {
-            var target = $"SourceGit - {username}@{host}";
+            var target = $"GitNest - {username}@{host}";
             if (!CredDeleteW(target, CRED_TYPE_GENERIC, 0))
             {
                 var error = Marshal.GetLastWin32Error();

@@ -48,7 +48,7 @@ namespace SourceGit.Native
             var appImage = Environment.GetEnvironmentVariable("APPIMAGE");
             if (!string.IsNullOrEmpty(appImage) && File.Exists(appImage))
             {
-                var portableDir = Path.Combine(Path.GetDirectoryName(appImage)!, "data");
+                var portableDir = Path.Combine(Path.GetDirectoryName(appImage)!, "gitnest-data");
                 if (Directory.Exists(portableDir))
                 {
                     dirs.ConfigDir = portableDir;
@@ -58,10 +58,10 @@ namespace SourceGit.Native
             }
 
             // XDG Base Directory Specification: https://specifications.freedesktop.org/basedir/latest/
-            dirs.ConfigDir = GetXdgDirectory("XDG_CONFIG_HOME", Path.Combine(home, ".config"), "SourceGit");
-            dirs.CacheDir = GetXdgDirectory("XDG_CACHE_HOME", Path.Combine(home, ".cache"), "SourceGit");
+            dirs.ConfigDir = GetXdgDirectory("XDG_CONFIG_HOME", Path.Combine(home, ".config"), "GitNest");
+            dirs.CacheDir = GetXdgDirectory("XDG_CACHE_HOME", Path.Combine(home, ".cache"), "GitNest");
 
-            // If the app basic dirs already exist, we can skip the migration step
+            // Reuse GitNest's existing directories.
             if (Directory.Exists(dirs.ConfigDir) && Directory.Exists(dirs.CacheDir))
                 return dirs;
 
@@ -70,22 +70,6 @@ namespace SourceGit.Native
                 Directory.CreateDirectory(dirs.ConfigDir);
             if (!Directory.Exists(dirs.CacheDir))
                 Directory.CreateDirectory(dirs.CacheDir);
-
-            // Migrate legacy data dir: ~/.sourcegit to XDG standard directories
-            var legacyDir = Path.Combine(home, ".sourcegit");
-            if (Directory.Exists(legacyDir))
-            {
-                try
-                {
-                    File.Copy(Path.Combine(legacyDir, "preference.json"), Path.Combine(dirs.ConfigDir, "preference.json"), true);
-                    Directory.Move(Path.Combine(legacyDir, "avatars"), Path.Combine(dirs.CacheDir, "avatars"));
-                    Directory.Delete(legacyDir, true);
-                }
-                catch
-                {
-                    // Ignore any errors during migration
-                }
-            }
 
             return dirs;
         }
@@ -254,12 +238,12 @@ namespace SourceGit.Native
 
         public void Store(string host, string username, string password)
         {
-            var label = $"sourcegit:{host}:{username}";
+            var label = $"gitnest:{host}:{username}";
 
             var psi = new ProcessStartInfo
             {
                 FileName = _toolPath,
-                Arguments = $"store --label={label.Quoted()} service \"sourcegit\" host {host.Quoted()} account {username.Quoted()}",
+                Arguments = $"store --label={label.Quoted()} service \"gitnest\" host {host.Quoted()} account {username.Quoted()}",
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -288,7 +272,7 @@ namespace SourceGit.Native
             var psi = new ProcessStartInfo
             {
                 FileName = _toolPath,
-                Arguments = $"lookup service \"sourcegit\" host {host.Quoted()} account {username.Quoted()}",
+                Arguments = $"lookup service \"gitnest\" host {host.Quoted()} account {username.Quoted()}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -316,7 +300,7 @@ namespace SourceGit.Native
             var psi = new ProcessStartInfo
             {
                 FileName = _toolPath,
-                Arguments = $"clear service \"sourcegit\" host {host.Quoted()} account {username.Quoted()}",
+                Arguments = $"clear service \"gitnest\" host {host.Quoted()} account {username.Quoted()}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,

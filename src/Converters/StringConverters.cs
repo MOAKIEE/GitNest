@@ -98,16 +98,16 @@ namespace SourceGit.Converters
             public object Convert(IList<object> values, Type targetType, object parameter, CultureInfo culture)
             {
                 if (values is not { Count: 2 })
-                    return "SourceGit";
+                    return "GitNest";
 
                 var page = values[0] as string;
                 var workspace = values[1] as string;
                 if (string.IsNullOrEmpty(page))
-                    page = "Repositories";
+                    page = App.Text("GitNest.Repositories");
                 if (string.IsNullOrEmpty(workspace))
-                    workspace = "Unnamed";
+                    workspace = App.Text("GitNest.UnnamedWorkspace");
 
-                return $"{page} - {workspace}";
+                return $"GitNest · {page} - {workspace}";
             }
 
             public IList<object> ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)

@@ -2,6 +2,8 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>GitNest</AssemblyName>
+    <RootNamespace>SourceGit</RootNamespace>
     <ApplicationManifest>App.manifest</ApplicationManifest>
     <ApplicationIcon>App.ico</ApplicationIcon>
     <Version>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)\\..\\VERSION"))</Version>
@@ -9,14 +11,13 @@
     <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
     <InvariantGlobalization>false</InvariantGlobalization>
 
-    <Product>SourceGit</Product>
-    <Description>OpenSource GIT client</Description>
-    <Company>sourcegit-scm</Company>
-    <Copyright>Copyright © $([System.DateTime]::Now.Year) sourcegit-scm.</Copyright>
+    <Product>GitNest</Product>
+    <Description>面向 AI 编程工作流的中文 Git 客户端，基于 SourceGit</Description>
+    <Company>GitNest contributors</Company>
+    <Copyright>Copyright © $([System.DateTime]::Now.Year) GitNest contributors; SourceGit contributors.</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/sourcegit-scm/sourcegit.git</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/sourcegit-scm/sourcegit.git</RepositoryUrl>
-    <RepositoryType>Public</RepositoryType>
+    <DisableAOT Condition="'$(DisableAOT)' == ''">true</DisableAOT>
+    <DisableUpdateDetection>true</DisableUpdateDetection>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(DisableAOT)' != 'true'">
@@ -65,17 +66,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <TrimmerRootAssembly Include="SourceGit" />
+    <TrimmerRootAssembly Include="GitNest" />
     <TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />
   </ItemGroup>
 
   <Target BeforeTargets="GetAssemblyAttributes" Name="GenVersionInfo">
-    <Exec Command="git describe --abbrev=8 --dirty" ConsoleToMsBuild="True" IgnoreExitCode="true">
-      <Output PropertyName="FriendlyVersion" TaskParameter="ConsoleOutput" />
-    </Exec>
-
     <ItemGroup>
-      <AssemblyMetadata Include="FriendlyVersion" Value="$([System.String]::Copy('$(FriendlyVersion)').Replace('g', '').Trim())" />
+      <AssemblyMetadata Include="FriendlyVersion" Value="v$(Version)" />
+      <AssemblyMetadata Include="UpstreamCommit" Value="2735a8ad80c2443bc736b7e6e501f1052b61d940" />
     </ItemGroup>
   </Target>
 </Project>

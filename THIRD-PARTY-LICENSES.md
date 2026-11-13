@@ -1,20 +1,20 @@
 # Third-Party Licenses
 
-The project uses the following third-party libraries or assets
+GitNest is based on SourceGit v2026.24 (MIT). The original copyright notice is retained in LICENSE. The project uses the following third-party libraries and assets. Package versions below match the fixed build baseline; the resolved package inventory is in docs/dependency-inventory.md.
 
 ## Packages
 
 ### AvaloniaUI
 
 - **Source**: https://github.com/AvaloniaUI/Avalonia
-- **Version**: 12.0.5
+- **Version**: 11.3.22 (the AvaloniaEdit submodule references 11.3.18)
 - **License**: MIT License
 - **License Link**: https://github.com/AvaloniaUI/Avalonia/blob/master/licence.md
 
 ### Avalonia.Controls.DataGrid
 
 - **Source**: https://github.com/AvaloniaUI/Avalonia.Controls.DataGrid
-- **Version**: 12.0.1
+- **Version**: 11.3.13
 - **License**: MIT License
 - **License Link**: https://github.com/AvaloniaUI/Avalonia.Controls.DataGrid/blob/master/licence.md
 
@@ -22,14 +22,14 @@ The project uses the following third-party libraries or assets
 
 - **Official Source**: https://github.com/AvaloniaUI/AvaloniaEdit
 - **Fork (Modified)**: https://github.com/love-linger/AvaloniaEdit
-- **Version**: Based on 12.0.x
+- **Version**: 11.4.1-beta, commit ddf00a91dc0da29b85c79b85c9583860213a99ff
 - **License**: MIT License
 - **License Link**: https://github.com/AvaloniaUI/AvaloniaEdit/blob/master/LICENSE
 
 ### TextMateSharp
 
 - **Source**: https://github.com/danipen/TextMateSharp
-- **Version**: 2.0.2
+- **Version**: 2.0.4
 - **License**: MIT License
 - **License Link**: https://github.com/danipen/TextMateSharp/blob/master/LICENSE.md
 
@@ -46,6 +46,13 @@ The project uses the following third-party libraries or assets
 - **Version**: 2.9.0-beta.1
 - **License**: MIT License
 - **License Link**: https://github.com/Azure/azure-sdk-for-net/blob/main/LICENSE.txt
+
+### CommunityToolkit.Mvvm
+
+- **Source**: https://github.com/CommunityToolkit/dotnet
+- **Version**: 8.4.2
+- **License**: MIT License
+- **License Link**: https://github.com/CommunityToolkit/dotnet/blob/main/License.md
 
 ### BitMiracle.LibTiff.NET
 
@@ -64,8 +71,8 @@ The project uses the following third-party libraries or assets
 ### StbImageSharp
 
 - **Source**: https://github.com/StbSharp/StbImageSharp
-- **Version**: 2.30.15
-- **License**: Public Domain
+- **Version**: 2.30.16
+- **License**: Unlicense OR MIT (NuGet package declaration)
 
 ## Fonts
 

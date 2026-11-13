@@ -1,304 +1,46 @@
-# SourceGit - Opensource Git GUI client.
+# GitNest
 
-[![stars](https://img.shields.io/github/stars/sourcegit-scm/sourcegit.svg)](https://github.com/sourcegit-scm/sourcegit/stargazers)
-[![forks](https://img.shields.io/github/forks/sourcegit-scm/sourcegit.svg)](https://github.com/sourcegit-scm/sourcegit/forks)
-[![license](https://img.shields.io/github/license/sourcegit-scm/sourcegit.svg)](LICENSE)
-[![latest](https://img.shields.io/github/v/release/sourcegit-scm/sourcegit.svg)](https://github.com/sourcegit-scm/sourcegit/releases/latest)
-[![downloads](https://img.shields.io/github/downloads/sourcegit-scm/sourcegit/total)](https://github.com/sourcegit-scm/sourcegit/releases)
+面向使用 AI Agent 编程的 Git 初学者的中文 Windows 桌面客户端，基于 [SourceGit](https://github.com/sourcegit-scm/sourcegit) 改造。
 
-## Screenshots
+GitNest 的目标是通过图形界面审阅 AI 的累计成果和未提交修改，选择提交、同步与合并，并清理任务遗留的工作树和分支。产品需求和操作约定见 [产品与技术设计](docs/design.md)。
 
-* Dark Theme
+阶段一构建基线已完成，可构建并运行 GitNest `0.1.0-dev`。底座为 SourceGit 稳定版 `v2026.24`，产品流程按 [实施计划](docs/implementation-plan.md) 逐批推进。[实施记录](docs/implementation-log.md) 保存每批变更与验证结果。
 
-  ![Theme Dark](./screenshots/theme_dark.png)
+## 开发构建
 
-* Light Theme
+环境：Windows x64、Git for Windows、.NET 10 SDK。`global.json` 指定 SDK `10.0.404`，允许同一功能带的后续补丁。
 
-  ![Theme Light](./screenshots/theme_light.png)
+首次准备工具（SDK 安装在工作区 `.tools/dotnet/`）：
 
-* Custom
-
-  You can find custom themes from [sourcegit-theme](https://github.com/sourcegit-scm/sourcegit-theme.git). And welcome to share your own themes.
-
-## Highlights
-
-* Supports Windows/macOS/Linux
-* Opensource/Free
-* Fast
-* Deutsch/English/Español/Bahasa Indonesia/Français/Italiano/Português/Русский/Українська/简体中文/繁體中文/日本語/தமிழ் (Tamil)/한국어
-* Built-in light/dark themes
-* Customize theme
-* Visual commit graph
-* Supports SSH access with each remote
-* GIT commands with GUI
-  * Clone/Fetch/Pull/Push...
-  * Merge/Rebase/Reset/Revert/Cherry-pick...
-  * Amend/Reword/Squash
-  * Interactive rebase
-  * Branches
-  * Remotes
-  * Tags
-  * Stashes
-  * Submodules
-  * Worktrees
-  * Archive
-  * Diff
-  * Save as patch/apply
-  * File histories
-  * Blame
-  * Revision Diffs
-  * Branch Diff
-  * Image Diff - Side-By-Side/Swipe/Blend
-* Git command logs
-* Search commits
-* GitFlow
-* Git LFS
-* Bisect
-* Issue Link
-* Workspace
-* Custom Action
-* Create PR on GitHub/Gitlab/Gitea/Gitee/Bitbucket...
-* Using AI to generate commit message
-* Built-in conventional commit message helper.
-
-> [!WARNING]
-> **Linux** only tested on **Debian 12** on both **X11** & **Wayland**.
-
-## How to Use
-
-**To use this tool, you need to install Git(>=2.25.1) first.**
-
-You can download the latest stable from [Releases](https://github.com/sourcegit-scm/sourcegit/releases/latest) or download workflow artifacts from [GitHub Actions](https://github.com/sourcegit-scm/sourcegit/actions) to try this app based on latest commits.
-
-This software creates a folder, which is platform-dependent, to store user settings, downloaded avatars and crash logs.
-
-| OS      | PATH                                                                                             |
-|---------|--------------------------------------------------------------------------------------------------|
-| Windows | `%APPDATA%\SourceGit`                                                                            |
-| Linux   | `${XDG_CONFIG_HOME}/SourceGit` (preference.json) `${XDG_CACHE_HOME}/SourceGit` (avatars & logs)  |
-| macOS   | `~/Library/Application Support/SourceGit`                                                        |
-
-> [!TIP]
-> * You can open this data storage directory from the main menu `Open Data Storage Directory`.
-> * You can create a `data` folder next to the `SourceGit` executable to force this app to store data (user settings, downloaded avatars and crash logs) into it (Portable-Mode). Only works with Windows packages and Linux AppImages.
-
-For **Windows** users:
-
-* **MSYS Git is NOT supported**. Please use official [Git for Windows](https://git-scm.com/download/win) instead.
-* You can install the latest stable by `scoop` with follow commands:
-  ```shell
-  scoop bucket add extras
-  scoop install sourcegit
-  ```
-* Pre-built binaries can be found in [Releases](https://github.com/sourcegit-scm/sourcegit/releases/latest)
-
-> [!NOTE]
-> `git-flow` is no longer shipped with **Git for Windows** since `2.51.1`. You can use it by following these steps:
->  * Download [git-flow-next](https://github.com/gittower/git-flow-next/releases)
->  * Unzip & Rename the `git-flow-next` to `git-flow`
->  * Copy to `$GIT_INSTALL_DIR/cmd` or just add its path to you `PATH` directly
-
-For **macOS** users:
-
-* Thanks [@ybeapps](https://github.com/ybeapps) for making `SourceGit` available on `Homebrew`:
-  ```shell
-  brew install --cask sourcegit
-  ```
-* If you want to install `SourceGit.app` from GitHub Release manually, you need run following command to make sure it works:
-  ```shell
-  sudo xattr -cr /Applications/SourceGit.app
-  ```
-> [!NOTE]
-> macOS packages in the `Release` page of this project are all unsigned. If you are worried about potential security issues with the above command, you can download the signed package from the [distribution repository](https://github.com/ybeapps/homebrew-sourcegit/releases) provided by [@ybeapps](https://github.com/ybeapps) (there is no need to execute the above command while installing `SourceGit`).
-
-* Make sure [git-credential-manager](https://github.com/git-ecosystem/git-credential-manager/releases) is installed on your mac.
-* You can run `echo $PATH > ~/Library/Application\ Support/SourceGit/PATH` to generate a custom PATH env file to introduce `PATH` env to SourceGit.
-
-For **Linux** users:
-
-* Thanks [@aikawayataro](https://github.com/aikawayataro) for providing `rpm` and `deb` repositories, hosted on [Codeberg](https://codeberg.org/yataro/-/packages).
-
-  `deb` how to:
-  ```shell
-  sudo mkdir -p /etc/apt/keyrings
-  curl https://codeberg.org/api/packages/yataro/debian/repository.key | sudo tee /etc/apt/keyrings/sourcegit.asc
-  echo "deb [signed-by=/etc/apt/keyrings/sourcegit.asc, arch=amd64,arm64] https://codeberg.org/api/packages/yataro/debian generic main" | sudo tee /etc/apt/sources.list.d/sourcegit.list
-  sudo apt update
-  sudo apt install sourcegit
-  ```
-
-  `rpm` how to:
-  ```shell
-  curl https://codeberg.org/api/packages/yataro/rpm.repo | sed -e 's/gpgcheck=1/gpgcheck=0/' > sourcegit.repo
-
-  # Fedora 41 and newer
-  sudo dnf config-manager addrepo --from-repofile=./sourcegit.repo
-  # Fedora 40 and earlier
-  sudo dnf config-manager --add-repo ./sourcegit.repo
-
-  sudo dnf install sourcegit
-  ```
-
-  If your distribution isn't using `dnf`, please refer to the documentation of your distribution on how to add an `rpm` repository.
-
-* `AOSC OS`: In addition to AMD64 and ARM64, support for LoongArch and RISC-V has been added.
-  ```shell
-  sudo oma install sourcegit
-  ```
-  
-> [!NOTE]
-> RISC-V support is untested.
-
-* `AppImage` files can be found on [AppImage hub](https://appimage.github.io/SourceGit/), `xdg-open` (`xdg-utils`) must be installed to support open native file manager.
-* Make sure [git-credential-manager](https://github.com/git-ecosystem/git-credential-manager/releases) or [git-credential-libsecret](https://pkgs.org/search/?q=git-credential-libsecret) is installed on your Linux.
-* Maybe you need to set environment variable `AVALONIA_SCREEN_SCALE_FACTORS`. See https://github.com/AvaloniaUI/Avalonia/wiki/Configuring-X11-per-monitor-DPI.
-* If you can NOT type accented characters, such as `ê`, `ó`, try to set the environment variable `AVALONIA_IM_MODULE` to `none`.
-
-## Commandline arguments
-
-Users can also launcher `SourceGit` from commandline. Usage:
-
-```
-<SOURCEGIT_EXEC> <DIR>                       // Open repository in existing `SourceGit` instance or a new one
-<SOURCEGIT_EXEC> --history <FILE_OR_DIR>     // Launch `SourceGit` to see the history of a file or dir
-<SOURCEGIT_EXEC> --blame <FILE_PATH>         // Launch `SourceGit` to blame a file (HEAD version only) 
+```powershell
+./build/scripts/bootstrap-dotnet.ps1
 ```
 
-## OpenAI
+构建 Release：
 
-This software supports using OpenAI or other AI service that has an OpenAI compatible HTTP API to generate commit message. You need configurate the service in `Preference` window.
-
-For `OpenAI`:
-
-* `Server` must be `https://api.openai.com/v1`
-
-For `OrcaRouter`:
-
-* `Server` should be `https://api.orcarouter.ai/v1`
-* `API Key` should be an OrcaRouter API key (prefixed with `sk-orca-`)
-* A good starting `Model` is `orcarouter/auto`, which routes each request to the best available model
-
-For `Cheaper Inference`:
-
-* `Server` should be `https://api.cheaperinference.com/v1`
-* `API Key` should be a Cheaper Inference API key (prefixed with `ci_live_`)
-* A good starting `Model` is `gpt-5.4-mini`
-
-For `Opper`:
-
-* `Server` should be `https://api.opper.ai/v3/compat`
-* `API Key` should be an Opper API key, created at https://platform.opper.ai
-* A good starting `Model` is `gpt-5.4-mini`
-
-For `API Route`:
-
-* `Server` should be `https://global.api-route.com/v1`
-* `API Key` should be your API Route API key
-* `Model` can be `gpt-6.1-sol` if it is available to your key; otherwise select an available chat model from the fetched catalog
-* See the [API documentation](https://github.com/DennyHo0917/api-route/blob/main/API.md) for authentication and model discovery
-
-For other AI service:
-
-* The `Server` should fill in a URL equivalent to OpenAI's `https://api.openai.com/v1`. For example, when using `Ollama`, it should be `http://localhost:11434/v1` instead of `http://localhost:11434/api/generate`
-* The `API Key` is optional that depends on the service
-
-## External Tools
-
-This app supports open repository in external tools listed in the table below.
-
-| Tool                          | Windows | macOS | Linux |
-|-------------------------------|---------|-------|-------|
-| Visual Studio Code            | YES     | YES   | YES   |
-| Visual Studio Code - Insiders | YES     | YES   | YES   |
-| VSCodium                      | YES     | YES   | YES   |
-| Cursor                        | YES     | YES   | YES   |
-| Sublime Text                  | YES     | YES   | YES   |
-| Zed                           | YES     | YES   | YES   |
-| Visual Studio                 | YES     | NO    | NO    |
-
-> [!NOTE]
-> This app will try to find those tools based on some pre-defined or expected locations automatically. If you are using one portable version of these tools, it will not be detected by this app.  
-> To solve this problem you can add a file named `external_editors.json` in app data storage directory (config dir for Linux) and provide the path directly.  
-> User can also exclude some editors by using `external_editors.json`.
-
-The format of `external_editors.json`:
-```json
-{
-    "tools": {
-        "Visual Studio Code": "D:\\VSCode\\Code.exe"
-    },
-    "excludes": [
-        "Visual Studio Community 2019"
-    ]
-}
+```powershell
+./build/scripts/build-gitnest.ps1
 ```
 
-> [!NOTE]
-> This app also supports a lot of `JetBrains` IDEs, installing `JetBrains Toolbox` will help this app to find them.
+发布可直接运行的 Windows x64 目录：
 
-## Conventional Commit Helper
-
-You can define your own conventional commit types (per-repository) by following steps:
-
-1. Create a json file with your own conventional commit type definitions. For example:
-```json
-[
-  {
-    "Name": "New Feature",
-    "Type": "Feature",
-    "Description": "Adding a new feature",
-    "PrefillShortDesc": "this is a test"
-  },
-  {
-    "Name": "Bug Fixes",
-    "Type": "Fix",
-    "Description": "Fixing a bug"
-  }
-]
-```
-2. Configure the `Conventional Commit Types` in repository configuration window.  
-
-## Contributing
-
-Everyone is welcome to submit a PR. Please make sure your PR is based on the latest `develop` branch and the target branch of PR is `develop`.
-
-This project has a submodule in `depends/AvaloniaEdit` which is a custom fork of [Official AvaloniaEdit](https://github.com/AvaloniaUI/AvaloniaEdit). 
-Please make sure it is initialized - enable `--recurse-submodules` option while cloning or run `git submodule update --init` after cloned.
-
-In short, here are the commands to get started once [.NET tools are installed](https://dotnet.microsoft.com/en-us/download):
-
-```sh
-dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org
-dotnet restore
-dotnet build
-dotnet run --project src/SourceGit.csproj
+```powershell
+./build/scripts/build-gitnest.ps1 -Publish
+./artifacts/windows-x64/GitNest.exe
 ```
 
-Thanks to all the people who contribute.
+发布目录包含 .NET 运行依赖；Git for Windows 由用户单独安装。构建日志位于 `artifacts/logs/`，输出位于 `artifacts/windows-x64/`。源码沿用上游的 `SourceGit.slnx`、`src/SourceGit.csproj` 和内部命名空间，程序名为 `GitNest.exe`。
 
-[![Contributors](https://contrib.rocks/image?repo=sourcegit-scm/sourcegit&columns=20)](https://github.com/sourcegit-scm/sourcegit/graphs/contributors)
+## 本机数据
 
-## Translation Status
+默认使用 `%APPDATA%/GitNest/` 保存设置和缓存。便携使用时，在 `GitNest.exe` 同级创建 `gitnest-data/` 目录，数据即存放于该目录。
 
-You can find the current translation status in [TRANSLATION.md](https://github.com/sourcegit-scm/sourcegit/blob/develop/TRANSLATION.md)
+首次启动默认使用简体中文，保留浅色、深色及跟随系统主题。更新采用手动下载方式，发行渠道在安装交付阶段确定。
 
-### Translate Utility Script
+## 文档与许可
 
-A script that assists with translations by reading the target language, comparing it with the base language, and going through missing keys one by one, so the translator can provide the translations interactively without needing to check each key manually.
-
-#### Usage
-
-Check for a given language (e.g., `pt_BR`) and optionally check for missing translations:
-
-```bash
-python translate_helper.py pt_BR [--check]
-```
-
-- `pt_BR` is the target language code (change as needed), it should correspond to a file named `pt_BR.axaml` in the `src/Resources/Locales/` directory, so you can replace it with any other language code you want to translate, e.g., `de_DE`, `es_ES`, etc.
-- `--check` is an optional flag used to only check for missing keys without prompting for translations, useful for getting a list of missing translations.
-
-The script will read the base language file (`en_US.axaml`) and the target language file (e.g., `pt_BR.axaml`), identify missing keys, and prompt you to provide translations for those keys. If the `--check` flag is used, it will only list the missing keys without prompting for translations.
-
-## Third-Party Components
-
-For detailed license information, see [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md).
+- [实施计划](docs/implementation-plan.md)与[实施记录](docs/implementation-log.md)
+- [上游版本、SDK 与构建验证](docs/upstream-baseline.md)
+- [SourceGit 复用核对](docs/sourcegit-reuse-audit.md)
+- [依赖清单](docs/dependency-inventory.md)
+- [MIT 许可证](LICENSE)、[署名与来源](NOTICE.md)、[第三方许可](THIRD-PARTY-LICENSES.md)

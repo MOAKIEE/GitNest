@@ -53,7 +53,7 @@ namespace SourceGit.AI
         {
             if (Storage == ApiKeyStorage.SystemKeychain)
             {
-                Native.OS.Keychain?.Store(Service, "SourceGit", KeyToAccess);
+                Native.OS.Keychain?.Store(Service, "GitNest", KeyToAccess);
                 KeyToAccess = string.Empty;
             }
         }
@@ -61,7 +61,7 @@ namespace SourceGit.AI
         public void CleanupForRemove()
         {
             if (Storage == ApiKeyStorage.SystemKeychain)
-                Native.OS.Keychain?.Erase(Service, "SourceGit");
+                Native.OS.Keychain?.Erase(Service, "GitNest");
         }
 
         public string GetRawApiKey()
@@ -72,7 +72,7 @@ namespace SourceGit.AI
             if (_storage == ApiKeyStorage.EnvironmentVariable)
                 return Environment.GetEnvironmentVariable(_keyToAccess);
 
-            return Native.OS.Keychain?.Read(Service, "SourceGit") ?? string.Empty;
+            return Native.OS.Keychain?.Read(Service, "GitNest") ?? string.Empty;
         }
 
         private ApiKeyStorage _storage = ApiKeyStorage.EnvironmentVariable;

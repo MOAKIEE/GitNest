@@ -1,6 +1,5 @@
 using System;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using Avalonia.Interactivity;
 
 namespace SourceGit.Views
@@ -21,7 +20,7 @@ namespace SourceGit.Views
                 {
                     TxtReleaseDate.Text = App.Text("About.ReleaseDate", Models.DateTimeFormat.Format(date, true));
                 }
-                else if (attr.Key.Equals("FriendlyVersion", StringComparison.OrdinalIgnoreCase) && REG_FRIENDLY_VERSION().IsMatch(attr.Value))
+                else if (attr.Key.Equals("FriendlyVersion", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(attr.Value))
                 {
                     foundFriendlyVersion = true;
                     TxtVersion.Text = attr.Value;
@@ -32,7 +31,7 @@ namespace SourceGit.Views
             {
                 var ver = assembly.GetName().Version;
                 if (ver != null)
-                    TxtVersion.Text = $"v{ver.Major}.{ver.Minor:D2}";
+                    TxtVersion.Text = $"v{ver.Major}.{ver.Minor}.{ver.Build}";
             }
 
             var copyright = assembly.GetCustomAttribute<AssemblyCopyrightAttribute>();
@@ -40,30 +39,10 @@ namespace SourceGit.Views
                 TxtCopyright.Text = copyright.Copyright;
         }
 
-        private void OnVisitReleaseNotes(object _, RoutedEventArgs e)
-        {
-            var ver = TxtVersion.Text ?? string.Empty;
-            var endOfTagIdx = ver.IndexOf('-');
-            if (endOfTagIdx > 0)
-                ver = ver.Substring(0, endOfTagIdx);
-
-            Native.OS.OpenBrowser($"https://github.com/sourcegit-scm/sourcegit/releases/tag/{ver}");
-            e.Handled = true;
-        }
-
-        private void OnVisitWebsite(object _, RoutedEventArgs e)
-        {
-            Native.OS.OpenBrowser("https://sourcegit-scm.github.io/");
-            e.Handled = true;
-        }
-
         private void OnVisitSourceCode(object _, RoutedEventArgs e)
         {
             Native.OS.OpenBrowser("https://github.com/sourcegit-scm/sourcegit");
             e.Handled = true;
         }
-
-        [GeneratedRegex(@"^v\d{4}\.\d{1,2}(?:\-\d+\-[0-9a-f]{8})?(?:\-dirty)?$")]
-        private static partial Regex REG_FRIENDLY_VERSION();
     }
 }
