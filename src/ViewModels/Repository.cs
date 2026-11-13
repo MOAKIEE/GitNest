@@ -12,7 +12,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace SourceGit.ViewModels
 {
-    public class Repository : ObservableObject, Models.IRepository
+    public partial class Repository : ObservableObject, Models.IRepository
     {
         public bool IsBare
         {
@@ -479,6 +479,8 @@ namespace SourceGit.ViewModels
 
         public void Close()
         {
+            _isTaskOverviewClosed = true;
+            Interlocked.Increment(ref _worktreeListGeneration);
             var commitMessage = _workingCopy.CommitMessage;
             if (!string.IsNullOrEmpty(commitMessage) && _workingCopy.InProgressContext != null)
             {
@@ -1214,12 +1216,7 @@ namespace SourceGit.ViewModels
 
         public void RefreshWorktrees()
         {
-            Task.Run(async () =>
-            {
-                var worktrees = await new Commands.Worktree(FullPath).ReadAllAsync().ConfigureAwait(false);
-                var cleaned = Worktree.Build(FullPath, worktrees);
-                Dispatcher.UIThread.Invoke(() => Worktrees = cleaned);
-            });
+            RefreshWorktreeList(false);
         }
 
         public void RefreshTags()
@@ -1372,6 +1369,8 @@ namespace SourceGit.ViewModels
         {
             if (IsBare)
                 return;
+
+            RefreshCurrentTaskStatus();
 
             if (_cancellationRefreshWorkingCopyChanges is { IsCancellationRequested: false })
                 _cancellationRefreshWorkingCopyChanges.Cancel();
@@ -1617,6 +1616,18 @@ namespace SourceGit.ViewModels
         {
             if (worktree.IsCurrent)
                 return;
+
+            if (!Directory.Exists(worktree.FullPath))
+            {
+                SendNotification(App.Text("Worktree.Status.Missing"), true);
+                return;
+            }
+
+            if (worktree.Status is { IsReadable: false } status)
+            {
+                SendNotification(App.Text(status.Error), true);
+                return;
+            }
 
             var normalizedPath = worktree.FullPath.Replace('\\', '/').TrimEnd('/');
             App.GetLauncher().OpenRepositoryInTab(normalizedPath, null);

@@ -313,6 +313,8 @@ namespace SourceGit.Models
                 Interlocked.Exchange(ref _updateStashes, DateTime.Now.AddSeconds(.5).ToFileTime());
             }
             else if (name.Equals("HEAD", StringComparison.Ordinal) ||
+                name.Equals("config", StringComparison.Ordinal) ||
+                name.Equals("config.worktree", StringComparison.Ordinal) ||
                 name.Equals("BISECT_START", StringComparison.Ordinal) ||
                 name.StartsWith("refs/heads/", StringComparison.Ordinal) ||
                 name.StartsWith("refs/remotes/", StringComparison.Ordinal) ||
@@ -333,7 +335,10 @@ namespace SourceGit.Models
                 Interlocked.Exchange(ref _updateTags, desired);
                 Interlocked.Exchange(ref _updateStashes, desired);
             }
-            else if (name.StartsWith("objects/", StringComparison.Ordinal) || name.Equals("index", StringComparison.Ordinal))
+            else if (name.StartsWith("objects/", StringComparison.Ordinal) || name.Equals("index", StringComparison.Ordinal) ||
+                name.Equals("FETCH_HEAD", StringComparison.Ordinal) ||
+                (name.StartsWith("worktrees/", StringComparison.Ordinal) &&
+                    (name.EndsWith("/index", StringComparison.Ordinal) || name.EndsWith("/FETCH_HEAD", StringComparison.Ordinal) || name.EndsWith("/config.worktree", StringComparison.Ordinal))))
             {
                 Interlocked.Exchange(ref _updateWC, DateTime.Now.AddSeconds(1).ToFileTime());
             }

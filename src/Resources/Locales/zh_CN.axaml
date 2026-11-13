@@ -906,7 +906,7 @@
   <x:String x:Key="Text.Repository.Terminal" xml:space="preserve">在终端中打开</x:String>
   <x:String x:Key="Text.Repository.ViewLogs" xml:space="preserve">查看命令日志</x:String>
   <x:String x:Key="Text.Repository.Visit" xml:space="preserve">访问远程仓库 '{0}'</x:String>
-  <x:String x:Key="Text.Repository.Worktrees" xml:space="preserve">工作树列表</x:String>
+  <x:String x:Key="Text.Repository.Worktrees" xml:space="preserve">工作树（独立工作目录）</x:String>
   <x:String x:Key="Text.Repository.Worktrees.Add" xml:space="preserve">新增工作树</x:String>
   <x:String x:Key="Text.Repository.Worktrees.Prune" xml:space="preserve">清理</x:String>
   <x:String x:Key="Text.RepositoryURL" xml:space="preserve">远程仓库地址</x:String>
@@ -1129,4 +1129,37 @@
   <x:String x:Key="Text.Worktree.Remove" xml:space="preserve">移除工作树</x:String>
   <x:String x:Key="Text.Worktree.Unlock" xml:space="preserve">解除工作树锁定</x:String>
   <x:String x:Key="Text.Yes" xml:space="preserve">好的</x:String>
+  <x:String x:Key="Text.Repository.StatusSummary" xml:space="preserve">{0} · {1} 个文件未提交</x:String>
+  <x:String x:Key="Text.Repository.ViewChanges" xml:space="preserve">查看修改</x:String>
+  <x:String x:Key="Text.Worktree.Status.Pending" xml:space="preserve">正在读取工作树状态…</x:String>
+  <x:String x:Key="Text.Worktree.Status.Missing" xml:space="preserve">目录缺失或离线 · 状态未知</x:String>
+  <x:String x:Key="Text.Worktree.Status.IdentityChanged" xml:space="preserve">目录的仓库归属已变化 · 请刷新</x:String>
+  <x:String x:Key="Text.Worktree.Status.ReadFailed" xml:space="preserve">工作树状态读取失败</x:String>
+  <x:String x:Key="Text.Worktree.Status.Changes" xml:space="preserve">已暂存 {0} · 未暂存 {1} · 未跟踪 {2}</x:String>
+  <x:String x:Key="Text.Worktree.Status.Conflicts" xml:space="preserve">冲突 {0}</x:String>
+  <x:String x:Key="Text.Worktree.Status.SyncUnknown" xml:space="preserve">同步状态未知</x:String>
+  <x:String x:Key="Text.Worktree.Status.Cached" xml:space="preserve">{0} · 待推送 {1} / 待拉取 {2}（缓存）</x:String>
+  <x:String x:Key="Text.Worktree.Status.NoUpstream" xml:space="preserve">未设置推送上游</x:String>
+  <x:String x:Key="Text.Worktree.Status.UpstreamGone" xml:space="preserve">{0} · 本地缓存中上游已删除</x:String>
+  <x:String x:Key="Text.Worktree.Status.NotFetched" xml:space="preserve">{0} · 无获取记录，同步未知</x:String>
+  <x:String x:Key="Text.Worktree.Status.Detached" xml:space="preserve">detached HEAD · 无分支上游</x:String>
+  <x:String x:Key="Text.Worktree.Status.Unborn" xml:space="preserve">尚无首次提交</x:String>
+  <x:String x:Key="Text.Worktree.Status.Refreshed" xml:space="preserve">状态刷新于 {0}</x:String>
+  <x:String x:Key="Text.Worktree.Status.FetchTime" xml:space="preserve">本地 FETCH_HEAD 记录时间：{0}</x:String>
+  <x:String x:Key="Text.Worktree.Status.FetchUnknown" xml:space="preserve">尚无本地获取记录</x:String>
+  <x:String x:Key="Text.Worktree.Status.Bare" xml:space="preserve">裸仓库 · 无工作目录</x:String>
+  <x:String x:Key="Text.Worktree.Status.Locked" xml:space="preserve">已锁定 · {0}</x:String>
+  <x:String x:Key="Text.Worktree.Status.Main" xml:space="preserve">主工作树</x:String>
+  <x:String x:Key="Text.Worktree.Status.Linked" xml:space="preserve">关联工作树</x:String>
+  <x:String x:Key="Text.Worktree.Task.Active" xml:space="preserve">未标记完成</x:String>
+  <x:String x:Key="Text.Worktree.Task.Completed" xml:space="preserve">已手动标记完成</x:String>
+  <x:String x:Key="Text.Worktree.Task.Edit" xml:space="preserve">编辑任务别名与状态</x:String>
+  <x:String x:Key="Text.Worktree.Task.Alias" xml:space="preserve">任务别名（留空使用分支或目录名）</x:String>
+  <x:String x:Key="Text.Worktree.Task.LocalOnly" xml:space="preserve">保存在本机 GitNest 设置中，分支名称保持原值。</x:String>
+  <x:String x:Key="Text.Worktree.Task.MarkCompleted" xml:space="preserve">手动标记此任务已完成</x:String>
+  <x:String x:Key="Text.Worktree.Task.SaveFailed" xml:space="preserve">任务设置保存失败：{0}</x:String>
+  <x:String x:Key="Text.Worktree.Task.Refresh" xml:space="preserve">刷新全部工作树状态</x:String>
+  <x:String x:Key="Text.Worktree.Task.OpenEditor" xml:space="preserve">在编辑器打开</x:String>
+  <x:String x:Key="Text.Worktree.Task.SelectEditor" xml:space="preserve">选择编辑器程序…</x:String>
+  <x:String x:Key="Text.Worktree.Task.OpenFailed" xml:space="preserve">打开工具失败：{0}</x:String>
 </ResourceDictionary>

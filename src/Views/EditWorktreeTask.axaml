@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:SourceGit.ViewModels"
+             x:Class="SourceGit.Views.EditWorktreeTask"
+             x:DataType="vm:EditWorktreeTask">
+  <StackPanel Margin="8,0" Spacing="12">
+    <TextBlock FontSize="18" Classes="bold" Text="{DynamicResource Text.Worktree.Task.Edit}"/>
+    <TextBlock Text="{Binding Target.FullPath}" TextWrapping="Wrap"/>
+    <TextBlock Text="{DynamicResource Text.Worktree.Task.LocalOnly}" TextWrapping="Wrap"/>
+    <TextBox Text="{Binding Alias, Mode=TwoWay}" Watermark="{DynamicResource Text.Worktree.Task.Alias}" MaxLength="120"/>
+    <CheckBox Content="{DynamicResource Text.Worktree.Task.MarkCompleted}" IsChecked="{Binding IsCompleted, Mode=TwoWay}"/>
+    <TextBlock Text="{Binding Target.AvailabilityDescription}" TextWrapping="Wrap"/>
+    <TextBlock Text="{Binding Target.ChangesDescription}" TextWrapping="Wrap"/>
+    <TextBlock Text="{Binding Target.SyncDescription}" TextWrapping="Wrap"/>
+    <TextBlock Text="{Binding Target.RefreshDescription}"/>
+  </StackPanel>
+</UserControl>

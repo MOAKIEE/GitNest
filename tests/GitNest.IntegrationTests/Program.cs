@@ -13,7 +13,14 @@ internal static partial class Program
     public static async Task<int> Main(string[] args)
     {
         if (args.Length > 0)
+        {
+            if (Environment.GetEnvironmentVariable("GITNEST_TEST_TOOL_OUTPUT") is { } outputFile)
+            {
+                File.WriteAllText(outputFile, Environment.CurrentDirectory + "\n" + string.Join("\n", args));
+                return 0;
+            }
             return args is ["--version"] ? await RunFakeGitAsync() : 1;
+        }
 
         try
         {

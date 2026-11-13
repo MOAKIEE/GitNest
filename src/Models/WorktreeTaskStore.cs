@@ -25,10 +25,16 @@ namespace SourceGit.Models
             {
                 if (File.Exists(file))
                     _tasks = JsonSerializer.Deserialize(File.ReadAllText(file), JsonCodeGen.Default.ListWorktreeTask) ?? [];
+                foreach (var task in _tasks)
+                {
+                    if (task == null || !Path.IsPathFullyQualified(task.CommonDirectory) || !Path.IsPathFullyQualified(task.FullPath))
+                        throw new InvalidDataException("Task settings contain an invalid repository or worktree path.");
+                }
             }
             catch (Exception ex)
             {
                 _readError = ex.Message;
+                _tasks = [];
             }
         }
 

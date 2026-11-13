@@ -358,6 +358,8 @@ namespace SourceGit.ViewModels
             }
         }
 
+        public string WorktreeEditorPath { get; set; } = string.Empty;
+
         public string ShellOrTerminalPath
         {
             get => Native.OS.ShellOrTerminal;

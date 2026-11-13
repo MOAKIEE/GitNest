@@ -54,7 +54,7 @@ namespace SourceGit.Models
             return _optionsGenerator?.Invoke(repo);
         }
 
-        public void Launch(string args)
+        public void Launch(string args, string workingDirectory = null)
         {
             if (File.Exists(ExecFile))
             {
@@ -64,6 +64,7 @@ namespace SourceGit.Models
                     Arguments = args,
                     UseShellExecute = false,
                     CreateNoWindow = true,
+                    WorkingDirectory = workingDirectory ?? string.Empty,
                 });
             }
         }

@@ -1125,4 +1125,37 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.Worktree.Remove" xml:space="preserve">Remove</x:String>
   <x:String x:Key="Text.Worktree.Unlock" xml:space="preserve">Unlock</x:String>
   <x:String x:Key="Text.Yes" xml:space="preserve">YES</x:String>
+  <x:String x:Key="Text.Repository.StatusSummary" xml:space="preserve">{0} · {1} uncommitted files</x:String>
+  <x:String x:Key="Text.Repository.ViewChanges" xml:space="preserve">View changes</x:String>
+  <x:String x:Key="Text.Worktree.Status.Pending" xml:space="preserve">Reading worktree status…</x:String>
+  <x:String x:Key="Text.Worktree.Status.Missing" xml:space="preserve">Directory missing or offline · status unknown</x:String>
+  <x:String x:Key="Text.Worktree.Status.IdentityChanged" xml:space="preserve">Repository identity changed · refresh required</x:String>
+  <x:String x:Key="Text.Worktree.Status.ReadFailed" xml:space="preserve">Unable to read worktree status</x:String>
+  <x:String x:Key="Text.Worktree.Status.Changes" xml:space="preserve">Staged {0} · unstaged {1} · untracked {2}</x:String>
+  <x:String x:Key="Text.Worktree.Status.Conflicts" xml:space="preserve">Conflicts {0}</x:String>
+  <x:String x:Key="Text.Worktree.Status.SyncUnknown" xml:space="preserve">Synchronization unknown</x:String>
+  <x:String x:Key="Text.Worktree.Status.Cached" xml:space="preserve">{0} · push {1} / pull {2} (cached)</x:String>
+  <x:String x:Key="Text.Worktree.Status.NoUpstream" xml:space="preserve">No upstream configured</x:String>
+  <x:String x:Key="Text.Worktree.Status.UpstreamGone" xml:space="preserve">{0} · upstream missing from local cache</x:String>
+  <x:String x:Key="Text.Worktree.Status.NotFetched" xml:space="preserve">{0} · no fetch record, sync unknown</x:String>
+  <x:String x:Key="Text.Worktree.Status.Detached" xml:space="preserve">detached HEAD · no branch upstream</x:String>
+  <x:String x:Key="Text.Worktree.Status.Unborn" xml:space="preserve">No initial commit yet</x:String>
+  <x:String x:Key="Text.Worktree.Status.Refreshed" xml:space="preserve">Status refreshed at {0}</x:String>
+  <x:String x:Key="Text.Worktree.Status.FetchTime" xml:space="preserve">Local FETCH_HEAD record: {0}</x:String>
+  <x:String x:Key="Text.Worktree.Status.FetchUnknown" xml:space="preserve">No local fetch record</x:String>
+  <x:String x:Key="Text.Worktree.Status.Bare" xml:space="preserve">Bare repository · no working directory</x:String>
+  <x:String x:Key="Text.Worktree.Status.Locked" xml:space="preserve">Locked · {0}</x:String>
+  <x:String x:Key="Text.Worktree.Status.Main" xml:space="preserve">Main worktree</x:String>
+  <x:String x:Key="Text.Worktree.Status.Linked" xml:space="preserve">Linked worktree</x:String>
+  <x:String x:Key="Text.Worktree.Task.Active" xml:space="preserve">Not marked complete</x:String>
+  <x:String x:Key="Text.Worktree.Task.Completed" xml:space="preserve">Marked complete</x:String>
+  <x:String x:Key="Text.Worktree.Task.Edit" xml:space="preserve">Edit task alias and status</x:String>
+  <x:String x:Key="Text.Worktree.Task.Alias" xml:space="preserve">Task alias (empty uses branch/directory name)</x:String>
+  <x:String x:Key="Text.Worktree.Task.LocalOnly" xml:space="preserve">Saved in GitNest settings on this computer. Git branch names stay unchanged.</x:String>
+  <x:String x:Key="Text.Worktree.Task.MarkCompleted" xml:space="preserve">Manually mark this task complete</x:String>
+  <x:String x:Key="Text.Worktree.Task.SaveFailed" xml:space="preserve">Could not save task settings: {0}</x:String>
+  <x:String x:Key="Text.Worktree.Task.Refresh" xml:space="preserve">Refresh all worktree statuses</x:String>
+  <x:String x:Key="Text.Worktree.Task.OpenEditor" xml:space="preserve">Open in editor</x:String>
+  <x:String x:Key="Text.Worktree.Task.SelectEditor" xml:space="preserve">Select editor executable…</x:String>
+  <x:String x:Key="Text.Worktree.Task.OpenFailed" xml:space="preserve">Could not open tool: {0}</x:String>
 </ResourceDictionary>

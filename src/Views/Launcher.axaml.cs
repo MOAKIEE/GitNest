@@ -103,6 +103,11 @@ namespace SourceGit.Views
             {
                 if (!IsActive && DataContext is ViewModels.Launcher { CommandPalette: { } } vm)
                     vm.CommandPalette = null;
+                else if (IsActive && DataContext is ViewModels.Launcher { ActivePage.Data: ViewModels.Repository activeRepo })
+                {
+                    activeRepo.RefreshWorktrees();
+                    activeRepo.RefreshWorkingCopyChanges();
+                }
             }
 
             if (OperatingSystem.IsMacOS() && WindowState != WindowState.FullScreen)
@@ -304,6 +309,7 @@ namespace SourceGit.Views
                 if (vm.ActivePage.Data is ViewModels.Repository repo)
                 {
                     repo.RefreshAll();
+                    repo.RefreshTaskOverview();
                     e.Handled = true;
                     return;
                 }

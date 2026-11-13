@@ -27,8 +27,13 @@ namespace SourceGit.Commands
 
             Args = "rev-parse --path-format=absolute --show-toplevel --git-common-dir --git-path FETCH_HEAD";
             var identity = await ReadWithTimeoutAsync().ConfigureAwait(false);
+            if (!identity.IsSuccess)
+            {
+                status.Error = "Worktree.Status.ReadFailed";
+                return status;
+            }
             var paths = identity.StdOut.TrimEnd('\r', '\n').Split('\n');
-            if (!identity.IsSuccess || paths.Length != 3 ||
+            if (paths.Length != 3 ||
                 !Models.WorktreeTaskStore.PathsEqual(paths[0].TrimEnd('\r'), WorkingDirectory) ||
                 !Models.WorktreeTaskStore.PathsEqual(paths[1].TrimEnd('\r'), expectedCommonDirectory))
             {
@@ -38,7 +43,7 @@ namespace SourceGit.Commands
 
             var fetchFile = paths[2].TrimEnd('\r');
             DateTime? fetchTime = File.Exists(fetchFile) ? File.GetLastWriteTime(fetchFile) : null;
-            Args = "--no-optional-locks status --porcelain=v2 --branch -z --untracked-files=all --ignore-submodules=none";
+            Args = "--no-optional-locks status --porcelain=v2 --branch --ahead-behind -z --untracked-files=all --ignore-submodules=none";
             var result = await ReadWithTimeoutAsync().ConfigureAwait(false);
             if (!result.IsSuccess)
             {

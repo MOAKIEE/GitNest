@@ -115,5 +115,18 @@ internal static partial class Program
         try { broken.Save(task); }
         catch (InvalidDataException) { refused = true; }
         Check(refused && File.ReadAllText(storeFile) == "broken json", "Unreadable task settings are preserved and saving reports failure");
+
+        var nodes = SourceGit.ViewModels.Worktree.Build(repo, [new Worktree() { FullPath = repo, Branch = "refs/heads/main", Head = initialHead }]);
+        Check(nodes.Count == 1 && nodes[0].IsMain && nodes[0].IsCurrent && !nodes[0].Task.IsCompleted, "A single main worktree is visible and a clean tree is not marked complete");
+        var detachedNodes = SourceGit.ViewModels.Worktree.Build(repo, [new Worktree() { FullPath = repo, IsDetached = true, Head = initialHead }]);
+        Check(detachedNodes[0].IsCurrent, "Detached current worktrees remain addressable in the task overview");
+
+        var toolOutput = Path.Combine(root, "tool-output.txt");
+        var startInfo = WorktreeToolLauncher.CreateEditorStartInfo(Environment.ProcessPath!, linked);
+        startInfo.Environment["GITNEST_TEST_TOOL_OUTPUT"] = toolOutput;
+        using var toolProcess = System.Diagnostics.Process.Start(startInfo)!;
+        await toolProcess.WaitForExitAsync();
+        var toolResult = File.ReadAllLines(toolOutput);
+        Check(toolProcess.ExitCode == 0 && toolResult.Length == 2 && WorktreeTaskStore.PathsEqual(toolResult[0], linked) && WorktreeTaskStore.PathsEqual(toolResult[1], linked), "Launching an editor passes the exact Unicode/special-character folder as one argument and working directory");
     }
 }

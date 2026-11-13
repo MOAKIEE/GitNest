@@ -154,6 +154,7 @@ namespace SourceGit.Views
             if (sender is Control { DataContext: ViewModels.Worktree worktree } ctrl && DataContext is ViewModels.Repository repo)
             {
                 var menu = new ContextMenu();
+                AddWorktreeTaskMenuItems(menu, repo, worktree);
 
                 var switchTo = new MenuItem();
                 switchTo.Header = App.Text("Worktree.Open");
@@ -263,7 +264,7 @@ namespace SourceGit.Views
             var desiredBranches = (localBranchRows + remoteBranchRows) * 24.0;
             var desiredTag = vm.IsTagGroupExpanded ? 24.0 * TagsList.Rows : 0;
             var desiredSubmodule = vm.IsSubmoduleGroupExpanded ? 24.0 * SubmoduleList.Rows : 0;
-            var desiredWorktree = vm.IsWorktreeGroupExpanded ? 24.0 * vm.Worktrees.Count : 0;
+            var desiredWorktree = vm.IsWorktreeGroupExpanded ? 128.0 * vm.Worktrees.Count : 0;
             var desiredOthers = desiredTag + desiredSubmodule + desiredWorktree;
             var hasOverflow = (desiredBranches + desiredOthers > leftHeight);
 
