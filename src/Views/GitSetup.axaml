@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:SourceGit.ViewModels"
+             x:Class="SourceGit.Views.GitSetup"
+             x:DataType="vm:GitSetup">
+  <Border Padding="16" Margin="0,0,0,12" CornerRadius="8"
+          BorderThickness="1" BorderBrush="{DynamicResource Brush.Border0}"
+          Background="{DynamicResource Brush.Contents}">
+    <StackPanel Spacing="8">
+      <TextBlock Text="{DynamicResource Text.GitSetup.Title}" FontSize="20" FontWeight="SemiBold"/>
+      <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap"/>
+      <TextBlock Text="{Binding Executable}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.FG2}"/>
+      <TextBlock Text="{Binding Version, StringFormat='Git {0}'}" IsVisible="{Binding HasVersion}"/>
+      <WrapPanel Orientation="Horizontal" IsEnabled="{Binding !IsChecking}">
+        <Button Margin="0,0,8,4" Padding="12,6" Content="{DynamicResource Text.GitSetup.Detect}" Click="OnDetect"/>
+        <Button Margin="0,0,8,4" Padding="12,6" Content="{DynamicResource Text.GitSetup.Select}" Click="OnSelect"/>
+        <Button Margin="0,0,0,4" Padding="12,6" Content="{DynamicResource Text.GitSetup.Download}" Click="OnDownload" IsVisible="{Binding !IsReady}"/>
+      </WrapPanel>
+      <TextBlock Text="{DynamicResource Text.GitSetup.Checking}" IsVisible="{Binding IsChecking}"/>
+      <TextBlock Text="{Binding IdentityMessage}" TextWrapping="Wrap"/>
+      <TextBlock Text="{DynamicResource Text.GitSetup.Authentication}" TextWrapping="Wrap"
+                 Foreground="{DynamicResource Brush.FG2}" FontSize="12"/>
+      <WrapPanel Orientation="Horizontal" IsEnabled="{Binding IsReady}">
+        <Button Margin="0,0,8,0" Padding="16,8" Content="{DynamicResource Text.Welcome.OpenOrInit}"
+                Command="{Binding Source={x:Static vm:Welcome.Instance}, Path=OpenLocalRepository}"/>
+        <Button Padding="16,8" Content="{DynamicResource Text.Welcome.Clone}"
+                Command="{Binding Source={x:Static vm:Welcome.Instance}, Path=Clone}"/>
+      </WrapPanel>
+    </StackPanel>
+  </Border>
+</UserControl>

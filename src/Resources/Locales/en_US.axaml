@@ -8,6 +8,25 @@
   <x:String x:Key="Text.GitNest.UnnamedWorkspace" xml:space="preserve">Unnamed workspace</x:String>
   <x:String x:Key="Text.GitNest.Upstream" xml:space="preserve">Based on SourceGit v2026.24 · MIT</x:String>
   <x:String x:Key="Text.GitNest.UpstreamSource" xml:space="preserve">SourceGit upstream source</x:String>
+  <x:String x:Key="Text.GitSetup.Title" xml:space="preserve">Start with a repository</x:String>
+  <x:String x:Key="Text.GitSetup.Ready" xml:space="preserve">Git is ready</x:String>
+  <x:String x:Key="Text.GitSetup.Missing" xml:space="preserve">Install Git, then detect it again or select its executable.</x:String>
+  <x:String x:Key="Text.GitSetup.Unsupported" xml:space="preserve">This Git version is too old. GitNest requires Git {0} or newer.</x:String>
+  <x:String x:Key="Text.GitSetup.TimedOut" xml:space="preserve">Git did not respond in time. Check the selected executable and try again.</x:String>
+  <x:String x:Key="Text.GitSetup.InvalidExecutable" xml:space="preserve">The selected program could not run Git. Select a working Git executable.</x:String>
+  <x:String x:Key="Text.GitSetup.InvalidVersion" xml:space="preserve">A Git version could not be read from the selected program.</x:String>
+  <x:String x:Key="Text.GitSetup.Detect" xml:space="preserve">Detect again</x:String>
+  <x:String x:Key="Text.GitSetup.Select" xml:space="preserve">Select Git executable</x:String>
+  <x:String x:Key="Text.GitSetup.Download" xml:space="preserve">Get Git from the official site</x:String>
+  <x:String x:Key="Text.GitSetup.Checking" xml:space="preserve">Checking Git…</x:String>
+  <x:String x:Key="Text.GitSetup.IdentityAfterGit" xml:space="preserve">Your existing identity will be read after Git is ready.</x:String>
+  <x:String x:Key="Text.GitSetup.ReadingIdentity" xml:space="preserve">Reading your existing global commit identity…</x:String>
+  <x:String x:Key="Text.GitSetup.Identity" xml:space="preserve">Global commit identity: {0} &lt;{1}&gt;</x:String>
+  <x:String x:Key="Text.GitSetup.IdentityMissing" xml:space="preserve">No complete global identity is set. A repository can use its own commit identity.</x:String>
+  <x:String x:Key="Text.GitSetup.IdentityReadFailed" xml:space="preserve">The Git identity could not be read. Check your existing Git configuration.</x:String>
+  <x:String x:Key="Text.GitSetup.Authentication" xml:space="preserve">Commit identity records the author. Remote login uses your existing Git credential helper or SSH configuration. If authentication fails, check the remote URL and sign in with those tools.</x:String>
+  <x:String x:Key="Text.GitSetup.SelectFailed" xml:space="preserve">Could not open the file picker. Select Git again.</x:String>
+  <x:String x:Key="Text.GitSetup.DetectFailed" xml:space="preserve">Could not finish detecting or saving the Git path. Try again or select the executable.</x:String>
   <x:String x:Key="Text.AddToIgnore" xml:space="preserve">Add File(s) To Ignore</x:String>
   <x:String x:Key="Text.AddToIgnore.Pattern" xml:space="preserve">Pattern:</x:String>
   <x:String x:Key="Text.AddToIgnore.Storage" xml:space="preserve">Storage File:</x:String>
@@ -727,7 +746,7 @@
   <x:String x:Key="Text.Preferences.Git.Email.Placeholder" xml:space="preserve">Global git user email</x:String>
   <x:String x:Key="Text.Preferences.Git.EnablePruneOnFetch" xml:space="preserve">Prune dead branches after fetching</x:String>
   <x:String x:Key="Text.Preferences.Git.IgnoreCRAtEOLInDiff" xml:space="preserve">Ignore CR at end-of-line in text diff</x:String>
-  <x:String x:Key="Text.Preferences.Git.Invalid" xml:space="preserve">Git (&gt;= 2.25.1) is required by this app</x:String>
+  <x:String x:Key="Text.Preferences.Git.Invalid" xml:space="preserve">A working Git 2.31.0 or newer is required</x:String>
   <x:String x:Key="Text.Preferences.Git.Path" xml:space="preserve">Install Path</x:String>
   <x:String x:Key="Text.Preferences.Git.SSLVerify" xml:space="preserve">Enable HTTP SSL Verify</x:String>
   <x:String x:Key="Text.Preferences.Git.UseLibsecret" xml:space="preserve">Use git-credential-libsecret instead of git-credential-manager</x:String>

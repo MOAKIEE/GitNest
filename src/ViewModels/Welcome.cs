@@ -54,7 +54,7 @@ namespace SourceGit.ViewModels
 
         public async Task UpdateStatusAsync(bool force, CancellationToken? token)
         {
-            if (_isUpdatingStatus)
+            if (_isUpdatingStatus || !Preferences.Instance.IsGitConfigured())
                 return;
 
             _isUpdatingStatus = true;

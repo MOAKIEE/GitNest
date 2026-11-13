@@ -13,6 +13,7 @@ namespace SourceGit.Commands
         public class Result
         {
             public bool IsSuccess { get; set; } = false;
+            public int ExitCode { get; set; } = -1;
             public string StdOut { get; set; } = string.Empty;
             public string StdErr { get; set; } = string.Empty;
 
@@ -130,6 +131,7 @@ namespace SourceGit.Commands
             proc.WaitForExit();
 
             rs.IsSuccess = proc.ExitCode == 0;
+            rs.ExitCode = proc.ExitCode;
             return rs;
         }
 
@@ -156,6 +158,7 @@ namespace SourceGit.Commands
             return new Result
             {
                 IsSuccess = proc.ExitCode == 0,
+                ExitCode = proc.ExitCode,
                 StdOut = await stdOutTask.ConfigureAwait(false),
                 StdErr = await stdErrTask.ConfigureAwait(false)
             };

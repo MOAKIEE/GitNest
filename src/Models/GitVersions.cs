@@ -3,9 +3,9 @@
     public static class GitVersions
     {
         /// <summary>
-        ///     The minimal version of Git that required by this app.
+        ///     GitNest requires worktree lock/prunable metadata and absolute rev-parse paths (Git 2.31).
         /// </summary>
-        public static readonly System.Version MINIMAL = new(2, 25, 1);
+        public static readonly System.Version MINIMAL = new(2, 31, 0);
 
         /// <summary>
         ///     The minimal version of Git that supports the `stash push` command with the `--pathspec-from-file` option.

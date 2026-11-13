@@ -12,6 +12,25 @@
   <x:String x:Key="Text.GitNest.UnnamedWorkspace" xml:space="preserve">未命名工作空间</x:String>
   <x:String x:Key="Text.GitNest.Upstream" xml:space="preserve">基于 SourceGit v2026.24 · MIT 许可</x:String>
   <x:String x:Key="Text.GitNest.UpstreamSource" xml:space="preserve">SourceGit 上游源码</x:String>
+  <x:String x:Key="Text.GitSetup.Title" xml:space="preserve">从一个仓库开始</x:String>
+  <x:String x:Key="Text.GitSetup.Ready" xml:space="preserve">Git 已就绪</x:String>
+  <x:String x:Key="Text.GitSetup.Missing" xml:space="preserve">请先安装 Git，再重新检测或选择 Git 程序。</x:String>
+  <x:String x:Key="Text.GitSetup.Unsupported" xml:space="preserve">当前 Git 版本过低，GitNest 需要 Git {0} 或更高版本。</x:String>
+  <x:String x:Key="Text.GitSetup.TimedOut" xml:space="preserve">Git 检测超时，请检查所选程序后重试。</x:String>
+  <x:String x:Key="Text.GitSetup.InvalidExecutable" xml:space="preserve">所选程序无法正常执行 Git，请重新选择 Git 程序。</x:String>
+  <x:String x:Key="Text.GitSetup.InvalidVersion" xml:space="preserve">无法从所选程序读取 Git 版本。</x:String>
+  <x:String x:Key="Text.GitSetup.Detect" xml:space="preserve">重新检测</x:String>
+  <x:String x:Key="Text.GitSetup.Select" xml:space="preserve">选择 Git 程序</x:String>
+  <x:String x:Key="Text.GitSetup.Download" xml:space="preserve">前往官网下载 Git</x:String>
+  <x:String x:Key="Text.GitSetup.Checking" xml:space="preserve">正在检测 Git…</x:String>
+  <x:String x:Key="Text.GitSetup.IdentityAfterGit" xml:space="preserve">Git 就绪后会读取已有提交身份。</x:String>
+  <x:String x:Key="Text.GitSetup.ReadingIdentity" xml:space="preserve">正在读取已有的全局提交身份…</x:String>
+  <x:String x:Key="Text.GitSetup.Identity" xml:space="preserve">全局提交身份：{0} &lt;{1}&gt;</x:String>
+  <x:String x:Key="Text.GitSetup.IdentityMissing" xml:space="preserve">尚未设置完整的全局身份，打开仓库后可使用该仓库的提交身份。</x:String>
+  <x:String x:Key="Text.GitSetup.IdentityReadFailed" xml:space="preserve">无法读取提交身份，请检查已有 Git 配置。</x:String>
+  <x:String x:Key="Text.GitSetup.Authentication" xml:space="preserve">提交身份用于记录作者。远端登录使用已有 Git 认证助手或 SSH 配置；认证失败时请检查远端地址，并在对应工具中完成登录。</x:String>
+  <x:String x:Key="Text.GitSetup.SelectFailed" xml:space="preserve">无法打开文件选择窗口，请重新选择 Git 程序。</x:String>
+  <x:String x:Key="Text.GitSetup.DetectFailed" xml:space="preserve">无法完成 Git 检测或保存程序路径，请重试或手动选择程序。</x:String>
   <x:String x:Key="Text.AddToIgnore" xml:space="preserve">新增忽略文件</x:String>
   <x:String x:Key="Text.AddToIgnore.Pattern" xml:space="preserve">匹配模式 ：</x:String>
   <x:String x:Key="Text.AddToIgnore.Storage" xml:space="preserve">保存位置 ：</x:String>
@@ -349,7 +368,7 @@
   <x:String x:Key="Text.CreateTag.Type.Lightweight" xml:space="preserve">轻量标签</x:String>
   <x:String x:Key="Text.CtrlClickTip" xml:space="preserve">按住Ctrl键点击将以默认参数运行</x:String>
   <x:String x:Key="Text.Cut" xml:space="preserve">剪切</x:String>
-  <x:String x:Key="Text.Dashboard" xml:space="preserve">仪表板</x:String>
+  <x:String x:Key="Text.Dashboard" xml:space="preserve">提交历史</x:String>
   <x:String x:Key="Text.DealWithLocalChanges.Discard" xml:space="preserve">丢弃更改</x:String>
   <x:String x:Key="Text.DealWithLocalChanges.DoNothing" xml:space="preserve">不做处理</x:String>
   <x:String x:Key="Text.DealWithLocalChanges.StashAndReapply" xml:space="preserve">贮藏并自动恢复</x:String>
@@ -438,12 +457,12 @@
   <x:String x:Key="Text.EditRepositoryNode.TitleForRepository" xml:space="preserve">编辑仓库</x:String>
   <x:String x:Key="Text.ExecuteCustomAction.Target" xml:space="preserve">目标:</x:String>
   <x:String x:Key="Text.ExecuteCustomAction.Repository" xml:space="preserve">本仓库</x:String>
-  <x:String x:Key="Text.Fetch" xml:space="preserve">拉取(fetch)</x:String>
+  <x:String x:Key="Text.Fetch" xml:space="preserve">获取远端状态</x:String>
   <x:String x:Key="Text.Fetch.AllRemotes" xml:space="preserve">拉取所有的远程仓库</x:String>
   <x:String x:Key="Text.Fetch.Force" xml:space="preserve">强制覆盖本地REFs</x:String>
   <x:String x:Key="Text.Fetch.NoTags" xml:space="preserve">不拉取远程标签</x:String>
   <x:String x:Key="Text.Fetch.Remote" xml:space="preserve">远程仓库 ：</x:String>
-  <x:String x:Key="Text.Fetch.Title" xml:space="preserve">拉取远程仓库内容</x:String>
+  <x:String x:Key="Text.Fetch.Title" xml:space="preserve">获取远端状态</x:String>
   <x:String x:Key="Text.File.Binary" xml:space="preserve">二进制文件</x:String>
   <x:String x:Key="Text.File.HexViewer" xml:space="preserve">查看内容</x:String>
   <x:String x:Key="Text.File.HexViewer.GotoAddress" xml:space="preserve">定位地址...</x:String>
@@ -647,7 +666,7 @@
   <x:String x:Key="Text.MoveRepositoryNode.Target" xml:space="preserve">请选择目标分组：</x:String>
   <x:String x:Key="Text.Name" xml:space="preserve">名称 ：</x:String>
   <x:String x:Key="Text.No" xml:space="preserve">不用了</x:String>
-  <x:String x:Key="Text.NotConfigured" xml:space="preserve">GIT尚未配置。请打开【偏好设置】配置GIT路径。</x:String>
+  <x:String x:Key="Text.NotConfigured" xml:space="preserve">Git 尚未就绪，请在新标签页重新检测或选择 Git 程序。</x:String>
   <x:String x:Key="Text.Open" xml:space="preserve">打开</x:String>
   <x:String x:Key="Text.Open.SystemDefaultEditor" xml:space="preserve">系统默认编辑器</x:String>
   <x:String x:Key="Text.OpenAppDataDir" xml:space="preserve">浏览应用数据目录</x:String>
@@ -731,7 +750,7 @@
   <x:String x:Key="Text.Preferences.Git.Email.Placeholder" xml:space="preserve">默认GIT用户邮箱</x:String>
   <x:String x:Key="Text.Preferences.Git.EnablePruneOnFetch" xml:space="preserve">拉取更新时启用修剪</x:String>
   <x:String x:Key="Text.Preferences.Git.IgnoreCRAtEOLInDiff" xml:space="preserve">对比文件时，默认忽略换行符变更</x:String>
-  <x:String x:Key="Text.Preferences.Git.Invalid" xml:space="preserve">本软件要求GIT最低版本为2.25.1</x:String>
+  <x:String x:Key="Text.Preferences.Git.Invalid" xml:space="preserve">需要能够正常运行的 Git 2.31.0 或更高版本</x:String>
   <x:String x:Key="Text.Preferences.Git.Path" xml:space="preserve">安装路径</x:String>
   <x:String x:Key="Text.Preferences.Git.SSLVerify" xml:space="preserve">启用HTTP SSL验证</x:String>
   <x:String x:Key="Text.Preferences.Git.UseLibsecret" xml:space="preserve">使用 git-credential-libsecret 替代 git-credential-manager</x:String>
@@ -757,14 +776,14 @@
   <x:String x:Key="Text.PruneRemote.Target" xml:space="preserve">目标 ：</x:String>
   <x:String x:Key="Text.PruneWorktrees" xml:space="preserve">清理工作树</x:String>
   <x:String x:Key="Text.PruneWorktrees.Tip" xml:space="preserve">清理在`$GIT_COMMON_DIR/worktrees`中的无效工作树信息</x:String>
-  <x:String x:Key="Text.Pull" xml:space="preserve">拉回(pull)</x:String>
+  <x:String x:Key="Text.Pull" xml:space="preserve">拉取到本机</x:String>
   <x:String x:Key="Text.Pull.Branch" xml:space="preserve">拉取分支 ：</x:String>
   <x:String x:Key="Text.Pull.Into" xml:space="preserve">本地分支 ：</x:String>
   <x:String x:Key="Text.Pull.LocalChanges" xml:space="preserve">未提交更改 ：</x:String>
   <x:String x:Key="Text.Pull.Remote" xml:space="preserve">远程 ：</x:String>
   <x:String x:Key="Text.Pull.Title" xml:space="preserve">拉回（拉取并合并）</x:String>
   <x:String x:Key="Text.Pull.UseRebase" xml:space="preserve">使用变基方式合并分支</x:String>
-  <x:String x:Key="Text.Push" xml:space="preserve">推送(push)</x:String>
+  <x:String x:Key="Text.Push" xml:space="preserve">推送到远端</x:String>
   <x:String x:Key="Text.Push.CheckSubmodules" xml:space="preserve">确保子模块变更已推送</x:String>
   <x:String x:Key="Text.Push.Force" xml:space="preserve">启用强制推送</x:String>
   <x:String x:Key="Text.Push.Local" xml:space="preserve">本地分支 ：</x:String>
@@ -952,14 +971,14 @@
   <x:String x:Key="Text.SSHKeyHelper.PublicKey" xml:space="preserve">公钥内容</x:String>
   <x:String x:Key="Text.SSHKeyHelper.Title" xml:space="preserve">SSH密钥工具</x:String>
   <x:String x:Key="Text.Start" xml:space="preserve">开    始</x:String>
-  <x:String x:Key="Text.Stash" xml:space="preserve">贮藏(stash)</x:String>
+  <x:String x:Key="Text.Stash" xml:space="preserve">暂存工作</x:String>
   <x:String x:Key="Text.Stash.IncludeUntracked" xml:space="preserve">包含未跟踪的文件</x:String>
   <x:String x:Key="Text.Stash.Message" xml:space="preserve">信息 ：</x:String>
   <x:String x:Key="Text.Stash.Message.Placeholder" xml:space="preserve">选填，此贮藏的描述信息</x:String>
   <x:String x:Key="Text.Stash.Mode" xml:space="preserve">模式 ：</x:String>
   <x:String x:Key="Text.Stash.OnlyStagedChanges" xml:space="preserve">仅贮藏暂存区的变更</x:String>
   <x:String x:Key="Text.Stash.TipForSelectedFiles" xml:space="preserve">选中文件的所有变更均会被贮藏！</x:String>
-  <x:String x:Key="Text.Stash.Title" xml:space="preserve">贮藏本地变更</x:String>
+  <x:String x:Key="Text.Stash.Title" xml:space="preserve">暂存当前工作</x:String>
   <x:String x:Key="Text.StashCM.Apply" xml:space="preserve">应用(apply)</x:String>
   <x:String x:Key="Text.StashCM.ApplyFileChanges" xml:space="preserve">应用(apply)选中变更</x:String>
   <x:String x:Key="Text.StashCM.Branch" xml:space="preserve">检出新分支</x:String>
@@ -968,7 +987,7 @@
   <x:String x:Key="Text.StashCM.SaveAsPatch" xml:space="preserve">另存为补丁...</x:String>
   <x:String x:Key="Text.StashDropConfirm" xml:space="preserve">丢弃贮藏确认</x:String>
   <x:String x:Key="Text.StashDropConfirm.Label" xml:space="preserve">丢弃贮藏 ：</x:String>
-  <x:String x:Key="Text.Stashes" xml:space="preserve">贮藏列表</x:String>
+  <x:String x:Key="Text.Stashes" xml:space="preserve">暂存的工作</x:String>
   <x:String x:Key="Text.Stashes.Changes" xml:space="preserve">查看变更</x:String>
   <x:String x:Key="Text.Stashes.Stashes" xml:space="preserve">贮藏列表</x:String>
   <x:String x:Key="Text.Statistics" xml:space="preserve">提交统计</x:String>
@@ -1044,17 +1063,17 @@
   <x:String x:Key="Text.Welcome" xml:space="preserve">起始页</x:String>
   <x:String x:Key="Text.Welcome.AddRootFolder" xml:space="preserve">新建分组</x:String>
   <x:String x:Key="Text.Welcome.AddSubFolder" xml:space="preserve">新建子分组</x:String>
-  <x:String x:Key="Text.Welcome.Clone" xml:space="preserve">克隆远程仓库</x:String>
+  <x:String x:Key="Text.Welcome.Clone" xml:space="preserve">克隆远端仓库</x:String>
   <x:String x:Key="Text.Welcome.Delete" xml:space="preserve">删除</x:String>
   <x:String x:Key="Text.Welcome.DragDropTip" xml:space="preserve">支持拖放目录添加。支持自定义分组。</x:String>
   <x:String x:Key="Text.Welcome.Edit" xml:space="preserve">编辑</x:String>
   <x:String x:Key="Text.Welcome.Move" xml:space="preserve">调整分组</x:String>
   <x:String x:Key="Text.Welcome.OpenAllInNode" xml:space="preserve">打开所有包含仓库</x:String>
-  <x:String x:Key="Text.Welcome.OpenOrInit" xml:space="preserve">打开本地仓库</x:String>
+  <x:String x:Key="Text.Welcome.OpenOrInit" xml:space="preserve">打开或新建仓库</x:String>
   <x:String x:Key="Text.Welcome.OpenTerminal" xml:space="preserve">打开终端</x:String>
   <x:String x:Key="Text.Welcome.ScanDefaultCloneDir" xml:space="preserve">重新扫描默认克隆路径下的仓库</x:String>
   <x:String x:Key="Text.Welcome.Search" xml:space="preserve">快速查找仓库...</x:String>
-  <x:String x:Key="Text.WorkingCopy" xml:space="preserve">本地更改</x:String>
+  <x:String x:Key="Text.WorkingCopy" xml:space="preserve">修改</x:String>
   <x:String x:Key="Text.WorkingCopy.AddToGitIgnore" xml:space="preserve">添加至 .gitignore 忽略列表</x:String>
   <x:String x:Key="Text.WorkingCopy.AddToGitIgnore.Extension" xml:space="preserve">忽略所有 *{0} 文件</x:String>
   <x:String x:Key="Text.WorkingCopy.AddToGitIgnore.ExtensionInSameFolder" xml:space="preserve">忽略同目录下所有 *{0} 文件</x:String>

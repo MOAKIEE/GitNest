@@ -482,7 +482,14 @@ namespace SourceGit.ViewModels
         public bool IsGitConfigured()
         {
             var path = GitInstallPath;
-            return !string.IsNullOrEmpty(path) && File.Exists(path);
+            return !string.IsNullOrEmpty(path) && File.Exists(path) &&
+                Native.OS.GitInstallation.IsReady && Native.OS.GitInstallation.Executable == path;
+        }
+
+        public void UseGitInstallation(Models.GitInstallation installation)
+        {
+            Native.OS.UseGitInstallation(installation);
+            OnPropertyChanged(nameof(GitInstallPath));
         }
 
         public bool ShouldCheck4UpdateOnStartup()

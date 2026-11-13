@@ -70,6 +70,23 @@ namespace SourceGit.Commands
             return ReadToEnd().StdOut.Trim();
         }
 
+        public async Task<Models.CommitIdentity> ReadCommitIdentityAsync()
+        {
+            var scope = _isLocal ? string.Empty : "--global ";
+            Args = $"config {scope}--includes --null --get user.name";
+            var name = await ReadToEndAsync().ConfigureAwait(false);
+            Args = $"config {scope}--includes --null --get user.email";
+            var email = await ReadToEndAsync().ConfigureAwait(false);
+
+            // Exit code 1 means an unset key; other failures must not appear as a missing identity.
+            return new Models.CommitIdentity
+            {
+                Name = name.IsSuccess ? name.StdOut.TrimEnd('\0') : string.Empty,
+                Email = email.IsSuccess ? email.StdOut.TrimEnd('\0') : string.Empty,
+                IsReadable = (name.IsSuccess || name.ExitCode == 1) && (email.IsSuccess || email.ExitCode == 1),
+            };
+        }
+
         public async Task<string> GetAsync(string key)
         {
             Args = $"config {key}";

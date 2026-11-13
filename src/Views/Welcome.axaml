@@ -17,9 +17,10 @@
     </Grid.ColumnDefinitions>
 
     <!-- Managed Repositories -->
-    <Grid Grid.Row="0" Grid.Column="1" RowDefinitions="Auto,*">
+    <Grid Grid.Row="0" Grid.Column="1" RowDefinitions="Auto,Auto,*">
+      <v:GitSetup Grid.Row="0" DataContext="{x:Static vm:GitSetup.Instance}"/>
       <!-- Search Box -->
-      <TextBox Grid.Row="0"
+      <TextBox Grid.Row="1"
                x:Name="SearchBox"
                Height="32"
                Padding="0"
@@ -59,7 +60,7 @@
       </TextBox>
 
       <!-- Repository Tree -->
-      <v:RepositoryListBox Grid.Row="1"
+      <v:RepositoryListBox Grid.Row="2"
                            x:Name="TreeContainer"
                            Margin="0,8,8,0"
                            Focusable="True"

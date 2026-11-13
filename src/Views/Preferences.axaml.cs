@@ -580,8 +580,8 @@ namespace SourceGit.Views
 
         private void UpdateGitVersion()
         {
-            GitVersion = Native.OS.GitVersionString;
-            ShowGitVersionWarning = !string.IsNullOrEmpty(GitVersion) && Native.OS.GitVersion < Models.GitVersions.MINIMAL;
+            GitVersion = string.IsNullOrEmpty(Native.OS.GitVersionString) ? App.Text("GitSetup.InvalidVersion") : Native.OS.GitVersionString;
+            ShowGitVersionWarning = !Native.OS.GitInstallation.IsReady;
         }
 
         private string _gitVersion = string.Empty;

@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -71,6 +70,22 @@ namespace SourceGit.Native
             get;
             private set;
         } = string.Empty;
+
+        public static Models.GitInstallation GitInstallation { get; private set; } = new();
+
+        public static event Action GitInstallationChanged;
+
+        public static void RecheckGitExecutable()
+        {
+            UpdateGitVersion();
+        }
+
+        public static void UseGitInstallation(Models.GitInstallation installation)
+        {
+            Interlocked.Increment(ref _gitInstallationGeneration);
+            _gitExecutable = installation.Executable;
+            ApplyGitInstallation(installation);
+        }
 
         public static Version GitVersion
         {
@@ -355,57 +370,33 @@ namespace SourceGit.Native
 
         private static void UpdateGitVersion()
         {
-            if (string.IsNullOrEmpty(_gitExecutable) || !File.Exists(_gitExecutable))
-            {
-                GitVersionString = string.Empty;
-                GitVersion = new Version(0, 0, 0);
-                GitFlowVersion = Models.GitFlowVersion.None;
-                return;
-            }
-
-            var start = new ProcessStartInfo();
-            start.FileName = _gitExecutable;
-            start.Arguments = "--version";
-            start.UseShellExecute = false;
-            start.CreateNoWindow = true;
-            start.RedirectStandardOutput = true;
-            start.RedirectStandardError = true;
-            start.StandardOutputEncoding = Encoding.UTF8;
-            start.StandardErrorEncoding = Encoding.UTF8;
-
-            try
-            {
-                using var proc = Process.Start(start)!;
-                var rs = proc.StandardOutput.ReadToEnd();
-                proc.WaitForExit();
-                if (proc.ExitCode == 0 && !string.IsNullOrWhiteSpace(rs))
-                {
-                    GitVersionString = rs.Trim();
-
-                    var match = REG_GIT_VERSION().Match(GitVersionString);
-                    if (match.Success)
-                    {
-                        var major = int.Parse(match.Groups[1].Value);
-                        var minor = int.Parse(match.Groups[2].Value);
-                        var build = int.Parse(match.Groups[3].Value);
-                        GitVersion = new Version(major, minor, build);
-                        GitVersionString = GitVersionString.Substring(11).Trim();
-                    }
-
-                    // Update git flow version in background to avoid blocking the UI
-                    Task.Run(UpdateGitFlowVersion);
-                }
-            }
-            catch
-            {
-                // Ignore errors
-            }
+            var generation = Interlocked.Increment(ref _gitInstallationGeneration);
+            var executable = _gitExecutable;
+            GitVersionString = string.Empty;
+            GitVersion = new Version(0, 0, 0);
+            GitFlowVersion = Models.GitFlowVersion.None;
+            GitInstallation = new Models.GitInstallation { Executable = executable ?? string.Empty };
+            var installation = Models.GitInstallation.InspectAsync(executable).GetAwaiter().GetResult();
+            if (generation == Volatile.Read(ref _gitInstallationGeneration))
+                ApplyGitInstallation(installation);
         }
 
-        private static void UpdateGitFlowVersion()
+        private static void ApplyGitInstallation(Models.GitInstallation installation)
+        {
+            GitInstallation = installation;
+            GitVersionString = GitInstallation.VersionText;
+            GitVersion = GitInstallation.Version;
+            GitFlowVersion = Models.GitFlowVersion.None;
+            GitInstallationChanged?.Invoke();
+
+            if (GitInstallation.IsReady)
+                Task.Run(() => UpdateGitFlowVersion(installation.Executable));
+        }
+
+        private static void UpdateGitFlowVersion(string executable)
         {
             var start = new ProcessStartInfo();
-            start.FileName = _gitExecutable;
+            start.FileName = executable;
             start.Arguments = "flow version";
             start.UseShellExecute = false;
             start.CreateNoWindow = true;
@@ -414,14 +405,12 @@ namespace SourceGit.Native
             start.StandardOutputEncoding = Encoding.UTF8;
             start.StandardErrorEncoding = Encoding.UTF8;
 
-            GitFlowVersion = Models.GitFlowVersion.None;
-
             try
             {
                 using var proc = Process.Start(start)!;
                 var rs = proc.StandardOutput.ReadToEnd();
                 proc.WaitForExit();
-                if (proc.ExitCode == 0 && !string.IsNullOrWhiteSpace(rs))
+                if (proc.ExitCode == 0 && !string.IsNullOrWhiteSpace(rs) && _gitExecutable == executable && GitInstallation.IsReady)
                 {
                     if (rs.Contains("git-flow-next", StringComparison.Ordinal))
                         GitFlowVersion = Models.GitFlowVersion.Next;
@@ -435,11 +424,9 @@ namespace SourceGit.Native
             }
         }
 
-        [GeneratedRegex(@"^git version[\s\w]*(\d+)\.(\d+)[\.\-](\d+).*$")]
-        private static partial Regex REG_GIT_VERSION();
-
         private static IBackend _backend = null;
         private static string _gitExecutable = string.Empty;
+        private static int _gitInstallationGeneration = 0;
         private static bool _enableSystemWindowFrame = false;
     }
 }

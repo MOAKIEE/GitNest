@@ -82,13 +82,22 @@ namespace SourceGit.Native
 
         public string FindGitExecutable()
         {
-            var reg = Microsoft.Win32.RegistryKey.OpenBaseKey(
-                Microsoft.Win32.RegistryHive.LocalMachine,
-                Microsoft.Win32.RegistryView.Registry64);
-
-            var git = reg.OpenSubKey(@"SOFTWARE\GitForWindows");
-            if (git?.GetValue("InstallPath") is string installPath)
-                return Path.Combine(installPath, "bin", "git.exe");
+            foreach (var hive in new[] { Microsoft.Win32.RegistryHive.CurrentUser, Microsoft.Win32.RegistryHive.LocalMachine })
+            {
+                try
+                {
+                    using var reg = Microsoft.Win32.RegistryKey.OpenBaseKey(hive, Microsoft.Win32.RegistryView.Registry64);
+                    using var git = reg.OpenSubKey(@"SOFTWARE\GitForWindows");
+                    if (git?.GetValue("InstallPath") is string installPath)
+                    {
+                        var executable = Path.Combine(installPath, "bin", "git.exe");
+                        if (File.Exists(executable))
+                            return executable;
+                    }
+                }
+                catch (UnauthorizedAccessException) { }
+                catch (System.Security.SecurityException) { }
+            }
 
             var builder = new StringBuilder("git.exe", 259);
             if (!PathFindOnPath(builder, null))

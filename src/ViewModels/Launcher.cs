@@ -54,8 +54,17 @@ namespace SourceGit.ViewModels
             AddNewTab();
 
             var repos = ActiveWorkspace.Repositories.ToArray();
-            foreach (var repo in repos)
-                OpenRepositoryInTab(repo, null);
+            if (Preferences.Instance.IsGitConfigured())
+            {
+                foreach (var repo in repos)
+                    OpenRepositoryInTab(repo, null);
+            }
+            else
+            {
+                _pendingRepositories = repos;
+            }
+
+            Native.OS.GitInstallationChanged += () => Dispatcher.UIThread.Post(ResumePendingRepositories);
 
             _ignoreIndexChange = false;
 
@@ -73,6 +82,12 @@ namespace SourceGit.ViewModels
 
         public bool TryOpenRepositoryFromPath(string repo)
         {
+            if (!Preferences.Instance.IsGitConfigured())
+            {
+                _pendingStartupRepository = repo;
+                return false;
+            }
+
             if (!string.IsNullOrEmpty(repo) && Directory.Exists(repo))
             {
                 var isBare = new Commands.IsBareRepository(repo).GetResult();
@@ -299,6 +314,13 @@ namespace SourceGit.ViewModels
 
         public void OpenRepositoryInTab(RepositoryNode node, LauncherPage page)
         {
+            if (!Preferences.Instance.IsGitConfigured())
+            {
+                _pendingStartupRepository = node.Id;
+                AddNewTab();
+                return;
+            }
+
             foreach (var one in Pages)
             {
                 if (one.Node.Id == node.Id)
@@ -436,6 +458,23 @@ namespace SourceGit.ViewModels
             _activeWorkspace.Repositories.Insert(idxOfOwner + 1, normalizedPath);
             ActivePage = page;
         }
+
+        private void ResumePendingRepositories()
+        {
+            if (!Preferences.Instance.IsGitConfigured())
+                return;
+
+            var repositories = _pendingRepositories;
+            var startupRepository = _pendingStartupRepository;
+            _pendingRepositories = [];
+            _pendingStartupRepository = null;
+            foreach (var repository in repositories)
+                OpenRepositoryInTab(repository, null);
+            TryOpenRepositoryFromPath(startupRepository);
+        }
+
+        private string[] _pendingRepositories = [];
+        private string _pendingStartupRepository = null;
 
         private void DispatchNotification(Models.Notification notification)
         {

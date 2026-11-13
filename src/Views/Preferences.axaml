@@ -342,7 +342,7 @@
                          IsVisible="{Binding #ThisControl.GitVersion, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
               <Border Background="Transparent"
-                      ToolTip.Tip="{DynamicResource Text.Preferences.Git.Invalid}"
+                      ToolTip.Tip="{Binding Source={x:Static vm:GitSetup.Instance}, Path=StatusMessage}"
                       IsVisible="{Binding #ThisControl.ShowGitVersionWarning}">
                 <Path Width="14" Height="14" Data="{StaticResource Icons.Error}" Fill="Red"/>
               </Border>
