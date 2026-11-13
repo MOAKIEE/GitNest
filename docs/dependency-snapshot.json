@@ -1,0 +1,296 @@
+[
+  {
+    "name": "Avalonia.Angle.Windows.Natives",
+    "version": "2.1.25547.20250602",
+    "license": "包内文件：LICENSE",
+    "sha512": "ZL0VLc4s9rvNNFt19Pxm5UNAkmKNylugAwJPX9ulXZ6JWs/l6XZihPWWTyezaoNOVyEPU8YbURtW7XMAtqXH5A=="
+  },
+  {
+    "name": "Avalonia.BuildServices",
+    "version": "11.3.2",
+    "license": "MIT",
+    "sha512": "qHDToxto1e3hci5YqbG9n0Ty8mlp3zBUN5wT66wKqaDVzXyQ0do3EnRILd4Ke9jpvsktaPpgE0YjEk7hornryQ=="
+  },
+  {
+    "name": "Avalonia.Controls.DataGrid",
+    "version": "11.3.13",
+    "license": "MIT",
+    "sha512": "Omfzm3l5ZJQHe1dCuvvadV3LkGmCzImnfOKtoXcDH632jDSwMKRGJ7S+uZRhmu7aBzRxL7PrpIfo4wdDGuzmWA=="
+  },
+  {
+    "name": "Avalonia.Desktop",
+    "version": "11.3.22",
+    "license": "MIT",
+    "sha512": "TXdIJ5WA473KqFd/b3EqnXUIgFDhPuOx2OkzG7Fm8EkCPF5JKkCwg+i7yq8IRsYKcQ4I8X/4HkUyCb8DcfgfYg=="
+  },
+  {
+    "name": "Avalonia.Fonts.Inter",
+    "version": "11.3.22",
+    "license": "MIT",
+    "sha512": "oGIn2U71EWTcTQ+zQU0CuJ5b+QsXIvmN7kvn5VSszgU6baZ0/1hDsR3wwXsU7hDFnJD1G541wtPqaGlZtKnPhA=="
+  },
+  {
+    "name": "Avalonia.FreeDesktop",
+    "version": "11.3.22",
+    "license": "MIT",
+    "sha512": "heXRjopzKbNVGnLI+YPM6VBcf+cKGKKNdyXBYAlAlbcPfkExOTrGBSPDSSSHaT9uEByqZ4xo/9T0IqDtGm2PAQ=="
+  },
+  {
+    "name": "Avalonia.Native",
+    "version": "11.3.22",
+    "license": "MIT",
+    "sha512": "sU/KJQKqrRkstS1EWIhRvD/ADIkItoOSss3sL/wtPFFFJINPOrge5qMnwNi0RbDzNKb4TrZwEv6eeD27Ip+ACQ=="
+  },
+  {
+    "name": "Avalonia.Remote.Protocol",
+    "version": "11.3.22",
+    "license": "MIT",
+    "sha512": "Ll5YswLkNW0WZm7RkvGS+8B9vH4/x77IsnCqlBvmXOgiQd0J5bpJQFYo1NDVyRLadp4e8Yqg1WP2xEc6IK94HQ=="
+  },
+  {
+    "name": "Avalonia.Skia",
+    "version": "11.3.22",
+    "license": "MIT",
+    "sha512": "ZbnfFCr2f1l3RD1E/Tn5tJDRFIDm9ICY/PzG4lhuShd6mDg+0y5wRCytCYOSM79KhlboU/f0O7J1Mw7s83Sy3A=="
+  },
+  {
+    "name": "Avalonia.Themes.Fluent",
+    "version": "11.3.22",
+    "license": "MIT",
+    "sha512": "tCui436MQuxeIXj/eA/Mq9neAgNTud0Jk22HDWSo05KT+vaH5oJa53xI8PxEi3uRSsWK2l9yoQciLKrzzIrqCw=="
+  },
+  {
+    "name": "Avalonia.Win32",
+    "version": "11.3.22",
+    "license": "MIT",
+    "sha512": "9kP1kWFJtbW2fFmGY2fs1kn0Rx1ARpf3Mz+QrLhagYUp6RaMN5Imus5YiOQWCTe8ZkQqktt8PsKUDWyvj8SiYQ=="
+  },
+  {
+    "name": "Avalonia.X11",
+    "version": "11.3.22",
+    "license": "MIT",
+    "sha512": "w4OZxdAPAjGDKpBrU5kbiXzbbQT/ZcdGTMareDODdyIPFvd4AX+5iPAv08Ih87evHOXAf04dpvJyAEPgw1kMFg=="
+  },
+  {
+    "name": "Avalonia",
+    "version": "11.3.22",
+    "license": "MIT",
+    "sha512": "61kKbPq/2W/S8PkjRYnDCSvH2fAvhC3eTrYFtwMUZVShP5M2xXII76kIQo8bcezxwFkHc/yoRP3xzae2tFZRsQ=="
+  },
+  {
+    "name": "Azure.AI.OpenAI",
+    "version": "2.9.0-beta.1",
+    "license": "MIT",
+    "sha512": "CgIYDuCSOFx+yPuCdK7iz71OW2envfVeIE/YoNYK+mhr6bxgIJV6jfBF+mV9aHDQ6KVQjeSL6OZ7x90XrvsoRg=="
+  },
+  {
+    "name": "Azure.Core",
+    "version": "1.51.1",
+    "license": "MIT",
+    "sha512": "JRANrRvN5O5FFRh+pMUb8qqWU7jBQ39qXEbVr7Rkb1/s7rqc6RSzVHKGBz5Ro1gDy2WSGjG5YEOJKpPIBiCMcA=="
+  },
+  {
+    "name": "BitMiracle.LibTiff.NET",
+    "version": "2.4.660",
+    "license": "见包内许可／上游许可清单",
+    "sha512": "Drd0fDFVrR3v19IJtqiDVnjgcVZoGlzFw/CYni1OQ5/xVYvjPNp18E9eu+dH/RmpIUw6Pn/JhE/H+Yc3kHI89A=="
+  },
+  {
+    "name": "CommunityToolkit.Mvvm",
+    "version": "8.4.2",
+    "license": "MIT",
+    "sha512": "WadCzGEc2U+3e20avRLng4qNtt4zoOGWrdUISqJWrHe3/FSnrYjuM5Sb4yQb09LhkBXrrI4Zt3dLKgRMbItsrg=="
+  },
+  {
+    "name": "HarfBuzzSharp.NativeAssets.Linux",
+    "version": "8.3.1.1",
+    "license": "MIT",
+    "sha512": "3EZ1mpIiKWRLL5hUYA82ZHteeDIVaEA/Z0rA/wU6tjx6crcAkJnBPwDXZugBSfo8+J3EznvRJf49uMsqYfKrHg=="
+  },
+  {
+    "name": "HarfBuzzSharp.NativeAssets.macOS",
+    "version": "8.3.1.1",
+    "license": "MIT",
+    "sha512": "jbtCsgftcaFLCA13tVKo5iWdElJScrulLTKJre36O4YQTIlwDtPPqhRZNk+Y0vv4D1gxbscasGRucUDfS44ofQ=="
+  },
+  {
+    "name": "HarfBuzzSharp.NativeAssets.WebAssembly",
+    "version": "8.3.1.1",
+    "license": "MIT",
+    "sha512": "loJweK2u/mH/3C2zBa0ggJlITIszOkK64HLAZB7FUT670dTg965whLFYHDQo69NmC4+d9UN0icLC9VHidXaVCA=="
+  },
+  {
+    "name": "HarfBuzzSharp.NativeAssets.Win32",
+    "version": "8.3.1.1",
+    "license": "MIT",
+    "sha512": "UsJtQsfAJoFDZrXc4hCUfRPMqccfKZ0iumJ/upcUjz/cmsTgVFGNEL5yaJWmkqsuFYdMWbj/En5/kS4PFl9hBA=="
+  },
+  {
+    "name": "HarfBuzzSharp",
+    "version": "8.3.1.1",
+    "license": "MIT",
+    "sha512": "tLZN66oe/uiRPTZfrCU4i8ScVGwqHNh5MHrXj0yVf4l7Mz0FhTGnQ71RGySROTmdognAs0JtluHkL41pIabWuQ=="
+  },
+  {
+    "name": "MicroCom.Runtime",
+    "version": "0.11.0",
+    "license": "MIT",
+    "sha512": "MEnrZ3UIiH40hjzMDsxrTyi8dtqB5ziv3iBeeU4bXsL/7NLSal9F1lZKpK+tfBRnUoDSdtcW3KufE4yhATOMCA=="
+  },
+  {
+    "name": "Microsoft.Bcl.AsyncInterfaces",
+    "version": "10.0.2",
+    "license": "MIT",
+    "sha512": "qE5JhRoeJbAipLqpUCZyNfNwnpAvUttXgIQDnTiJ15d8ji+/bPgoPkB3xLzK5cQTobN2D2ditUesUlDHb7p3Pg=="
+  },
+  {
+    "name": "Microsoft.DotNet.ILCompiler",
+    "version": "10.0.15",
+    "license": "MIT",
+    "sha512": "MjeBT/P5YgUuXfwSbI3ms+F5DkQ2+ilynoHE2jA/Kto//MaE/wtP5EveCAL8abpxFGw9tlHNTAV1j60Wh1oLqg=="
+  },
+  {
+    "name": "Microsoft.Extensions.Configuration.Abstractions",
+    "version": "10.0.3",
+    "license": "MIT",
+    "sha512": "xVDHL0+SIgemfh95fTO9cGLe17TWv/ZP0n7m01z8X6pzt2DmQpucioWR/mYZA1sRlkWnkXzfl0JweLNWmE9WMg=="
+  },
+  {
+    "name": "Microsoft.Extensions.DependencyInjection.Abstractions",
+    "version": "10.0.3",
+    "license": "MIT",
+    "sha512": "bwGMrRcAMWx2s/RDgja97p27rxSz2pEQW0+rX5cWAUWVETVJ/eyxGfjAl8vuG5a+lckWmPIE+vcuaZNVB5YDdw=="
+  },
+  {
+    "name": "Microsoft.Extensions.Diagnostics.Abstractions",
+    "version": "10.0.3",
+    "license": "MIT",
+    "sha512": "mQiTzAj7PIJ2A9YXR5QhgulS1fTWhmQc3ckd1Mrf3hKW07d03fBDqx8vVaFw+cRTebDOeB6pNqdWdnRxsi1hBA=="
+  },
+  {
+    "name": "Microsoft.Extensions.FileProviders.Abstractions",
+    "version": "10.0.3",
+    "license": "MIT",
+    "sha512": "4TD9AXDRsipTmaemwnjt/DM5Ri0de2JzHQhvZ4woBTjUtL4XrPNsMrOk5oiLJAx1gTrE6pOIhxv+lEde5F6CZA=="
+  },
+  {
+    "name": "Microsoft.Extensions.Hosting.Abstractions",
+    "version": "10.0.3",
+    "license": "MIT",
+    "sha512": "GdMpC10Jf6poxSvUJ4lgYpJ5F/kJeaAoJmrPufjBoPYyCTKKY5Dyl0rZA+LBNvFqTq1cZa/lhlptlUhNvU6xrg=="
+  },
+  {
+    "name": "Microsoft.Extensions.Logging.Abstractions",
+    "version": "10.0.3",
+    "license": "MIT",
+    "sha512": "lxl0WLk7ROgBFAsjcOYjQ8/DVK+VMszxGBzUhgtQmAsTNldLL5pk9NG/cWTsXHq0lUhUEAtZkEE7jOGOA8bGKQ=="
+  },
+  {
+    "name": "Microsoft.Extensions.Options",
+    "version": "10.0.3",
+    "license": "MIT",
+    "sha512": "hU6WzGTPvPoLA2ng1ILvWQb3g0qORdlHNsxI8IcPLumJb3suimYUl+bbDzdo1V4KFsvVhnMWzysHpKbZaoDQPQ=="
+  },
+  {
+    "name": "Microsoft.Extensions.Primitives",
+    "version": "10.0.3",
+    "license": "MIT",
+    "sha512": "GEcpTwo7sUoLGGNTqV1FZEuL+tTD9m81NX/mh099dqGNna07/UGZShKQNZRw4hv6nlliSUwYQgSYc7OR99Jufg=="
+  },
+  {
+    "name": "Microsoft.NET.ILLink.Tasks",
+    "version": "10.0.15",
+    "license": "MIT",
+    "sha512": "u0WnRcZgBZYHlVFpbe/3Adpmb9rmNJ8/fmEwqc/xjB7fFppq+gfaLJd3Sdaw+J02zV0eP/T9dneQ3Dv5jWw6bw=="
+  },
+  {
+    "name": "Onigwrap",
+    "version": "1.0.11",
+    "license": "MIT",
+    "sha512": "5/WAxSYWfiiPzp1X13qqdqjFmYLKDD/U7Vh3WCkKxWG9BjqdrXnQE5fCKCFJX+xWvuYLTxwZIVWBwBWObViE8g=="
+  },
+  {
+    "name": "OpenAI",
+    "version": "2.10.0",
+    "license": "MIT",
+    "sha512": "e5gAhMDcX5bFmmtR+lT6qZxJoaGb0SkIplPUUdKwcC4xerCh471hTIsrvfkou7scfZD9YQk6C06dP3NwBqHw1A=="
+  },
+  {
+    "name": "Pfim",
+    "version": "0.11.4",
+    "license": "见包内许可／上游许可清单",
+    "sha512": "B3KDFyxY1NTqbeqGEaOM9uE+G71GG2TxWqVSs57e1pWYPf2vNLMIxk+x55MXdkon0iGeaekolFTlLS2CkgktYg=="
+  },
+  {
+    "name": "runtime.win-x64.Microsoft.DotNet.ILCompiler",
+    "version": "10.0.15",
+    "license": "MIT",
+    "sha512": "WEtOJ41ItA7fJ+pqQFYgCmZxiX5d6AByfLWbifqEjyjkfFXmD9/T9V7xTwrvh5OxkJkBhnZsygcdU0Al9MNcVw=="
+  },
+  {
+    "name": "SkiaSharp.NativeAssets.Linux",
+    "version": "2.88.9",
+    "license": "MIT",
+    "sha512": "cWSaJKVPWAaT/WIn9c8T5uT/l4ETwHxNJTkEOtNKjphNo8AW6TF9O32aRkxqw3l8GUdUo66Bu7EiqtFh/XG0Zg=="
+  },
+  {
+    "name": "SkiaSharp.NativeAssets.macOS",
+    "version": "2.88.9",
+    "license": "MIT",
+    "sha512": "Nv5spmKc4505Ep7oUoJ5vp3KweFpeNqxpyGDWyeEPTX2uR6S6syXIm3gj75dM0YJz7NPvcix48mR5laqs8dPuA=="
+  },
+  {
+    "name": "SkiaSharp.NativeAssets.WebAssembly",
+    "version": "2.88.9",
+    "license": "MIT",
+    "sha512": "kt06RccBHSnAs2wDYdBSfsjIDbY3EpsOVqnlDgKdgvyuRA8ZFDaHRdWNx1VHjGgYzmnFCGiTJBnXFl5BqGwGnA=="
+  },
+  {
+    "name": "SkiaSharp.NativeAssets.Win32",
+    "version": "2.88.9",
+    "license": "MIT",
+    "sha512": "wb2kYgU7iy84nQLYZwMeJXixvK++GoIuECjU4ECaUKNuflyRlJKyiRhN1MAHswvlvzuvkrjRWlK0Za6+kYQK7w=="
+  },
+  {
+    "name": "SkiaSharp",
+    "version": "2.88.9",
+    "license": "MIT",
+    "sha512": "3MD5VHjXXieSHCleRLuaTXmL2pD0mB7CcOB1x2kA1I4bhptf4e3R27iM93264ZYuAq6mkUyX5XbcxnZvMJYc1Q=="
+  },
+  {
+    "name": "StbImageSharp",
+    "version": "2.30.16",
+    "license": "Unlicense OR MIT",
+    "sha512": "qg1i+NHihXVKLKYacGKrauhSQIGL31eBWcTC4Vc7jnGmBFj87LkRuCdXB5aDZisWMRnB6x2mcfwYXQxMWEG/lw=="
+  },
+  {
+    "name": "System.ClientModel",
+    "version": "1.10.0",
+    "license": "MIT",
+    "sha512": "lBEWs54F5Y5pZ9hC+8z4S/X76957ex+DPk7WecRHlbIHtrPfbRMMlOgI3iDn4Jpb3bSxvBnKaaHoD59auFjlBA=="
+  },
+  {
+    "name": "System.Memory.Data",
+    "version": "10.0.3",
+    "license": "MIT",
+    "sha512": "MaGhRfGunmrj/nHjtsi9XkhlYJ/ERGWrbA+BiSKNtGnAjc9XlG5EhAvak6VRcX5LYzPF6pBO8nJ613dTgzabig=="
+  },
+  {
+    "name": "TextMateSharp.Grammars",
+    "version": "2.0.4",
+    "license": "MIT",
+    "sha512": "jzOY00q5u5Vs4L9n2m2PnRZDGwWt2uwkOLh7qlVdCx1kkGSn5eaW5XgnYCyTzEbsCwLV2xlEolnNkr/wuIMAbA=="
+  },
+  {
+    "name": "TextMateSharp",
+    "version": "2.0.4",
+    "license": "MIT",
+    "sha512": "5Pvn+A4zb1IF+ACAVhgw1aGf9kTyx6j7v5hdup7nCS89Nzby8KQAlCfQ54VC/GAsEoQwh4zKa5MKlAaql8nkPg=="
+  },
+  {
+    "name": "Tmds.DBus.Protocol",
+    "version": "0.21.3",
+    "license": "MIT",
+    "sha512": "hDwB8WsQoyALQKqIbwzS68UKdlnafDm4T/DkO/JrA/YIneP/rKv96SxYPVXeh3FP4i/SXfShrYftKLtciJAIlw=="
+  }
+]
