@@ -723,7 +723,6 @@
     </Setter>
 
     <Style Selector="^ ListBoxItem">
-      <Setter Property="Height" Value="24"/>
       <Setter Property="Margin" Value="0"/>
       <Setter Property="Padding" Value="0"/>
 
@@ -761,6 +760,14 @@
       <Setter Property="Background" Value="{DynamicResource Brush.Accent}" />
       <Setter Property="Opacity" Value=".8"/>
     </Style>
+  </Style>
+
+  <Style Selector="ListBox.repo_left_content_list:not(.worktree_tasks) ListBoxItem">
+    <Setter Property="Height" Value="24"/>
+  </Style>
+  <Style Selector="ListBox.repo_left_content_list.worktree_tasks ListBoxItem">
+    <Setter Property="Height" Value="128"/>
+    <Setter Property="CornerRadius" Value="4"/>
   </Style>
 
   <Style Selector="ContextMenu">
