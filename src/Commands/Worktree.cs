@@ -16,19 +16,27 @@ namespace SourceGit.Commands
 
         public async Task<List<Models.Worktree>> ReadAllAsync()
         {
-            Args = "worktree list --porcelain";
+            Args = "worktree list --porcelain -z";
 
             var rs = await ReadToEndAsync().ConfigureAwait(false);
+            // Older supported Git versions do not have `worktree list -z`.
+            if (!rs.IsSuccess)
+            {
+                Args = "worktree list --porcelain";
+                rs = await ReadToEndAsync().ConfigureAwait(false);
+            }
             var worktrees = new List<Models.Worktree>();
             Models.Worktree last = null;
             if (rs.IsSuccess)
             {
-                var lines = rs.StdOut.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+                var lines = rs.StdOut.Contains('\0')
+                    ? rs.StdOut.Split('\0', StringSplitOptions.RemoveEmptyEntries)
+                    : rs.StdOut.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
                 foreach (var line in lines)
                 {
                     if (line.StartsWith("worktree ", StringComparison.Ordinal))
                     {
-                        last = new Models.Worktree() { FullPath = line.Substring(9).Trim() };
+                        last = new Models.Worktree() { FullPath = line.Substring(9) };
                         worktrees.Add(last);
                         continue;
                     }
@@ -55,6 +63,11 @@ namespace SourceGit.Commands
                     else if (line.StartsWith("locked", StringComparison.Ordinal))
                     {
                         last.IsLocked = true;
+                        last.LockReason = line.Length > 7 ? line.Substring(7) : string.Empty;
+                    }
+                    else if (line.StartsWith("prunable", StringComparison.Ordinal))
+                    {
+                        last.PrunableReason = line.Length > 9 ? line.Substring(9) : string.Empty;
                     }
                 }
             }

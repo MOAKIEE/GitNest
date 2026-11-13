@@ -1,5 +1,18 @@
 # GitNest 实施记录
 
+## 2026-11-13 · 批次 2.2a：工作树状态读取与本机任务存储
+
+- 前一批提交：`864a45a3`（首次推送及 CI 记录）。批次 2.2 分为读取／存储基础和界面／快捷操作两次提交。
+- 新增工作树只读状态查询，在目标目录读取 porcelain v2、分支、HEAD、暂存／未暂存／未跟踪／冲突数量。部分暂存文件在两个分类中各计一次，总文件数去重；重命名按一项计算。
+- 查询前核对工作目录根和 Git common directory，拒绝被替换为独立 clone 的目录；目录缺失、无上游、上游已删除、未获取、detached HEAD 和初始仓库分别建模。
+- 同步数量来自 Git 本地引用；有 FETCH_HEAD 时保留获取时间，没有获取记录时数量保持未知。每个只读进程设 10 秒上限并在取消／超时后终止。
+- 工作树列表优先使用 NUL 分隔，保留中文、空格、特殊字符路径和多行锁定原因；旧 Git 不支持 `list -z` 时回退原 porcelain 格式。
+- 别名、手动完成标记和比较目标存储基础写入 GitNest 配置目录中的 `worktree-tasks.json`，按 common directory 与工作树绝对路径联合匹配；写入采用临时文件替换，损坏的原设置拒绝覆盖。
+
+验证：`./build/scripts/test-gitnest.ps1` 的 50 项真实进程／Git 集成检查全部通过，包含既有 26 项及新增 24 项；构建 0 警告、0 错误。首次测试因 Git 对象只读属性导致临时目录清理失败，清理逻辑在核对专用临时目录后重置文件属性，重跑成功。日志：`artifacts/logs/2.2-foundation-tests.log`。
+
+依据：[git-status porcelain v2](https://git-scm.com/docs/git-status)、[git-worktree porcelain 格式](https://git-scm.com/docs/git-worktree)。接续 2.2b 将读取结果接入原工作树区域、状态摘要、别名编辑与快捷打开，并做桌面验证。
+
 ## 2026-11-13 · 批次 1.1：建立实施基线
 
 - 工作区初始内容为 `design.md`、`sourcegit-reuse-audit.md`、`oldcoffee-gitnest-review.md` 三份文档，尚无源码和 Git 仓库。

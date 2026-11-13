@@ -5,7 +5,7 @@ using System.Text;
 using SourceGit.Models;
 using NativeOS = SourceGit.Native.OS;
 
-internal static class Program
+internal static partial class Program
 {
     private const string FakeModeVariable = "GITNEST_TEST_GIT_MODE";
     private static int _checks;
@@ -144,6 +144,9 @@ internal static class Program
             File.WriteAllText(global, "[broken configuration");
             identity = await new SourceGit.Commands.Config(null).ReadCommitIdentityAsync();
             Check(!identity.IsReadable, "Invalid Git configuration is reported as a read failure");
+
+            File.WriteAllText(global, string.Empty);
+            await RunWorktreeTestsAsync(realGit, root);
         }
         finally
         {
@@ -158,13 +161,15 @@ internal static class Program
             if (!resolvedRoot.StartsWith(temporaryDirectory, StringComparison.OrdinalIgnoreCase) ||
                 !Path.GetFileName(resolvedRoot).StartsWith("GitNest-tests-", StringComparison.Ordinal))
                 throw new InvalidOperationException("Unexpected test cleanup directory.");
+            foreach (var file in Directory.EnumerateFiles(resolvedRoot, "*", SearchOption.AllDirectories))
+                File.SetAttributes(file, FileAttributes.Normal);
             Directory.Delete(resolvedRoot, true);
         }
     }
 
     private static string Hash(string path) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path)));
 
-    private static async Task GitAsync(string git, params string[] arguments)
+    private static async Task<string> GitAsync(string git, params string[] arguments)
     {
         using var process = new Process();
         process.StartInfo = new ProcessStartInfo(git)
@@ -184,6 +189,7 @@ internal static class Program
         await Task.WhenAll(output, error, process.WaitForExitAsync());
         if (process.ExitCode != 0)
             throw new InvalidOperationException("Git fixture failed: " + await error);
+        return await output;
     }
 
     private static void Check(bool condition, string description)

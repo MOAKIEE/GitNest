@@ -8,5 +8,7 @@ namespace SourceGit.Models
         public bool IsBare { get; set; } = false;
         public bool IsDetached { get; set; } = false;
         public bool IsLocked { get; set; } = false;
+        public string LockReason { get; set; } = string.Empty;
+        public string PrunableReason { get; set; } = string.Empty;
     }
 }
