@@ -27,6 +27,37 @@ namespace SourceGit.Commands
             Args = builder.ToString();
         }
 
+        public Push(
+            string repo,
+            string localBranchName,
+            Models.Remote remote,
+            string remoteBranchName,
+            bool checkSubmodules,
+            bool track,
+            bool noVerify)
+        {
+            WorkingDirectory = repo;
+            Context = repo;
+            SSHKey = remote?.PrivateSSHKey ?? string.Empty;
+
+            var builder = new StringBuilder(1024);
+            builder.Append("push --progress --verbose ");
+            if (checkSubmodules)
+                builder.Append("--recurse-submodules=check ");
+            if (track)
+                builder.Append("-u ");
+            if (noVerify)
+                builder.Append("--no-verify ");
+
+            var refspec = $"refs/heads/{localBranchName}:refs/heads/{remoteBranchName}";
+            builder.Append("-- ")
+                .Append(CommandArgumentHelper.Quote(remote?.Name ?? string.Empty))
+                .Append(' ')
+                .Append(CommandArgumentHelper.Quote(refspec));
+
+            Args = builder.ToString();
+        }
+
         public Push(string repo, Models.Commit revision, Models.Remote remote, Models.Branch remoteBranch, bool force)
         {
             WorkingDirectory = repo;

@@ -7,6 +7,11 @@ namespace SourceGit.Commands
     public class Commit : Command
     {
         public Commit(string repo, string message, bool signOff, bool noVerify, bool amend, bool resetAuthor)
+            : this(repo, message, signOff, noVerify, amend, resetAuthor, allowEmpty: true)
+        {
+        }
+
+        public Commit(string repo, string message, bool signOff, bool noVerify, bool amend, bool resetAuthor, bool allowEmpty)
         {
             _tmpFile = Path.GetTempFileName();
             _message = message;
@@ -15,8 +20,11 @@ namespace SourceGit.Commands
             Context = repo;
 
             var builder = new StringBuilder();
-            builder.Append("commit --allow-empty --file=");
-            builder.Append(_tmpFile.Quoted());
+            builder.Append("commit ");
+            if (allowEmpty)
+                builder.Append("--allow-empty ");
+            builder.Append("--file=");
+            builder.Append(CommandArgumentHelper.Quote(_tmpFile));
             builder.Append(' ');
 
             if (signOff)
@@ -40,14 +48,18 @@ namespace SourceGit.Commands
         {
             try
             {
-                await File.WriteAllTextAsync(_tmpFile, _message).ConfigureAwait(false);
-                var succ = await ExecAsync().ConfigureAwait(false);
-                File.Delete(_tmpFile);
-                return succ;
+                await File.WriteAllTextAsync(_tmpFile, _message ?? string.Empty, new System.Text.UTF8Encoding(false)).ConfigureAwait(false);
+                return await ExecAsync().ConfigureAwait(false);
             }
-            catch
+            catch (System.Exception e)
             {
+                if (RaiseError)
+                    Models.Notification.Send(Context, e.Message, true);
                 return false;
+            }
+            finally
+            {
+                CommandArgumentHelper.TryDeleteTempFile(_tmpFile);
             }
         }
 

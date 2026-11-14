@@ -18,7 +18,7 @@ namespace SourceGit.Commands
                 {
                     _patchBuilder.Append("0 0000000000000000000000000000000000000000\t");
                     _patchBuilder.Append(c.Path);
-                    _patchBuilder.Append("\n100644 ");
+                    _patchBuilder.Append("\0100644 ");
                     _patchBuilder.Append(c.DataForAmend.ObjectHash);
                     _patchBuilder.Append("\t");
                     _patchBuilder.Append(c.OriginalPath);
@@ -44,7 +44,7 @@ namespace SourceGit.Commands
                     _patchBuilder.Append(c.Path);
                 }
 
-                _patchBuilder.Append('\n');
+                _patchBuilder.Append('\0');
             }
         }
 
@@ -53,7 +53,7 @@ namespace SourceGit.Commands
             var starter = new ProcessStartInfo();
             starter.WorkingDirectory = _repo;
             starter.FileName = Native.OS.GitExecutable;
-            starter.Arguments = "-c core.editor=true update-index --index-info";
+            starter.Arguments = "-c core.editor=true update-index -z --index-info";
             starter.UseShellExecute = false;
             starter.CreateNoWindow = true;
             starter.WindowStyle = ProcessWindowStyle.Hidden;

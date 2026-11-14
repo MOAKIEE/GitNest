@@ -176,3 +176,9 @@
 - [首次 Windows CI](https://github.com/MOAKIEE/GitNest/actions/runs/43367433419) 全部通过，耗时 3 分 28 秒，完成远程检出、Windows 构建与发布、集成检查和产物上传。
 - 已上传 `GitNest-verification-logs` 和 `GitNest-windows-x64` 两个产物；应用目录压缩产物为 53,925,679 字节，保留 7 天。
 - 全局 Git 邮箱与调整前一致，本仓库使用 noreply 地址。后续仅文档更新按 CI 路径规则跳过重复构建。
+
+## 2026-11-14 · 批次 2.5a：提交快照校验、并发写守卫与获取/快进拉取/单分支推送基础
+
+- 新增 `src/Models/StagedSnapshot.cs`、`src/Models/RepositoryWriteGuard.cs`、`src/Models/CommitSyncModels.cs` 与 `src/Commands/CommandArgumentHelper.cs`、`src/Commands/QueryStagedSnapshot.cs`、`src/Commands/GitSyncService.cs`。
+- 改进 `src/Commands/Add.cs`、`src/Commands/Reset.cs`、`src/Commands/Commit.cs`、`src/Commands/Pull.cs`、`src/Commands/Push.cs`、`src/Commands/UpdateIndexInfo.cs`，支持顶层 `--literal-pathspecs` + `\0` 分隔路径规范、提交默认取消隐式 `--allow-empty`、`-c pull.rebase=false pull --ff-only` 显式快进策略，以及单分支显式 refspec 普通推送。
+- 新增真实 Git 集成测试 `tests/GitNest.IntegrationTests/CommitSyncTests.cs` 并接入 `Program.cs`，Release 构建 0 警告 0 错误，集成测试 **155** 项全通过；详细过程见 [phase-2.5.md](verification/phase-2.5.md)。
