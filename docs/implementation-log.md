@@ -206,3 +206,10 @@
 - 同步修复测试与探针暴露的 3 处底层问题：`OperationJournalStore` 时区归一化、无目标 SHA 操作确认后的 `IsAcknowledged` 状态收敛，以及 `BackupRefs.TryReadReflogTimestampAsync` 使用 `--date=unix --format=%gd` 真实读取 reflog 创建时间。
 - 末次代码改动后验证：`.\build\scripts\build-gitnest.ps1 -Publish`（0 警告 0 错误，生成 `artifacts/windows-x64/GitNest.exe`）、`.\build\scripts\test-gitnest.ps1`（**175 / 175** 通过）与 `.\build\scripts\probe-gitnest.ps1 -OperationRecovery`（**13 / 13** 通过并逐张验收 `artifacts/probes/phase-3.1/` 下 4 张浅色/暗黑/窄窗截图；详情见 [phase-3.1.md](verification/phase-3.1.md)）。
 - 批次 3.1（3.1a / 3.1b）全部完成，接续进入批次 3.2（本地/远端分支删除、显式 `--force-with-lease`、恢复引用与部分失败处理）。
+
+## 2026-11-14 · 批次 3.2a：本地／远端分支删除安全引擎、显式 lease 与部分失败恢复
+
+- 前一批提交：`a9be9eef`（批次 3.1b：最近操作与恢复原生视图、同步日志接线、窗口激活刷新与 UI 探针验收）。
+- 新增 `src/Models/BranchDeletionModels.cs` 与 `src/Commands/BranchDeletionService.cs`，重构抽取 `BackupRefs.DeleteBackupRefAsync` 并锚定加固 `DoesBranchExistOnRemote.cs`；实现真实 Git 配置 upstream 解析（支持异名映射与多远端、无上游时不猜测）、当前分支与工作树顺序清理保护、常规 `-d` 与未合并原因明细、删前本地备份引用创建与防覆盖恢复、远程状态精确探测（隔离网络失败与“服务器已缺失”缓存清理），以及冻结确认期哈希的显式 `--force-with-lease` 远端删除与“本地已删除，远程未删除”部分失败回滚通道。
+- 新增 `tests/GitNest.IntegrationTests/BranchDeleteTests.cs` 并接入 `Program.cs`；Release 构建 `0` 警告 `0` 错误，`.\build\scripts\test-gitnest.ps1` 全量 **188 / 188** 项通过（过程与清单见 [phase-3.2.md](verification/phase-3.2.md)）。
+- 下一批次（3.2b）将更新右键分支菜单文案、增强原生 `DeleteBranch` / `DeleteMultipleBranches` 多步骤确认与部分失败就地恢复弹窗，并执行 `-BranchDelete` UI 探针与截图检查。

@@ -9,7 +9,7 @@ namespace SourceGit.Commands
             WorkingDirectory = repo;
             SSHKey = remote.PrivateSSHKey;
             RaiseError = false;
-            Args = $"ls-remote {remote.Name} {branch.Name}";
+            Args = $"ls-remote --heads -- {CommandArgumentHelper.Quote(remote.Name)} {CommandArgumentHelper.Quote($"refs/heads/{branch.Name}")}";
         }
 
         public async Task<bool> GetResultAsync()

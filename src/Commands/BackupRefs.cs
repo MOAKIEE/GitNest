@@ -366,19 +366,12 @@ namespace SourceGit.Commands
                     continue;
                 }
 
-                var res = await Command.RunGitDirectAsync(
-                    repoPath,
-                    cancellationToken,
-                    "update-ref",
-                    "-d",
-                    item.FullRefName,
-                    item.CommitSha).ConfigureAwait(false);
-
-                log?.AppendLine($"$ git update-ref -d {item.FullRefName} {item.CommitSha}");
-                if (res.IsSuccess)
+                var delErr = await DeleteBackupRefInternalAsync(repoPath, item.FullRefName, item.CommitSha, log, cancellationToken)
+                    .ConfigureAwait(false);
+                if (string.IsNullOrEmpty(delErr))
                     deleted.Add(item.FullRefName);
                 else
-                    failed.Add($"{item.FullRefName}: {Models.GitConfigSnapshot.RedactText(res.StdErr.Trim())}");
+                    failed.Add($"{item.FullRefName}: {delErr}");
             }
 
             var summary = failed.Count == 0
@@ -392,6 +385,50 @@ namespace SourceGit.Commands
                 FailedRefs = failed,
                 Summary = summary,
             };
+        }
+
+        /// <summary>
+        /// Deletes a single local backup ref by exact expected SHA. Intended for callers already holding RepositoryWriteGuard.
+        /// </summary>
+        public static async Task<bool> DeleteBackupRefAsync(
+            string repoPath,
+            string backupRefName,
+            string expectedSha,
+            Models.ICommandLog log = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(backupRefName) ||
+                !backupRefName.StartsWith(NamespacePrefix, StringComparison.Ordinal) ||
+                string.IsNullOrWhiteSpace(expectedSha))
+            {
+                return false;
+            }
+
+            var err = await DeleteBackupRefInternalAsync(repoPath, backupRefName, expectedSha, log, cancellationToken)
+                .ConfigureAwait(false);
+            return string.IsNullOrEmpty(err);
+        }
+
+        private static async Task<string> DeleteBackupRefInternalAsync(
+            string repoPath,
+            string backupRefName,
+            string expectedSha,
+            Models.ICommandLog log,
+            CancellationToken cancellationToken)
+        {
+            var res = await Command.RunGitDirectAsync(
+                repoPath,
+                cancellationToken,
+                "update-ref",
+                "-d",
+                backupRefName,
+                expectedSha).ConfigureAwait(false);
+
+            log?.AppendLine($"$ git update-ref -d {backupRefName} {expectedSha}");
+            if (res.IsSuccess)
+                return string.Empty;
+
+            return Models.GitConfigSnapshot.RedactText(res.StdErr.Trim());
         }
 
         private static async Task<DateTime> TryReadReflogTimestampAsync(
