@@ -39,6 +39,7 @@
 
   <ItemGroup>
     <AssemblyMetadata Include="BuildDate" Value="$([System.DateTime]::Now.ToString('o'))" />
+    <InternalsVisibleTo Include="GitNest.IntegrationTests" />
   </ItemGroup>
 
   <ItemGroup>

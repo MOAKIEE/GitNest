@@ -256,6 +256,7 @@ namespace SourceGit.Models
                 RemoteBranchName = (src.RemoteBranchName ?? string.Empty).Trim(),
                 OriginalTipSha = (src.OriginalTipSha ?? string.Empty).Trim(),
                 TargetTipSha = (src.TargetTipSha ?? string.Empty).Trim(),
+                ExpectedPartnerSha = (src.ExpectedPartnerSha ?? string.Empty).Trim(),
                 ExpectedRemoteTipSha = (src.ExpectedRemoteTipSha ?? string.Empty).Trim(),
                 BackupRefName = (src.BackupRefName ?? string.Empty).Trim(),
                 Stage = src.Stage,

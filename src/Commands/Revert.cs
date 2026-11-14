@@ -9,13 +9,12 @@ namespace SourceGit.Commands
             WorkingDirectory = repo;
             Context = repo;
 
+            var safeCommit = CommandArgumentHelper.ValidateNonOptionToken(commit, nameof(commit));
             var builder = new StringBuilder(512);
-            builder
-                .Append("revert -m 1 ")
-                .Append(commit)
-                .Append(" --no-edit");
+            builder.Append("revert --no-edit ");
             if (!autoCommit)
-                builder.Append(" --no-commit");
+                builder.Append("--no-commit ");
+            builder.Append(CommandArgumentHelper.Quote(safeCommit));
 
             Args = builder.ToString();
         }

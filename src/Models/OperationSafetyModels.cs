@@ -180,6 +180,7 @@ namespace SourceGit.Models
         public string RemoteBranchName { get; set; } = string.Empty;
         public string OriginalTipSha { get; set; } = string.Empty;
         public string TargetTipSha { get; set; } = string.Empty;
+        public string ExpectedPartnerSha { get; set; } = string.Empty;
         public string ExpectedRemoteTipSha { get; set; } = string.Empty;
         public string BackupRefName { get; set; } = string.Empty;
         public GitOperationStage Stage { get; set; }

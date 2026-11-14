@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text;
 
 namespace SourceGit.Commands
@@ -10,12 +11,15 @@ namespace SourceGit.Commands
             WorkingDirectory = repo;
             Context = repo;
 
+            var safeSource = CommandArgumentHelper.ValidateNonOptionToken(source, nameof(source));
+            var safeMode = ValidateMergeModeArg(mode);
+
             var builder = new StringBuilder();
             builder.Append("merge --progress ");
             builder.Append(edit ? "--edit " : "--no-edit ");
-            builder.Append(source);
-            builder.Append(' ');
-            builder.Append(mode);
+            if (!string.IsNullOrEmpty(safeMode))
+                builder.Append(safeMode).Append(' ');
+            builder.Append(CommandArgumentHelper.Quote(safeSource));
 
             Args = builder.ToString();
         }
@@ -27,18 +31,38 @@ namespace SourceGit.Commands
 
             var builder = new StringBuilder();
             builder.Append("merge --progress ");
-            if (!string.IsNullOrEmpty(strategy))
-                builder.Append("--strategy=").Append(strategy).Append(' ');
+            if (!string.IsNullOrWhiteSpace(strategy))
+            {
+                var safeStrategy = CommandArgumentHelper.ValidateNonOptionToken(strategy, nameof(strategy));
+                builder.Append("--strategy=").Append(CommandArgumentHelper.Quote(safeStrategy)).Append(' ');
+            }
             if (!autoCommit)
                 builder.Append("--no-commit ");
 
-            foreach (var t in targets)
+            if (targets != null)
             {
-                builder.Append(t);
-                builder.Append(' ');
+                foreach (var t in targets)
+                {
+                    var safeTarget = CommandArgumentHelper.ValidateNonOptionToken(t, nameof(targets));
+                    builder.Append(CommandArgumentHelper.Quote(safeTarget));
+                    builder.Append(' ');
+                }
             }
 
-            Args = builder.ToString();
+            Args = builder.ToString().TrimEnd();
+        }
+
+        private static string ValidateMergeModeArg(string mode)
+        {
+            if (string.IsNullOrWhiteSpace(mode))
+                return string.Empty;
+
+            var trimmed = mode.Trim();
+            return trimmed switch
+            {
+                "--ff-only" or "--no-ff" or "--squash" or "--no-ff --no-commit" => trimmed,
+                _ => throw new ArgumentException("不支持的合并模式参数。", nameof(mode)),
+            };
         }
     }
 }

@@ -12,6 +12,28 @@ namespace SourceGit.Commands
         private static readonly UTF8Encoding Utf8NoBom = new(false);
 
         /// <summary>
+        /// Ensures a ref/branch/commit/strategy argument cannot be parsed as a Git option flag
+        /// or contain embedded control characters.
+        /// </summary>
+        public static string ValidateNonOptionToken(string value, string paramName)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException("参数不能为空。", paramName);
+
+            var trimmed = value.Trim();
+            if (trimmed.StartsWith("-", StringComparison.Ordinal))
+                throw new ArgumentException("参数不能以 '-' 开头。", paramName);
+
+            foreach (var ch in trimmed)
+            {
+                if (ch is '\0' or '\r' or '\n')
+                    throw new ArgumentException("参数包含非法控制字符。", paramName);
+            }
+
+            return trimmed;
+        }
+
+        /// <summary>
         /// Escapes a single argument for process command lines (handling whitespace, quotes,
         /// and backslashes cleanly across Windows CommandLineToArgvW and POSIX tokenizers).
         /// </summary>

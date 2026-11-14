@@ -237,4 +237,12 @@
 - 重构 `src/ViewModels/RemoveWorktree.cs`、`src/Views/RemoveWorktree.axaml`/`.axaml.cs` 与 `PruneWorktrees.cs`/`.axaml`/`.axaml.cs`，并在 `src/ViewModels/DeleteBranch.cs`、`src/Views/DeleteBranch.axaml` 复用 `AttachedWorktreePreflight` 细节检查、工作树视图切换回调与任务概览刷新；新增并校对中英双语词条（`en=1401 zh=1401 diff=0`）。
 - 同步排查并修复截图检查发现的两处问题：`RemoveWorktree.IsLoadingPreflight` 结束时补发 `CanShowForceOption`/`ShowForceLossWarning`/`CanOfferLocalBranchDelete` 等依赖属性变更通知，并用紧凑滚动列表与窄侧栏 `TextTrimming` 消除弹窗内控件裁切与分组计数重叠。
 - 末次代码改动后验证：`.\build\scripts\build-gitnest.ps1 -Publish`（`0` 警告 `0` 错误，生成 `artifacts/windows-x64/GitNest.exe`）、`.\build\scripts\test-gitnest.ps1`（**206 / 206** 通过）、`.\build\scripts\probe-gitnest.ps1 -BranchDelete`（**13 / 13** 通过）与 `.\build\scripts\probe-gitnest.ps1 -WorktreeDelete`（**20 / 20** 通过，并逐张核对 `artifacts/probes/phase-3.3/` 下 4 张浅色/暗黑/窄窗截图；详情见 [phase-3.3.md](verification/phase-3.3.md)）。
-- 批次 3.3（3.3a / 3.3b）全部完成；按用户指示在此阶段停下待命，后续接续批次 3.4（定向合并、revert 及冲突归属检查）。
+- 批次 3.3（3.3a / 3.3b）全部完成；接续进入批次 3.4（定向合并、revert 及冲突归属检查）。
+
+## 2026-11-14 · 批次 3.4a：定向合并引擎、单提交 revert、冲突归属守卫与失败分类
+
+- 前一批提交：`bc348ee1`（批次 3.3b：工作树移除与清理预览原生弹窗、打开视图自动切换及 UI 探针验收）。
+- 新增 `src/Models/MergeRevertModels.cs` 与 `src/Commands/MergeRevertService.cs`，抽取 `CommandArgumentHelper.ValidateNonOptionToken` 并重构 `src/Commands/Merge.cs`、`MergeTree.cs`、`Revert.cs` 与 `Command.cs`（移除 `Revert.cs` 硬编码的 `revert -m 1`，增加参数非选项校验、引述与直连非交互超时重载）；同步在 `GitOperationRecord` / `OperationJournalStore` / `OperationJournalService` 增补 `ExpectedPartnerSha` 持久化字段以跟踪冲突伙伴提交。
+- 实现「将【来源】的改动合并到【目标】」预检与加锁执行（含显式远端已抓取快照来源、跨分支目标切换、其他 worktree 占用拦截、`merge-tree --write-tree` 无副作用冲突预检、操作前干净态与确认快照检查、仅对 `Parents.Count <= 1` 的单提交 revert）、冲突后逐文件磁盘/暂存 SHA-256 归属与 AI 外部介入护卫（无外部介入方可自动 `--abort` 并二次校验还原；若发现任何外部介入则立即停止并保留现场）、只读外部进行中状态识别（按控制文件修改时序区分外部重跑与保留现场，打开/刷新绝不自动中止），以及非冲突场景下 `HookRejected` / `SigningFailed` 错误分类。
+- 新增 `tests/GitNest.IntegrationTests/MergeRevertTests.cs` 并接入 `Program.cs`；末次代码改动后 `.\build\scripts\build-gitnest.ps1` 构建 `0` 警告 `0` 错误，`.\build\scripts\test-gitnest.ps1` 全量 **233 / 233** 项真实 Git 检查通过（过程与清单见 [phase-3.4.md](verification/phase-3.4.md)）。
+- 下一批次（3.4b）将在 SourceGit 原生样式中更新 `Merge`、`Revert` 与只读 `Conflict` 进行中状态界面，补全中英词条、`GitNest.UIProbe` 探针与截图验收。

@@ -8,7 +8,9 @@ namespace SourceGit.Commands
         public MergeTree(string repo, string source, string dest)
         {
             WorkingDirectory = repo;
-            Args = $"merge-tree --write-tree {source} {dest}";
+            var safeSource = CommandArgumentHelper.ValidateNonOptionToken(source, nameof(source));
+            var safeDest = CommandArgumentHelper.ValidateNonOptionToken(dest, nameof(dest));
+            Args = $"merge-tree --write-tree {CommandArgumentHelper.Quote(safeSource)} {CommandArgumentHelper.Quote(safeDest)}";
         }
 
         public async Task<int> GetExitCodeAsync()

@@ -422,8 +422,11 @@ namespace SourceGit.Commands
             return sha.Length > 8 ? sha[..8] : sha;
         }
 
-        private static void TrySaveRecord(Models.OperationJournalStore store, Models.GitOperationRecord record)
+        internal static void TrySaveRecord(Models.OperationJournalStore store, Models.GitOperationRecord record)
         {
+            if (store == null || record == null)
+                return;
+
             try
             {
                 store.AppendOrUpdate(record);

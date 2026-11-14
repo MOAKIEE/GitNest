@@ -14,6 +14,12 @@ internal static partial class Program
     {
         if (args.Length > 0)
         {
+            if (string.Equals(Environment.GetEnvironmentVariable(FakeModeVariable), "gpg-fail", StringComparison.Ordinal))
+            {
+                await Console.Error.WriteLineAsync("gpg: skipped \"BADKEY\": No secret key");
+                await Console.Error.WriteLineAsync("gpg: signing failed: No secret key");
+                return 2;
+            }
             if (Environment.GetEnvironmentVariable("GITNEST_TEST_TOOL_OUTPUT") is { } outputFile)
             {
                 File.WriteAllText(outputFile, Environment.CurrentDirectory + "\n" + string.Join("\n", args));
@@ -160,6 +166,7 @@ internal static partial class Program
             await RunOperationSafetyTestsAsync(realGit, root);
             await RunBranchDeleteTestsAsync(realGit, root);
             await RunWorktreeDeleteTestsAsync(realGit, root);
+            await RunMergeRevertTestsAsync(realGit, root);
         }
         finally
         {

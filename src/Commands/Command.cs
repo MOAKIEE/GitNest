@@ -252,8 +252,17 @@ namespace SourceGit.Commands
             };
         }
 
+        internal static Task<Result> RunGitDirectAsync(
+            string workingDirectory,
+            CancellationToken cancellationToken,
+            params string[] args)
+        {
+            return RunGitDirectAsync(workingDirectory, TimeSpan.FromSeconds(10), cancellationToken, args);
+        }
+
         internal static async Task<Result> RunGitDirectAsync(
             string workingDirectory,
+            TimeSpan? timeoutDuration,
             CancellationToken cancellationToken,
             params string[] args)
         {
@@ -261,8 +270,13 @@ namespace SourceGit.Commands
             if (string.IsNullOrWhiteSpace(gitExecutable) || !File.Exists(gitExecutable))
                 return Result.Failed("Git executable not found.");
 
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(TimeSpan.FromSeconds(10));
+            using var timeout = timeoutDuration.HasValue
+                ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)
+                : null;
+            if (timeout != null)
+                timeout.CancelAfter(timeoutDuration.Value);
+
+            var effectiveToken = timeout?.Token ?? cancellationToken;
 
             using var proc = new Process();
             proc.StartInfo = new ProcessStartInfo(gitExecutable)
@@ -278,6 +292,7 @@ namespace SourceGit.Commands
             if (!string.IsNullOrEmpty(workingDirectory))
                 proc.StartInfo.WorkingDirectory = workingDirectory;
 
+            proc.StartInfo.Environment["GIT_TERMINAL_PROMPT"] = "0";
             if (!OperatingSystem.IsLinux())
                 proc.StartInfo.Environment["DISPLAY"] = "required";
             if (!OperatingSystem.IsWindows())
@@ -294,9 +309,9 @@ namespace SourceGit.Commands
             {
                 proc.Start();
                 started = true;
-                var stdOut = proc.StandardOutput.ReadToEndAsync(timeout.Token);
-                var stdErr = proc.StandardError.ReadToEndAsync(timeout.Token);
-                await Task.WhenAll(stdOut, stdErr, proc.WaitForExitAsync(timeout.Token)).ConfigureAwait(false);
+                var stdOut = proc.StandardOutput.ReadToEndAsync(effectiveToken);
+                var stdErr = proc.StandardError.ReadToEndAsync(effectiveToken);
+                await Task.WhenAll(stdOut, stdErr, proc.WaitForExitAsync(effectiveToken)).ConfigureAwait(false);
                 return new Result
                 {
                     IsSuccess = proc.ExitCode == 0,
