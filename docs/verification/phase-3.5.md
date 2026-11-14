@@ -28,5 +28,5 @@
 - `.\build\scripts\build-gitnest.ps1`：Release 编译通过，`0` 个警告、`0` 个错误。
 - `.\build\scripts\test-gitnest.ps1`：`tests/GitNest.IntegrationTests` 全量 **274 / 274** 项真实 Git 检查全部通过（新增 `tests/GitNest.IntegrationTests/StashDiscardIgnoreTests.cs` 共 41 项检查，覆盖 unborn HEAD 拦截、WIP/On/外部 stash 解析、中文及 `[1]`/空格路径 NUL pathspecs 暂存、未跟踪/被忽略文件冲突检出与多父 stash 路径差解析、并发 stash 下标错位按 SHA 应用丢弃、冲突后保留 stash 与 `PendingVerification` 只读横幅识别、分支切换禁止 `Discard` 与安全 `StashAndReapply`、恢复库写入失败回滚、双基线隔离恢复、后续编辑防静默覆盖、30 天过期拦截及清理、真实 Windows `SHFileOperationW` 回收站删除与文件句柄锁定拒绝降级删除、linked worktree 下 `info/exclude` 特殊字符规则实效、去重、否定规则警告与已跟踪文件安全保留）。
 
-## Batch 3.5b — 原生 UI 对话框、30 天本地恢复列表交互、双语词条与探针截图验收（待续）
+## Batch 3.5b — 原生 UI 对话框、30 天本地恢复列表交互与探针截图验收（待续）
 - 下一步实施。
