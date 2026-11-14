@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace SourceGit.Models
 {
@@ -56,6 +58,7 @@ namespace SourceGit.Models
         public string AttachedWorktreeLockReason { get; init; } = string.Empty;
         public bool AttachedWorktreePrunable { get; init; }
         public bool AttachedWorktreeHasChanges { get; init; }
+        public WorktreeInspectPreflight AttachedWorktreePreflight { get; init; }
 
         // Local unmerged commit inspection vs HEAD
         public bool IsMergedIntoHead { get; init; }
@@ -91,6 +94,7 @@ namespace SourceGit.Models
         public bool PruneStaleTrackingCacheWhenRemoteAbsent { get; init; }
         public string ConfirmedExpectedRemoteTipSha { get; init; }
         public bool? ConfirmedRemoteExistsOnServer { get; init; }
+        public Func<string, string, CancellationToken, Task> BeforeWorktreeRemoveAsync { get; init; }
     }
 
     public sealed class BranchDeleteOutcome
@@ -102,6 +106,8 @@ namespace SourceGit.Models
         public bool BlockedByLock { get; init; }
         public bool BlockedBySnapshot { get; init; }
         public bool BlockedByProtection { get; init; }
+        public bool BlockedByNestedRepoOrSubmodule { get; init; }
+        public bool RequiresForceWorktreeConfirmation { get; init; }
         public bool RequiresForceLocalConfirmation { get; init; }
         public bool RequiresRemoteCachePruneConfirmation { get; init; }
         public bool RejectedByRemoteLease { get; init; }

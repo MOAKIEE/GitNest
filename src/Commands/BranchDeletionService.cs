@@ -14,10 +14,20 @@ namespace SourceGit.Commands
     /// </summary>
     public static class BranchDeletionService
     {
-        public static async Task<Models.BranchDeletePreflight> InspectLocalBranchAsync(
+        public static Task<Models.BranchDeletePreflight> InspectLocalBranchAsync(
             string repoPath,
             string branchName,
             bool probeLinkedRemote = false,
+            CancellationToken cancellationToken = default)
+        {
+            return InspectLocalBranchCoreAsync(repoPath, branchName, probeLinkedRemote, null, cancellationToken);
+        }
+
+        internal static async Task<Models.BranchDeletePreflight> InspectLocalBranchCoreAsync(
+            string repoPath,
+            string branchName,
+            bool probeLinkedRemote,
+            Models.WorktreeInspectPreflight attachedWorktreeOverride,
             CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(branchName) || IsOptionLike(branchName))
@@ -31,9 +41,45 @@ namespace SourceGit.Commands
             var currentBranch = await ReadCurrentBranchNameAsync(repoPath, cancellationToken).ConfigureAwait(false);
             var isCurrent = string.Equals(currentBranch, branchName, StringComparison.Ordinal);
 
-            var worktreeInfo = await InspectAttachedWorktreeAsync(repoPath, fullRef, cancellationToken).ConfigureAwait(false);
-            if (!isCurrent && worktreeInfo.IsCurrentWorktree)
-                isCurrent = true;
+            var isCheckedOutElsewhere = false;
+            var attachedWtPath = string.Empty;
+            var attachedWtLocked = false;
+            var attachedWtLockReason = string.Empty;
+            var attachedWtPrunable = false;
+            var attachedWtHasChanges = false;
+            var attachedWtPreflight = attachedWorktreeOverride;
+
+            if (attachedWtPreflight != null)
+            {
+                isCheckedOutElsewhere = !attachedWtPreflight.IsMainWorktree;
+                attachedWtPath = attachedWtPreflight.TargetWorktreePath;
+                attachedWtLocked = attachedWtPreflight.IsLocked;
+                attachedWtLockReason = attachedWtPreflight.LockReason;
+                attachedWtPrunable = !string.IsNullOrEmpty(attachedWtPreflight.PrunableReason);
+                attachedWtHasChanges = attachedWtPreflight.RequiresForceToDeleteFiles;
+            }
+            else
+            {
+                var worktreeInfo = await InspectAttachedWorktreeAsync(repoPath, fullRef, cancellationToken).ConfigureAwait(false);
+                if (!isCurrent && worktreeInfo.IsCurrentWorktree)
+                    isCurrent = true;
+
+                if (worktreeInfo.IsCheckedOutElsewhere)
+                {
+                    isCheckedOutElsewhere = true;
+                    attachedWtPath = worktreeInfo.WorktreePath;
+                    attachedWtPreflight = await WorktreeDeletionService.InspectWorktreeAsync(
+                        repoPath,
+                        worktreeInfo.WorktreePath,
+                        probeUpstreamRemote: false,
+                        includeAttachedBranchPreflight: false,
+                        cancellationToken: cancellationToken).ConfigureAwait(false);
+                    attachedWtLocked = attachedWtPreflight.IsLocked;
+                    attachedWtLockReason = attachedWtPreflight.LockReason;
+                    attachedWtPrunable = !string.IsNullOrEmpty(attachedWtPreflight.PrunableReason);
+                    attachedWtHasChanges = attachedWtPreflight.RequiresForceToDeleteFiles;
+                }
+            }
 
             var unmerged = await InspectUnmergedVsHeadAsync(repoPath, fullRef, cancellationToken).ConfigureAwait(false);
             var upstream = await ResolveConfiguredUpstreamAsync(repoPath, branchName, cancellationToken).ConfigureAwait(false);
@@ -57,8 +103,8 @@ namespace SourceGit.Commands
             var blockReason = string.Empty;
             if (isCurrent)
                 blockReason = $"不能直接删除当前检出的分支 '{branchName}'，请先切换到其他分支。";
-            else if (worktreeInfo.IsCheckedOutElsewhere)
-                blockReason = $"分支 '{branchName}' 正在被工作树 '{worktreeInfo.WorktreePath}' 使用，不能直接删除；可先移除该工作树后再删除分支。";
+            else if (isCheckedOutElsewhere)
+                blockReason = $"分支 '{branchName}' 正在被工作树 '{attachedWtPath}' 使用，不能直接删除；可先移除该工作树后再删除分支。";
 
             return new Models.BranchDeletePreflight
             {
@@ -69,12 +115,13 @@ namespace SourceGit.Commands
                 FullRefName = fullRef,
                 TargetTipSha = localTipSha,
                 IsCurrent = isCurrent,
-                IsCheckedOutInOtherWorktree = worktreeInfo.IsCheckedOutElsewhere,
-                AttachedWorktreePath = worktreeInfo.WorktreePath,
-                AttachedWorktreeLocked = worktreeInfo.IsLocked,
-                AttachedWorktreeLockReason = worktreeInfo.LockReason,
-                AttachedWorktreePrunable = worktreeInfo.IsPrunable,
-                AttachedWorktreeHasChanges = worktreeInfo.HasChanges,
+                IsCheckedOutInOtherWorktree = isCheckedOutElsewhere,
+                AttachedWorktreePath = attachedWtPath,
+                AttachedWorktreeLocked = attachedWtLocked,
+                AttachedWorktreeLockReason = attachedWtLockReason,
+                AttachedWorktreePrunable = attachedWtPrunable,
+                AttachedWorktreeHasChanges = attachedWtHasChanges,
+                AttachedWorktreePreflight = attachedWtPreflight,
                 IsMergedIntoHead = unmerged.IsMerged,
                 HasUnmergedCommits = !unmerged.IsMerged && unmerged.CommitCount > 0,
                 UnmergedCommitCount = unmerged.CommitCount,
@@ -418,50 +465,99 @@ namespace SourceGit.Commands
             };
             TrySaveJournal(journalStore, journalRecord);
 
-            // Step 1 (optional): Explicitly remove attached worktree first
+            // Step 1 (optional): Explicitly remove attached worktree first through unified WorktreeDeletionService
             var worktreeRemoved = false;
             if (preflight.IsCheckedOutInOtherWorktree && options.DeleteAttachedWorktree)
             {
-                var wtArgs = options.ForceRemoveWorktree
-                    ? new[] { "worktree", "remove", "--force", preflight.AttachedWorktreePath }
-                    : new[] { "worktree", "remove", preflight.AttachedWorktreePath };
-                var wtRes = await Command.RunGitDirectAsync(repoPath, cancellationToken, wtArgs).ConfigureAwait(false);
-                capturingLog.AppendLine($"$ git {string.Join(' ', wtArgs)}");
-                AppendRedactedCommandOutput(capturingLog, wtRes);
+                var wtSteps = new List<Models.WorktreeDeleteStepResult>();
+                var wtMainRoot = !string.IsNullOrWhiteSpace(preflight.AttachedWorktreePreflight?.MainRepoPath)
+                    ? preflight.AttachedWorktreePreflight.MainRepoPath
+                    : repoPath;
+                var wtRes = await WorktreeDeletionService.RemoveWorktreeInLockAsync(
+                    wtMainRoot,
+                    preflight.AttachedWorktreePath,
+                    preflight.AttachedWorktreePreflight,
+                    options.ForceRemoveWorktree,
+                    allowDetachedBackup: false,
+                    options.BeforeWorktreeRemoveAsync,
+                    operationId,
+                    journalRecord,
+                    capturingLog,
+                    wtSteps,
+                    cancellationToken).ConfigureAwait(false);
 
-                if (!wtRes.IsSuccess)
+                foreach (var ws in wtSteps)
                 {
-                    var wtErr = Models.GitConfigSnapshot.RedactText(FirstNonEmpty(wtRes.StdErr, wtRes.StdOut, "移除关联工作树失败。"));
                     steps.Add(new Models.BranchDeleteStepResult
                     {
-                        Step = Models.BranchDeleteStepKind.WorktreeRemove,
-                        Succeeded = false,
-                        Label = $"移除关联工作树失败：{preflight.AttachedWorktreePath}",
-                        Detail = wtErr,
+                        Step = ws.Step == Models.WorktreeDeleteStepKind.DetachedBackupCreate
+                            ? Models.BranchDeleteStepKind.BackupRefCreate
+                            : Models.BranchDeleteStepKind.WorktreeRemove,
+                        Succeeded = ws.Succeeded,
+                        Skipped = ws.Skipped,
+                        Label = ws.Label,
+                        Detail = ws.Detail,
                     });
+                }
 
-                    FinalizeJournalFailure(journalStore, journalRecord, capturingLog, wtErr, string.Empty);
+                if (!wtRes.Succeeded)
+                {
+                    FinalizeJournalFailure(journalStore, journalRecord, capturingLog, wtRes.Summary, wtRes.DetailMessage);
                     return new Models.BranchDeleteOutcome
                     {
                         OperationId = operationId,
                         BranchName = branchName,
                         Succeeded = false,
-                        Summary = $"工作树移除失败，已停止删除分支：{wtErr}",
-                        DetailMessage = wtErr,
+                        BlockedByProtection = wtRes.BlockedByProtection,
+                        BlockedByLock = wtRes.BlockedByLock,
+                        BlockedByNestedRepoOrSubmodule = wtRes.BlockedByNestedRepoOrSubmodule,
+                        BlockedBySnapshot = wtRes.BlockedBySnapshot,
+                        RequiresForceWorktreeConfirmation = wtRes.RequiresForceWorktreeConfirmation,
+                        Summary = $"工作树移除失败，已停止删除分支：{wtRes.Summary}",
+                        DetailMessage = wtRes.DetailMessage,
                         StepResults = steps,
                         OperationRecord = journalRecord,
                     };
                 }
 
                 worktreeRemoved = true;
-                steps.Add(new Models.BranchDeleteStepResult
-                {
-                    Step = Models.BranchDeleteStepKind.WorktreeRemove,
-                    Succeeded = true,
-                    Label = $"已移除关联工作树：{preflight.AttachedWorktreePath}",
-                });
             }
 
+            return await ExecuteLocalBranchAndLinkedRemoteInLockAsync(
+                repoPath,
+                branchName,
+                liveTipSha,
+                preflight,
+                options,
+                confirmedRemoteExists,
+                confirmedExpectedSha,
+                deleteLinkedRemote,
+                operationId,
+                journalStore,
+                journalRecord,
+                steps,
+                capturingLog,
+                worktreeRemoved,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        internal static async Task<Models.BranchDeleteOutcome> ExecuteLocalBranchAndLinkedRemoteInLockAsync(
+            string repoPath,
+            string branchName,
+            string liveTipSha,
+            Models.BranchDeletePreflight preflight,
+            Models.BranchDeleteOptions options,
+            bool? confirmedRemoteExists,
+            string confirmedExpectedSha,
+            bool deleteLinkedRemote,
+            string operationId,
+            Models.OperationJournalStore journalStore,
+            Models.GitOperationRecord journalRecord,
+            List<Models.BranchDeleteStepResult> steps,
+            CapturingCommandLog capturingLog,
+            bool worktreeRemoved,
+            CancellationToken cancellationToken)
+        {
             // Step 2: Create local backup ref before deleting the local branch
             var backupRes = await BackupRefs.CreateAsync(repoPath, operationId, liveTipSha, capturingLog, cancellationToken)
                 .ConfigureAwait(false);
@@ -474,12 +570,17 @@ namespace SourceGit.Commands
                     Label = "创建本地恢复引用失败",
                     Detail = backupRes.Summary,
                 });
-                FinalizeJournalFailure(journalStore, journalRecord, capturingLog, backupRes.Summary, string.Empty);
+                if (worktreeRemoved)
+                    FinalizeJournalPartialSuccess(journalStore, journalRecord, capturingLog, $"工作树已移除，未能创建分支备份引用：{backupRes.Summary}", backupRes.Summary);
+                else
+                    FinalizeJournalFailure(journalStore, journalRecord, capturingLog, backupRes.Summary, string.Empty);
+
                 return new Models.BranchDeleteOutcome
                 {
                     OperationId = operationId,
                     BranchName = branchName,
                     WorktreeRemoved = worktreeRemoved,
+                    IsPartialSuccess = worktreeRemoved,
                     Succeeded = false,
                     Summary = $"未能创建本地恢复引用，已停止删除：{backupRes.Summary}",
                     StepResults = steps,
@@ -536,13 +637,17 @@ namespace SourceGit.Commands
                 var summary = isUnmerged
                     ? $"本地分支 '{branchName}' 包含未合并提交，已按常规检查阻止删除；如需强删请使用“仍然删除（`-D`）”。"
                     : errText;
-                FinalizeJournalFailure(journalStore, journalRecord, capturingLog, summary, errText);
+                if (worktreeRemoved)
+                    FinalizeJournalPartialSuccess(journalStore, journalRecord, capturingLog, $"工作树已移除，本地分支未删除：{summary}", errText);
+                else
+                    FinalizeJournalFailure(journalStore, journalRecord, capturingLog, summary, errText);
 
                 return new Models.BranchDeleteOutcome
                 {
                     OperationId = operationId,
                     BranchName = branchName,
                     WorktreeRemoved = worktreeRemoved,
+                    IsPartialSuccess = worktreeRemoved,
                     RequiresForceLocalConfirmation = isUnmerged,
                     UnmergedCommitCount = unmergedNow.CommitCount,
                     UnmergedChangedFilesCount = unmergedNow.ChangedFilesCount,
@@ -1233,7 +1338,7 @@ namespace SourceGit.Commands
             return (hasMultipleRemotes, true, remoteName, remoteBranchName, trackingRef, redactedUrl, trackingSha);
         }
 
-        private static async Task<(bool IsCurrentWorktree, bool IsCheckedOutElsewhere, string WorktreePath, bool IsLocked, string LockReason, bool IsPrunable, bool HasChanges)> InspectAttachedWorktreeAsync(
+        private static async Task<(bool IsCurrentWorktree, bool IsCheckedOutElsewhere, string WorktreePath)> InspectAttachedWorktreeAsync(
             string repoPath,
             string fullBranchRef,
             CancellationToken cancellationToken)
@@ -1248,22 +1353,13 @@ namespace SourceGit.Commands
                 if (wt.IsBare || !string.Equals(wt.Branch, fullBranchRef, StringComparison.Ordinal))
                     continue;
 
-                var isPrunable = !string.IsNullOrEmpty(wt.PrunableReason);
                 if (string.Equals(NormalizeDirectoryPath(wt.FullPath), normalizedRepo, comparison))
-                    return (true, false, wt.FullPath, wt.IsLocked, wt.LockReason, isPrunable, false);
+                    return (true, false, wt.FullPath);
 
-                var hasChanges = false;
-                if (Directory.Exists(wt.FullPath))
-                {
-                    var st = await Command.RunGitDirectAsync(wt.FullPath, cancellationToken, "status", "--porcelain=v1", "-z")
-                        .ConfigureAwait(false);
-                    hasChanges = st.IsSuccess && !string.IsNullOrEmpty(st.StdOut);
-                }
-
-                return (false, true, wt.FullPath, wt.IsLocked, wt.LockReason, isPrunable, hasChanges);
+                return (false, true, wt.FullPath);
             }
 
-            return (false, false, string.Empty, false, string.Empty, false, false);
+            return (false, false, string.Empty);
         }
 
         private static async Task<(bool IsMerged, int CommitCount, int ChangedFilesCount, List<Models.UnmergedCommitSummary> Commits)> InspectUnmergedVsHeadAsync(
@@ -1344,7 +1440,7 @@ namespace SourceGit.Commands
             return (false, commitCount, changedFilesCount, commits);
         }
 
-        private static async Task<string> ReadCurrentBranchNameAsync(string repoPath, CancellationToken cancellationToken)
+        internal static async Task<string> ReadCurrentBranchNameAsync(string repoPath, CancellationToken cancellationToken)
         {
             var res = await Command.RunGitDirectAsync(repoPath, cancellationToken, "symbolic-ref", "--quiet", "--short", "HEAD")
                 .ConfigureAwait(false);
@@ -1358,7 +1454,7 @@ namespace SourceGit.Commands
             return res.IsSuccess ? res.StdOut.Trim() : string.Empty;
         }
 
-        private static async Task<string> ResolveRefShaAsync(string repoPath, string fullRef, CancellationToken cancellationToken)
+        internal static async Task<string> ResolveRefShaAsync(string repoPath, string fullRef, CancellationToken cancellationToken)
         {
             var res = await Command.RunGitDirectAsync(repoPath, cancellationToken, "rev-parse", "--verify", "--quiet", fullRef)
                 .ConfigureAwait(false);
@@ -1395,7 +1491,7 @@ namespace SourceGit.Commands
             return string.Empty;
         }
 
-        private static void FinalizeJournalSuccess(
+        internal static void FinalizeJournalSuccess(
             Models.OperationJournalStore journalStore,
             Models.GitOperationRecord record,
             CapturingCommandLog log,
@@ -1409,7 +1505,22 @@ namespace SourceGit.Commands
             TrySaveJournal(journalStore, record);
         }
 
-        private static void FinalizeJournalFailure(
+        internal static void FinalizeJournalPartialSuccess(
+            Models.OperationJournalStore journalStore,
+            Models.GitOperationRecord record,
+            CapturingCommandLog log,
+            string summary,
+            string diagnosticDetail)
+        {
+            record.Stage = Models.GitOperationStage.PartialSuccess;
+            record.StepSummary = Models.GitConfigSnapshot.RedactText(summary);
+            record.CommandSummary = log.GetCombinedText();
+            record.DiagnosticDetail = Models.GitConfigSnapshot.RedactText(diagnosticDetail ?? string.Empty);
+            record.IsUnfinishedOnStartup = false;
+            TrySaveJournal(journalStore, record);
+        }
+
+        internal static void FinalizeJournalFailure(
             Models.OperationJournalStore journalStore,
             Models.GitOperationRecord record,
             CapturingCommandLog log,
@@ -1425,12 +1536,12 @@ namespace SourceGit.Commands
             TrySaveJournal(journalStore, record);
         }
 
-        private static void TrySaveJournal(Models.OperationJournalStore journalStore, Models.GitOperationRecord record)
+        internal static void TrySaveJournal(Models.OperationJournalStore journalStore, Models.GitOperationRecord record)
         {
             journalStore?.AppendOrUpdate(record);
         }
 
-        private static void AppendRedactedCommandOutput(Models.ICommandLog log, Command.Result res)
+        internal static void AppendRedactedCommandOutput(Models.ICommandLog log, Command.Result res)
         {
             if (log == null || res == null)
                 return;
@@ -1441,7 +1552,7 @@ namespace SourceGit.Commands
                 log.AppendLine(Models.GitConfigSnapshot.RedactText(res.StdErr.TrimEnd()));
         }
 
-        private static string NormalizeDirectoryPath(string path)
+        internal static string NormalizeDirectoryPath(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
                 return string.Empty;
@@ -1449,17 +1560,17 @@ namespace SourceGit.Commands
             return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path).Replace('\\', '/'));
         }
 
-        private static bool IsOptionLike(string value)
+        internal static bool IsOptionLike(string value)
         {
             return value.TrimStart().StartsWith('-');
         }
 
-        private static string ShortSha(string sha)
+        internal static string ShortSha(string sha)
         {
             return string.IsNullOrEmpty(sha) ? string.Empty : (sha.Length > 8 ? sha[..8] : sha);
         }
 
-        private static string FirstNonEmpty(params string[] candidates)
+        internal static string FirstNonEmpty(params string[] candidates)
         {
             foreach (var c in candidates)
             {

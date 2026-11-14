@@ -222,3 +222,10 @@
 - 同步修正 `tests/GitNest.IntegrationTests/BranchDeleteTests.cs:328` 哈希断言命令为 `rev-parse --verify`，补充 `en_US.axaml`/`zh_CN.axaml` 双语词条（`en=1361 zh=1361 diff=0`）及 `tests/GitNest.UIProbe/BranchDeleteProbe.cs`（接入 `-BranchDelete`）。
 - 末次代码改动后验证：`.\build\scripts\build-gitnest.ps1 -Publish`（`0` 警告 `0` 错误，生成 `artifacts/windows-x64/GitNest.exe`）、`.\build\scripts\test-gitnest.ps1`（**191 / 191** 通过）与 `.\build\scripts\probe-gitnest.ps1 -BranchDelete`（**13 / 13** 通过并逐张核对 `artifacts/probes/phase-3.2/` 下 4 张浅色/暗黑/窄窗截图；详情见 [phase-3.2.md](verification/phase-3.2.md)）。
 - 批次 3.2（3.2a / 3.2b）全部完成，接续进入批次 3.3（工作树检查、删除与任务清理编排）。
+
+## 2026-11-14 · 批次 3.3a：工作树预检引擎、锁定/嵌套/忽略保护、detached 备份与统一三步清理编排
+
+- 前一批提交：`3bac421e`（批次 3.2b：原生分支删除交互弹窗、工作树顺序清理入口、双语词条与 UI 探针验收）。
+- 新增 `src/Models/WorktreeDeletionModels.cs` 与 `src/Commands/WorktreeDeletionService.cs`，重构 `src/Models/BranchDeletionModels.cs` 与 `src/Commands/BranchDeletionService.cs` 消除工作树与分支双入口重复路径：共同使用单一的工作树多态检查/移除内核与“本地恢复引用 -> `-d`/`-D` -> 冻结 `--force-with-lease`”分支删除内核；覆盖主工作树保护、`.gitignore` 忽略文件防静默删除、`StateDigest` 内容变化防漂移、锁定阻断与 `UnlockWorktreeAsync`、子模块/嵌套 `.git` 仓库强删阻断、detached HEAD 删前恢复引用及 dry-run `PreviewPruneWorktreesAsync` / `PruneWorktreesAsync`。
+- 新增 `tests/GitNest.IntegrationTests/WorktreeDeleteTests.cs`（15 项真实 Git 与多克隆测试）并接入 `Program.cs`；末次代码改动后 `.\build\scripts\build-gitnest.ps1` 构建 `0` 警告 `0` 错误，`.\build\scripts\test-gitnest.ps1` 全量 **206 / 206** 项检查通过（过程与清单见 [phase-3.3.md](verification/phase-3.3.md)）。
+- 下一批次（3.3b）将实现正在打开工作树自动切换主仓关闭视图、原生 `RemoveWorktree` 与 `PruneWorktrees` 对话框及 `-WorktreeDelete` UI 探针截图验收。
