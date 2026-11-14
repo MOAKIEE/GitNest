@@ -107,6 +107,8 @@ namespace SourceGit.Models
             lock (_gate)
             {
                 return _records
+                    .AsEnumerable()
+                    .Reverse()
                     .Where(r => PathsEqual(r.RepositoryCommonDir, normalizedDir))
                     .OrderByDescending(r => r.CreatedAtUtc)
                     .Take(Math.Max(1, maxCount))
@@ -124,7 +126,10 @@ namespace SourceGit.Models
             lock (_gate)
             {
                 return _records
+                    .AsEnumerable()
+                    .Reverse()
                     .Where(r => PathsEqual(r.RepositoryCommonDir, normalizedDir) &&
+                                !r.IsAcknowledged &&
                                 (r.IsUnfinishedOnStartup || RequiresAttentionStage(r.Stage)))
                     .OrderByDescending(r => r.UpdatedAtUtc)
                     .Select(CloneRecord)
@@ -154,7 +159,8 @@ namespace SourceGit.Models
                     if (!PathsEqual(record.RepositoryCommonDir, normalizedDir))
                         continue;
 
-                    if (record.Stage is GitOperationStage.Preparing
+                    if (!record.IsAcknowledged &&
+                        record.Stage is GitOperationStage.Preparing
                         or GitOperationStage.AwaitingConfirmation
                         or GitOperationStage.Executing
                         or GitOperationStage.PendingVerification
@@ -170,7 +176,7 @@ namespace SourceGit.Models
                         }
                     }
 
-                    if (record.IsUnfinishedOnStartup || RequiresAttentionStage(record.Stage))
+                    if (!record.IsAcknowledged && (record.IsUnfinishedOnStartup || RequiresAttentionStage(record.Stage)))
                         flagged.Add(CloneRecord(record));
                 }
 
@@ -256,11 +262,25 @@ namespace SourceGit.Models
                 StepSummary = GitConfigSnapshot.RedactText(src.StepSummary),
                 CommandSummary = GitConfigSnapshot.RedactText(src.CommandSummary),
                 DiagnosticDetail = GitConfigSnapshot.RedactText(src.DiagnosticDetail),
-                CreatedAtUtc = src.CreatedAtUtc == default ? DateTime.UtcNow : src.CreatedAtUtc,
-                UpdatedAtUtc = src.UpdatedAtUtc == default ? DateTime.UtcNow : src.UpdatedAtUtc,
-                CompletedAtUtc = src.CompletedAtUtc,
+                CreatedAtUtc = EnsureUtc(src.CreatedAtUtc, DateTime.UtcNow),
+                UpdatedAtUtc = EnsureUtc(src.UpdatedAtUtc, DateTime.UtcNow),
+                CompletedAtUtc = src.CompletedAtUtc.HasValue ? EnsureUtc(src.CompletedAtUtc.Value, DateTime.UtcNow) : null,
                 IsUnfinishedOnStartup = src.IsUnfinishedOnStartup,
+                IsAcknowledged = src.IsAcknowledged,
                 ReconciliationNote = GitConfigSnapshot.RedactText(src.ReconciliationNote),
+            };
+        }
+
+        private static DateTime EnsureUtc(DateTime value, DateTime fallback)
+        {
+            if (value == default)
+                return fallback;
+
+            return value.Kind switch
+            {
+                DateTimeKind.Utc => value,
+                DateTimeKind.Local => value.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(value, DateTimeKind.Utc),
             };
         }
 

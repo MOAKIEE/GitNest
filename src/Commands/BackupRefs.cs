@@ -404,18 +404,26 @@ namespace SourceGit.Commands
                 cancellationToken,
                 "log",
                 "-g",
-                "-n",
-                "1",
-                "--reverse",
-                "--format=%ct",
+                "--date=unix",
+                "--format=%gd",
                 fullRef).ConfigureAwait(false);
 
             if (!res.IsSuccess || string.IsNullOrWhiteSpace(res.StdOut))
                 return DateTime.MinValue;
 
-            var firstLine = res.StdOut.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-            if (long.TryParse(firstLine, NumberStyles.Integer, CultureInfo.InvariantCulture, out var unix) && unix > 0)
+            // Reflog walks newest-first, so the last entry records initial creation time.
+            var oldestLine = res.StdOut.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+            if (string.IsNullOrEmpty(oldestLine))
+                return DateTime.MinValue;
+
+            var open = oldestLine.LastIndexOf("@{", StringComparison.Ordinal);
+            var close = open >= 0 ? oldestLine.IndexOf('}', open + 2) : -1;
+            if (open >= 0 && close > open + 2 &&
+                long.TryParse(oldestLine.AsSpan(open + 2, close - (open + 2)), NumberStyles.Integer, CultureInfo.InvariantCulture, out var unix) &&
+                unix > 0)
+            {
                 return DateTimeOffset.FromUnixTimeSeconds(unix).UtcDateTime;
+            }
 
             return DateTime.MinValue;
         }

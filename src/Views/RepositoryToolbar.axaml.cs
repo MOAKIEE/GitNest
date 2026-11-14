@@ -508,7 +508,7 @@ namespace SourceGit.Views
         {
             if (DataContext is ViewModels.Repository repo)
             {
-                await this.ShowDialogAsync(new ViewModels.ViewLogs(repo));
+                await this.ShowDialogAsync(new ViewModels.ViewLogs(repo, focusRecoveryTab: repo.HasPendingRecoveryOperations));
                 e.Handled = true;
             }
         }

@@ -237,7 +237,8 @@ namespace SourceGit.ViewModels
                     ConfirmOverwriteExistingRemoteBranchWithoutUpstream = ConfirmOverwriteExistingRemoteBranchWithoutUpstream,
                 },
                 log,
-                token);
+                token,
+                Models.OperationJournalStore.Instance);
 
             log.Complete();
             _cancellation = null;

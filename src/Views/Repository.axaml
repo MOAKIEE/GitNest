@@ -281,31 +281,72 @@
                     Click="OnAbortInProgress"/>
           </Grid>
 
-          <Border Grid.Row="1" Background="{DynamicResource Brush.SubPanel}" BorderBrush="{DynamicResource Brush.Border0}" BorderThickness="0,0,0,1" Padding="10,5">
-            <Grid ColumnDefinitions="Auto,*,Auto">
-              <Path Grid.Column="0" Width="12" Height="12" Margin="0,0,8,0"
-                    VerticalAlignment="Center"
-                    Fill="{DynamicResource Brush.FG2}"
-                    Data="{StaticResource Icons.Branch}"/>
-              <TextBlock Grid.Column="1"
-                         Text="{Binding StatusSummary}"
-                         FontSize="12"
-                         TextTrimming="CharacterEllipsis"
-                         VerticalAlignment="Center"
-                         ToolTip.Tip="{Binding StatusSummaryDetail}"/>
-              <Button Grid.Column="2"
-                      Classes="flat"
-                      Height="24"
-                      Margin="12,0,0,0"
-                      Padding="10,0"
-                      CornerRadius="4"
-                      FontSize="12"
-                      FontWeight="Normal"
+          <StackPanel Grid.Row="1" Orientation="Vertical">
+            <Border Background="{DynamicResource Brush.SubPanel}" BorderBrush="{DynamicResource Brush.Border0}" BorderThickness="0,0,0,1" Padding="10,5">
+              <Grid ColumnDefinitions="Auto,*,Auto">
+                <Path Grid.Column="0" Width="12" Height="12" Margin="0,0,8,0"
                       VerticalAlignment="Center"
-                      Content="{DynamicResource Text.Repository.ViewChanges}"
-                      Command="{Binding ShowChanges}"/>
-            </Grid>
-          </Border>
+                      Fill="{DynamicResource Brush.FG2}"
+                      Data="{StaticResource Icons.Branch}"/>
+                <TextBlock Grid.Column="1"
+                           Text="{Binding StatusSummary}"
+                           FontSize="12"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"
+                           ToolTip.Tip="{Binding StatusSummaryDetail}"/>
+                <Button Grid.Column="2"
+                        Classes="flat"
+                        Height="24"
+                        Margin="12,0,0,0"
+                        Padding="10,0"
+                        CornerRadius="4"
+                        FontSize="12"
+                        FontWeight="Normal"
+                        VerticalAlignment="Center"
+                        Content="{DynamicResource Text.Repository.ViewChanges}"
+                        Command="{Binding ShowChanges}"/>
+              </Grid>
+            </Border>
+
+            <Border Background="#22FF8C00"
+                    BorderBrush="{DynamicResource Brush.Border0}"
+                    BorderThickness="0,0,0,1"
+                    Padding="10,5"
+                    IsVisible="{Binding ShowPendingRecoveryBanner, Mode=OneWay}">
+              <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                <Path Grid.Column="0" Width="13" Height="13" Margin="0,0,8,0"
+                      VerticalAlignment="Center"
+                      Fill="DarkOrange"
+                      Data="{StaticResource Icons.Info}"/>
+                <TextBlock Grid.Column="1"
+                           Text="{Binding PendingRecoverySummary, Mode=OneWay}"
+                           FontSize="12"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{Binding PendingRecoverySummary, Mode=OneWay}"/>
+                <Button Grid.Column="2"
+                        Classes="flat primary"
+                        Height="24"
+                        Margin="12,0,0,0"
+                        Padding="10,0"
+                        CornerRadius="4"
+                        FontSize="12"
+                        VerticalAlignment="Center"
+                        Content="{DynamicResource Text.OperationRecovery.BannerOpen}"
+                        Click="OnOpenRecoveryLogs"/>
+                <Button Grid.Column="3"
+                        Classes="flat"
+                        Height="24"
+                        Margin="6,0,0,0"
+                        Padding="10,0"
+                        CornerRadius="4"
+                        FontSize="12"
+                        VerticalAlignment="Center"
+                        Content="{DynamicResource Text.OperationRecovery.BannerDismiss}"
+                        Click="OnDismissRecoveryBanner"/>
+              </Grid>
+            </Border>
+          </StackPanel>
 
           <!-- Main Body -->
           <Grid Grid.Row="2" Background="{DynamicResource Brush.Window}">

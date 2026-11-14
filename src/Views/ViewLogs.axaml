@@ -5,16 +5,17 @@
                     xmlns:vm="using:SourceGit.ViewModels"
                     xmlns:v="using:SourceGit.Views"
                     xmlns:c="using:SourceGit.Converters"
-                    mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+                    mc:Ignorable="d" d:DesignWidth="920" d:DesignHeight="600"
                     x:Class="SourceGit.Views.ViewLogs"
                     x:DataType="vm:ViewLogs"
                     x:Name="ThisControl"
                     Title="{DynamicResource Text.ViewLogs}"
                     Icon="/App.ico"
-                    Width="800" Height="500"
+                    Width="920" Height="600"
+                    MinWidth="740" MinHeight="480"
                     CanResize="True"
                     WindowStartupLocation="CenterOwner">
-  <Grid RowDefinitions="Auto,*,Auto">
+  <Grid RowDefinitions="Auto,Auto,*">
     <!-- TitleBar -->
     <Grid Grid.Row="0" Height="28" IsVisible="{Binding !#ThisControl.UseSystemWindowFrame}">
       <Border Background="{DynamicResource Brush.TitleBar}"
@@ -37,8 +38,420 @@
                         IsVisible="{OnPlatform True, macOS=False}"/>
     </Grid>
 
-    <!-- Body -->
-    <Grid Grid.Row="1" Margin="8">
+    <!-- Tab Bar & Header Actions -->
+    <Border Grid.Row="1"
+            Background="{DynamicResource Brush.SubPanel}"
+            BorderThickness="0,0,0,1"
+            BorderBrush="{DynamicResource Brush.Border0}"
+            Padding="8,6">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <Border Grid.Column="0"
+                Background="{DynamicResource Brush.Contents}"
+                BorderBrush="{DynamicResource Brush.Border2}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="2">
+          <StackPanel Orientation="Horizontal" Spacing="2">
+            <Button Classes="flat"
+                    Classes.primary="{Binding IsOperationsTabActive, Mode=OneWay}"
+                    Height="26"
+                    Padding="12,0"
+                    FontSize="12"
+                    Content="{DynamicResource Text.ViewLogs.TabOperations}"
+                    Click="OnSelectOperationsTab"/>
+            <Button Classes="flat"
+                    Classes.primary="{Binding IsRawLogsTabActive, Mode=OneWay}"
+                    Height="26"
+                    Padding="12,0"
+                    FontSize="12"
+                    Content="{DynamicResource Text.ViewLogs.TabCommandLogs}"
+                    Click="OnSelectRawLogsTab"/>
+          </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Column="1"
+                    Orientation="Horizontal"
+                    Spacing="12"
+                    Margin="12,0"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding IsOperationsTabActive, Mode=OneWay}">
+          <TextBlock FontSize="12"
+                     Foreground="{DynamicResource Brush.FG1}"
+                     Text="{Binding RepoStateSummary, Mode=OneWay}"
+                     TextTrimming="CharacterEllipsis"
+                     VerticalAlignment="Center"/>
+          <TextBlock FontSize="12"
+                     Foreground="{DynamicResource Brush.FG2}"
+                     Text="{Binding ActiveBackupsSummary, Mode=OneWay}"
+                     VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <StackPanel Grid.Column="2"
+                    Orientation="Horizontal"
+                    Spacing="6"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding IsOperationsTabActive, Mode=OneWay}">
+          <Button Classes="flat"
+                  Height="28"
+                  Padding="10,0"
+                  FontSize="12"
+                  Content="{DynamicResource Text.OperationRecovery.ReconcileAll}"
+                  IsEnabled="{Binding !IsBusy, Mode=OneWay}"
+                  Click="OnReconcileAllOperations"/>
+          <Button Classes="flat"
+                  Height="28"
+                  Padding="10,0"
+                  FontSize="12"
+                  Content="{DynamicResource Text.OperationRecovery.PreviewExpiredBackups}"
+                  IsEnabled="{Binding !IsBusy, Mode=OneWay}"
+                  Click="OnPreviewExpiredBackups"/>
+        </StackPanel>
+
+        <Button Grid.Column="2"
+                Classes="flat primary"
+                Height="28"
+                Padding="12,0"
+                FontSize="12"
+                Content="{DynamicResource Text.ViewLogs.Clear}"
+                IsVisible="{Binding IsRawLogsTabActive, Mode=OneWay}"
+                IsEnabled="{Binding Logs.Count, Converter={x:Static c:IntConverters.IsGreaterThanZero}}"
+                Click="OnClearAllLogs"/>
+      </Grid>
+    </Border>
+
+    <!-- Tab 0: Operations & Recovery -->
+    <Grid Grid.Row="2"
+          Margin="8"
+          RowDefinitions="Auto,Auto,*"
+          IsVisible="{Binding IsOperationsTabActive, Mode=OneWay}">
+      <!-- Feedback Banner -->
+      <Border Grid.Row="0"
+              Margin="0,0,0,8"
+              Padding="10,6"
+              CornerRadius="4"
+              BorderThickness="1"
+              Background="{DynamicResource Brush.Window}"
+              BorderBrush="{DynamicResource Brush.Border2}"
+              IsVisible="{Binding HasFeedbackMessage, Mode=OneWay}">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <Path Grid.Column="0"
+                Width="14" Height="14"
+                Margin="0,0,8,0"
+                VerticalAlignment="Center"
+                Fill="{DynamicResource Brush.Accent}"
+                Data="{StaticResource Icons.CheckCircled}"
+                IsVisible="{Binding !IsFeedbackError, Mode=OneWay}"/>
+          <Path Grid.Column="0"
+                Width="14" Height="14"
+                Margin="0,0,8,0"
+                VerticalAlignment="Center"
+                Fill="{DynamicResource Brush.Conflict}"
+                Data="{StaticResource Icons.Error}"
+                IsVisible="{Binding IsFeedbackError, Mode=OneWay}"/>
+          <TextBlock Grid.Column="1"
+                     FontSize="12"
+                     VerticalAlignment="Center"
+                     Text="{Binding FeedbackMessage, Mode=OneWay}"
+                     TextWrapping="Wrap"/>
+          <Button Grid.Column="2"
+                  Classes="flat"
+                  Height="24"
+                  Padding="8,0"
+                  Margin="8,0,0,0"
+                  FontSize="11"
+                  Content="{DynamicResource Text.WorkingCopy.DismissBanner}"
+                  Click="OnDismissFeedback"/>
+        </Grid>
+      </Border>
+
+      <!-- Expired Backup Prune Confirmation Panel -->
+      <Border Grid.Row="1"
+              Margin="0,0,0,8"
+              Padding="10,8"
+              CornerRadius="4"
+              BorderThickness="1"
+              Background="#1EFF8C00"
+              BorderBrush="{DynamicResource Brush.Border2}"
+              IsVisible="{Binding HasExpiredBackupsToPrune, Mode=OneWay}">
+        <StackPanel Orientation="Vertical" Spacing="6">
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <Path Grid.Column="0" Width="14" Height="14" Margin="0,0,8,0" Fill="DarkOrange" Data="{StaticResource Icons.Clean}"/>
+            <TextBlock Grid.Column="1" Classes="bold" FontSize="12" Text="{DynamicResource Text.OperationRecovery.PrunePanelTitle}" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="2" FontSize="11" Foreground="{DynamicResource Brush.FG2}" Text="{Binding PrunePreviewSummary, Mode=OneWay}" VerticalAlignment="Center"/>
+          </Grid>
+          <TextBox IsReadOnly="True"
+                   AcceptsReturn="True"
+                   FontFamily="{DynamicResource Fonts.Monospace}"
+                   FontSize="11"
+                   MaxHeight="90"
+                   Text="{Binding PruneExpiredListText, Mode=OneWay}"/>
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Button Classes="flat primary"
+                    Height="26" Padding="10,0" FontSize="12"
+                    Content="{DynamicResource Text.OperationRecovery.PruneConfirmBtn}"
+                    IsEnabled="{Binding !IsBusy, Mode=OneWay}"
+                    Click="OnConfirmPruneExpiredBackups"/>
+            <Button Classes="flat"
+                    Height="26" Padding="10,0" FontSize="12"
+                    Content="{DynamicResource Text.OperationRecovery.PruneCancelBtn}"
+                    IsEnabled="{Binding !IsBusy, Mode=OneWay}"
+                    Click="OnCancelPrunePreview"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Operations Split View -->
+      <Grid Grid.Row="2">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="315" MinWidth="250" MaxWidth="460"/>
+          <ColumnDefinition Width="4"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <ListBox Grid.Column="0"
+                 Padding="4"
+                 Background="{DynamicResource Brush.Contents}"
+                 BorderThickness="1"
+                 BorderBrush="{DynamicResource Brush.Border2}"
+                 ItemsSource="{Binding Operations}"
+                 SelectedItem="{Binding SelectedOperation, Mode=TwoWay}"
+                 SelectionMode="Single"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto">
+          <ListBox.Styles>
+            <Style Selector="ListBoxItem">
+              <Setter Property="Margin" Value="0,1"/>
+              <Setter Property="Padding" Value="8,6"/>
+              <Setter Property="MinHeight" Value="52"/>
+              <Setter Property="CornerRadius" Value="4"/>
+            </Style>
+          </ListBox.Styles>
+
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="vm:OperationJournalEntryItem">
+              <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="18,*,Auto">
+                <Path Grid.Row="0" Grid.Column="0" Width="13" Height="13" VerticalAlignment="Center"
+                      Fill="{DynamicResource Brush.Accent}"
+                      Data="{StaticResource Icons.CheckCircled}"
+                      IsVisible="{Binding IsSuccess, Mode=OneWay}"/>
+                <Path Grid.Row="0" Grid.Column="0" Width="13" Height="13" VerticalAlignment="Center"
+                      Fill="{DynamicResource Brush.Conflict}"
+                      Data="{StaticResource Icons.Error}"
+                      IsVisible="{Binding IsFailure, Mode=OneWay}"/>
+                <Path Grid.Row="0" Grid.Column="0" Width="13" Height="13" VerticalAlignment="Center"
+                      Fill="DarkOrange"
+                      Data="{StaticResource Icons.Info}"
+                      IsVisible="{Binding IsWarningIcon, Mode=OneWay}"/>
+
+                <TextBlock Grid.Row="0" Grid.Column="1"
+                           Margin="4,0,6,0"
+                           FontSize="12"
+                           FontWeight="SemiBold"
+                           Text="{Binding Title, Mode=OneWay}"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"/>
+
+                <TextBlock Grid.Row="0" Grid.Column="2"
+                           FontSize="11"
+                           Foreground="{DynamicResource Brush.FG2}"
+                           Text="{Binding TimeDisplay, Mode=OneWay}"
+                           VerticalAlignment="Center"/>
+
+                <Grid Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="4,3,0,0" ColumnDefinitions="Auto,*">
+                  <TextBlock Grid.Column="0"
+                             FontSize="11"
+                             Foreground="{DynamicResource Brush.FG2}"
+                             Text="{Binding StageText, Mode=OneWay}"/>
+                  <TextBlock Grid.Column="1"
+                             Margin="8,0,0,0"
+                             FontSize="11"
+                             Foreground="{DynamicResource Brush.FG2}"
+                             Text="{Binding BranchDisplay, Mode=OneWay}"
+                             TextTrimming="CharacterEllipsis"
+                             HorizontalAlignment="Right"/>
+                </Grid>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <StackPanel Grid.Column="0"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Spacing="8"
+                    Margin="16"
+                    IsVisible="{Binding Operations.Count, Converter={x:Static c:IntConverters.IsZero}}">
+          <Path HorizontalAlignment="Center"
+                Width="40" Height="40"
+                Data="{StaticResource Icons.Empty}"
+                Fill="{DynamicResource Brush.FG2}"/>
+          <TextBlock HorizontalAlignment="Center"
+                     FontSize="12"
+                     Foreground="{DynamicResource Brush.FG2}"
+                     Text="{DynamicResource Text.OperationRecovery.EmptyOperations}"
+                     TextWrapping="Wrap"
+                     TextAlignment="Center"/>
+        </StackPanel>
+
+        <GridSplitter Grid.Column="1"
+                      MinWidth="1"
+                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                      Background="Transparent"
+                      BorderThickness="0"
+                      Focusable="False"/>
+
+        <Border Grid.Column="2"
+                BorderBrush="{DynamicResource Brush.Border2}"
+                BorderThickness="1"
+                Background="{DynamicResource Brush.Contents}">
+          <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="14" Spacing="10" IsVisible="{Binding HasSelectedOperation, Mode=OneWay}">
+              <!-- Operation Title & Status -->
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0"
+                           FontSize="15"
+                           FontWeight="Bold"
+                           Text="{Binding SelectedOperation?.Title, Mode=OneWay}"
+                           TextWrapping="Wrap"/>
+                <Border Grid.Column="1"
+                        Padding="8,3"
+                        CornerRadius="4"
+                        Background="{DynamicResource Brush.SubPanel}"
+                        BorderBrush="{DynamicResource Brush.Border2}"
+                        BorderThickness="1"
+                        VerticalAlignment="Center">
+                  <TextBlock FontSize="11"
+                             FontWeight="SemiBold"
+                             Text="{Binding SelectedOperation?.StageText, Mode=OneWay}"/>
+                </Border>
+              </Grid>
+
+              <!-- Structured Operation Metadata -->
+              <Border Background="{DynamicResource Brush.Window}"
+                      BorderBrush="{DynamicResource Brush.Border2}"
+                      BorderThickness="1"
+                      CornerRadius="4"
+                      Padding="10,8">
+                <StackPanel Spacing="5">
+                  <Grid ColumnDefinitions="120,*">
+                    <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.OperationRecovery.OperationId}"/>
+                    <SelectableTextBlock Grid.Column="1" FontSize="12" FontFamily="{DynamicResource Fonts.Monospace}" Text="{Binding SelectedOperation?.OperationId, Mode=OneWay}"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="120,*">
+                    <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.OperationRecovery.TimeLabel}"/>
+                    <SelectableTextBlock Grid.Column="1" FontSize="12" Text="{Binding SelectedOperation?.FullTimeDisplay, Mode=OneWay}"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="120,*">
+                    <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.OperationRecovery.BranchLabel}"/>
+                    <SelectableTextBlock Grid.Column="1" FontSize="12" Text="{Binding SelectedOperation?.BranchDisplay, Mode=OneWay}"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="120,*">
+                    <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.OperationRecovery.RemoteLabel}"/>
+                    <SelectableTextBlock Grid.Column="1" FontSize="12" Text="{Binding SelectedOperation?.RemoteDisplay, Mode=OneWay}"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="120,*">
+                    <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.OperationRecovery.OriginalTip}"/>
+                    <SelectableTextBlock Grid.Column="1" FontSize="12" FontFamily="{DynamicResource Fonts.Monospace}" Text="{Binding SelectedOperation?.OriginalTipDisplay, Mode=OneWay}"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="120,*">
+                    <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.OperationRecovery.TargetTip}"/>
+                    <SelectableTextBlock Grid.Column="1" FontSize="12" FontFamily="{DynamicResource Fonts.Monospace}" Text="{Binding SelectedOperation?.TargetTipDisplay, Mode=OneWay}"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="120,*">
+                    <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.OperationRecovery.ExpectedRemoteTip}"/>
+                    <SelectableTextBlock Grid.Column="1" FontSize="12" FontFamily="{DynamicResource Fonts.Monospace}" Text="{Binding SelectedOperation?.ExpectedRemoteTipDisplay, Mode=OneWay}"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="120,*">
+                    <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.OperationRecovery.BackupRef}"/>
+                    <SelectableTextBlock Grid.Column="1" FontSize="12" FontFamily="{DynamicResource Fonts.Monospace}" Text="{Binding SelectedOperation?.BackupRefDisplay, Mode=OneWay}" TextWrapping="Wrap"/>
+                  </Grid>
+                </StackPanel>
+              </Border>
+
+              <!-- Summary & Disk Truth Reconciliation -->
+              <Border Background="{DynamicResource Brush.Window}"
+                      BorderBrush="{DynamicResource Brush.Border2}"
+                      BorderThickness="1"
+                      CornerRadius="4"
+                      Padding="10,8">
+                <StackPanel Spacing="6">
+                  <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.OperationRecovery.SummaryLabel}"/>
+                  <SelectableTextBlock FontSize="12" Text="{Binding SelectedOperation?.StepSummary, Mode=OneWay}" TextWrapping="Wrap"/>
+
+                  <StackPanel Spacing="4" Margin="0,4,0,0" IsVisible="{Binding HasSelectedReconciliationNote, Mode=OneWay}">
+                    <Border Height="1" Background="{DynamicResource Brush.Border2}" Margin="0,2"/>
+                    <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="DarkOrange" Text="{DynamicResource Text.OperationRecovery.ReconciliationLabel}"/>
+                    <SelectableTextBlock FontSize="12" Text="{Binding SelectedOperation?.ReconciliationNote, Mode=OneWay}" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <!-- Recovery Action Bar -->
+              <WrapPanel Orientation="Horizontal">
+                <Button Classes="flat primary"
+                        Height="28" Padding="12,0" Margin="0,0,8,6" FontSize="12"
+                        Content="{DynamicResource Text.OperationRecovery.VerifySelected}"
+                        IsEnabled="{Binding !IsBusy, Mode=OneWay}"
+                        Click="OnVerifySelectedOperation"/>
+                <Button Classes="flat"
+                        Height="28" Padding="12,0" Margin="0,0,8,6" FontSize="12"
+                        Content="{DynamicResource Text.OperationRecovery.AcknowledgeSelected}"
+                        IsVisible="{Binding CanAcknowledgeSelectedOperation, Mode=OneWay}"
+                        IsEnabled="{Binding CanAcknowledgeSelectedOperation, Mode=OneWay}"
+                        Click="OnAcknowledgeSelectedOperation"/>
+              </WrapPanel>
+
+              <!-- Restore Branch From Local Backup Ref -->
+              <Border Background="{DynamicResource Brush.SubPanel}"
+                      BorderBrush="{DynamicResource Brush.Border2}"
+                      BorderThickness="1"
+                      CornerRadius="4"
+                      Padding="10,8"
+                      IsVisible="{Binding SelectedOperation?.HasBackupRef, Mode=OneWay, FallbackValue=False}">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBox Grid.Column="0"
+                           Height="28"
+                           Margin="0,0,8,0"
+                           FontSize="12"
+                           Watermark="{DynamicResource Text.OperationRecovery.RestoreBranchWatermark}"
+                           Text="{Binding RestoreTargetBranch, Mode=TwoWay}"/>
+                  <Button Grid.Column="1"
+                          Classes="flat primary"
+                          Height="28" Padding="12,0" FontSize="12"
+                          Content="{DynamicResource Text.OperationRecovery.RestoreBackupBtn}"
+                          IsEnabled="{Binding CanRestoreSelectedBackup, Mode=OneWay}"
+                          Click="OnRestoreSelectedBackup"/>
+                </Grid>
+              </Border>
+
+              <!-- Expandable Redacted Command & Diagnostic Details -->
+              <Expander HorizontalAlignment="Stretch"
+                        IsExpanded="False"
+                        IsVisible="{Binding HasSelectedDiagnostics, Mode=OneWay}">
+                <Expander.Header>
+                  <TextBlock FontSize="12" Text="{DynamicResource Text.OperationRecovery.DiagnosticsExpander}"/>
+                </Expander.Header>
+                <StackPanel Spacing="6" Margin="0,6,0,0">
+                  <TextBox IsReadOnly="True"
+                           AcceptsReturn="True"
+                           FontFamily="{DynamicResource Fonts.Monospace}"
+                           FontSize="11"
+                           MaxHeight="170"
+                           Text="{Binding SelectedOperationDiagnosticText, Mode=OneWay}"/>
+                  <Button Classes="flat"
+                          Height="26" Padding="10,0" FontSize="11"
+                          HorizontalAlignment="Left"
+                          Content="{DynamicResource Text.OperationRecovery.CopyCommandDetails}"
+                          Click="OnCopySelectedDiagnostics"/>
+                </StackPanel>
+              </Expander>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+      </Grid>
+    </Grid>
+
+    <!-- Tab 1: Raw Command Logs -->
+    <Grid Grid.Row="2" Margin="8" IsVisible="{Binding IsRawLogsTabActive, Mode=OneWay}">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="300" MaxWidth="500" MinWidth="250"/>
         <ColumnDefinition Width="4"/>
@@ -130,14 +543,6 @@
                                       HorizontalScrollBarVisibility="Auto"
                                       VerticalScrollBarVisibility="Auto"/>
       </Border>
-    </Grid>
-
-    <Grid Grid.Row="2" Margin="0,0,0,8">
-      <Button Classes="flat primary"
-              Content="{DynamicResource Text.ViewLogs.Clear}"
-              HorizontalAlignment="Center"
-              Command="{Binding ClearAll}"
-              IsEnabled="{Binding Logs.Count, Converter={x:Static c:IntConverters.IsGreaterThanZero}}"/>
     </Grid>
   </Grid>
 </v:ChromelessWindow>

@@ -125,6 +125,40 @@ namespace SourceGit.Commands
             string repoPath,
             Models.CommitExecutionOptions options,
             Models.ICommandLog log = null,
+            CancellationToken cancellationToken = default,
+            Models.OperationJournalStore journalStore = null)
+        {
+            var originalHead = options?.ExpectedSnapshot?.HeadOid;
+            var result = await CommitCoreAsync(repoPath, options, log, cancellationToken).ConfigureAwait(false);
+            if (journalStore != null && result.FailureKind != Models.CommitFailureKind.EmptyMessage)
+            {
+                var stage = result.Succeeded
+                    ? Models.GitOperationStage.Succeeded
+                    : (result.FailureKind == Models.CommitFailureKind.Canceled
+                        ? Models.GitOperationStage.CanceledUncertain
+                        : Models.GitOperationStage.Failed);
+
+                await TryRecordOperationAsync(
+                    repoPath,
+                    journalStore,
+                    Models.GitOperationKind.Commit,
+                    options?.Amend == true ? "修订提交 (Amend)" : "本地提交",
+                    stage,
+                    result.Summary,
+                    branchName: !string.IsNullOrWhiteSpace(result.BranchName) ? result.BranchName : options?.ExpectedSnapshot?.CurrentBranchName,
+                    originalTipSha: originalHead,
+                    targetTipSha: result.CommitSha,
+                    commandSummary: options?.Amend == true ? "git commit --amend" : "git commit",
+                    diagnosticDetail: result.DiagnosticDetail).ConfigureAwait(false);
+            }
+
+            return result;
+        }
+
+        private static async Task<Models.CommitExecutionResult> CommitCoreAsync(
+            string repoPath,
+            Models.CommitExecutionOptions options,
+            Models.ICommandLog log = null,
             CancellationToken cancellationToken = default)
         {
             if (options == null || string.IsNullOrWhiteSpace(options.Message))
@@ -304,6 +338,43 @@ namespace SourceGit.Commands
             bool noTags = false,
             bool force = false,
             Models.ICommandLog log = null,
+            CancellationToken cancellationToken = default,
+            Models.OperationJournalStore journalStore = null)
+        {
+            var result = await FetchCoreAsync(repoPath, remotes, noTags, force, log, cancellationToken).ConfigureAwait(false);
+            if (journalStore != null)
+            {
+                var stage = result.Succeeded
+                    ? Models.GitOperationStage.Succeeded
+                    : (result.Outcome == Models.FetchOutcomeKind.Canceled
+                        ? Models.GitOperationStage.CanceledUncertain
+                        : Models.GitOperationStage.Failed);
+
+                var remoteNames = result.FetchedRemotes is { Count: > 0 }
+                    ? string.Join(", ", result.FetchedRemotes)
+                    : (remotes is { Count: > 0 } ? string.Join(", ", remotes.Where(r => r != null && !string.IsNullOrWhiteSpace(r.Name)).Select(r => r.Name)) : string.Empty);
+
+                await TryRecordOperationAsync(
+                    repoPath,
+                    journalStore,
+                    Models.GitOperationKind.Fetch,
+                    "获取远端更新 (Fetch)",
+                    stage,
+                    result.Summary,
+                    remoteName: remoteNames,
+                    commandSummary: $"git fetch {(noTags ? "--no-tags " : string.Empty)}{(force ? "--force " : string.Empty)}{remoteNames}".Trim(),
+                    diagnosticDetail: result.DiagnosticDetail).ConfigureAwait(false);
+            }
+
+            return result;
+        }
+
+        private static async Task<Models.FetchExecutionResult> FetchCoreAsync(
+            string repoPath,
+            IReadOnlyList<Models.Remote> remotes,
+            bool noTags = false,
+            bool force = false,
+            Models.ICommandLog log = null,
             CancellationToken cancellationToken = default)
         {
             if (remotes == null || remotes.Count == 0)
@@ -411,6 +482,42 @@ namespace SourceGit.Commands
         }
 
         public static async Task<Models.PullExecutionResult> PullFastForwardAsync(
+            string repoPath,
+            Models.Remote remote,
+            string remoteBranchName,
+            Models.ICommandLog log = null,
+            CancellationToken cancellationToken = default,
+            Models.OperationJournalStore journalStore = null)
+        {
+            var result = await PullFastForwardCoreAsync(repoPath, remote, remoteBranchName, log, cancellationToken).ConfigureAwait(false);
+            if (journalStore != null)
+            {
+                var stage = result.Succeeded
+                    ? Models.GitOperationStage.Succeeded
+                    : (result.Outcome == Models.PullOutcomeKind.Canceled
+                        ? Models.GitOperationStage.CanceledUncertain
+                        : Models.GitOperationStage.Failed);
+
+                await TryRecordOperationAsync(
+                    repoPath,
+                    journalStore,
+                    Models.GitOperationKind.Pull,
+                    "快进拉取 (Pull --ff-only)",
+                    stage,
+                    result.Summary,
+                    branchName: result.LocalBranchName,
+                    remoteName: !string.IsNullOrWhiteSpace(result.RemoteName) ? result.RemoteName : remote?.Name,
+                    remoteBranchName: !string.IsNullOrWhiteSpace(result.RemoteBranchName) ? result.RemoteBranchName : remoteBranchName,
+                    originalTipSha: result.BeforeHead,
+                    targetTipSha: result.AfterHead,
+                    commandSummary: $"git pull --ff-only {remote?.Name} {remoteBranchName}".Trim(),
+                    diagnosticDetail: result.DiagnosticDetail).ConfigureAwait(false);
+            }
+
+            return result;
+        }
+
+        private static async Task<Models.PullExecutionResult> PullFastForwardCoreAsync(
             string repoPath,
             Models.Remote remote,
             string remoteBranchName,
@@ -583,6 +690,41 @@ namespace SourceGit.Commands
         }
 
         public static async Task<Models.PushExecutionResult> PushSingleBranchAsync(
+            string repoPath,
+            Models.PushExecutionOptions options,
+            Models.ICommandLog log = null,
+            CancellationToken cancellationToken = default,
+            Models.OperationJournalStore journalStore = null)
+        {
+            var result = await PushSingleBranchCoreAsync(repoPath, options, log, cancellationToken).ConfigureAwait(false);
+            if (journalStore != null)
+            {
+                var stage = result.Succeeded
+                    ? Models.GitOperationStage.Succeeded
+                    : (result.Outcome == Models.PushOutcomeKind.Canceled
+                        ? Models.GitOperationStage.CanceledUncertain
+                        : Models.GitOperationStage.Failed);
+
+                await TryRecordOperationAsync(
+                    repoPath,
+                    journalStore,
+                    Models.GitOperationKind.Push,
+                    "单分支推送 (Push)",
+                    stage,
+                    result.Summary,
+                    branchName: !string.IsNullOrWhiteSpace(result.LocalBranch) ? result.LocalBranch : options?.LocalBranch,
+                    remoteName: !string.IsNullOrWhiteSpace(result.RemoteName) ? result.RemoteName : options?.Remote?.Name,
+                    remoteBranchName: !string.IsNullOrWhiteSpace(result.RemoteBranch) ? result.RemoteBranch : options?.RemoteBranch,
+                    originalTipSha: result.HeadSha,
+                    targetTipSha: result.Succeeded ? result.HeadSha : string.Empty,
+                    commandSummary: $"git push {options?.Remote?.Name} {result.Refspec}".Trim(),
+                    diagnosticDetail: result.DiagnosticDetail).ConfigureAwait(false);
+            }
+
+            return result;
+        }
+
+        private static async Task<Models.PushExecutionResult> PushSingleBranchCoreAsync(
             string repoPath,
             Models.PushExecutionOptions options,
             Models.ICommandLog log = null,
@@ -784,9 +926,10 @@ namespace SourceGit.Commands
             Models.CommitExecutionOptions commitOptions,
             Models.PushExecutionOptions pushOptions,
             Models.ICommandLog log = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            Models.OperationJournalStore journalStore = null)
         {
-            var commitRes = await CommitAsync(repoPath, commitOptions, log, cancellationToken).ConfigureAwait(false);
+            var commitRes = await CommitAsync(repoPath, commitOptions, log, cancellationToken, journalStore).ConfigureAwait(false);
             if (!commitRes.Succeeded)
             {
                 return new Models.CommitAndPushSession
@@ -809,7 +952,7 @@ namespace SourceGit.Commands
                 };
             }
 
-            var pushRes = await PushSingleBranchAsync(repoPath, pushOptions, log, cancellationToken).ConfigureAwait(false);
+            var pushRes = await PushSingleBranchAsync(repoPath, pushOptions, log, cancellationToken, journalStore).ConfigureAwait(false);
             return new Models.CommitAndPushSession
             {
                 RepoPath = repoPath,
@@ -824,13 +967,14 @@ namespace SourceGit.Commands
             Models.CommitAndPushSession session,
             Models.PushExecutionOptions overridePushOptions = null,
             Models.ICommandLog log = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            Models.OperationJournalStore journalStore = null)
         {
             if (session == null || !session.CommitSucceeded)
                 throw new InvalidOperationException("只有本地提交成功后才可仅重试推送。");
 
             var effectivePush = overridePushOptions ?? session.PendingPushOptions;
-            var pushRes = await PushSingleBranchAsync(session.RepoPath, effectivePush, log, cancellationToken).ConfigureAwait(false);
+            var pushRes = await PushSingleBranchAsync(session.RepoPath, effectivePush, log, cancellationToken, journalStore).ConfigureAwait(false);
 
             return new Models.CommitAndPushSession
             {
@@ -1130,6 +1274,52 @@ namespace SourceGit.Commands
             }
 
             return fallback;
+        }
+
+        private static async Task TryRecordOperationAsync(
+            string repoPath,
+            Models.OperationJournalStore journalStore,
+            Models.GitOperationKind kind,
+            string title,
+            Models.GitOperationStage stage,
+            string summary,
+            string branchName = null,
+            string remoteName = null,
+            string remoteBranchName = null,
+            string originalTipSha = null,
+            string targetTipSha = null,
+            string commandSummary = null,
+            string diagnosticDetail = null)
+        {
+            if (journalStore == null || string.IsNullOrWhiteSpace(repoPath))
+                return;
+
+            try
+            {
+                var (_, commonDir) = await Models.RepositoryWriteGuard
+                    .ResolveGitDirectoriesAsync(repoPath, CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                OperationJournalService.RecordCompletedOperation(
+                    repoPath: repoPath,
+                    commonDir: commonDir,
+                    kind: kind,
+                    title: title,
+                    stage: stage,
+                    summary: summary,
+                    commandLogText: commandSummary,
+                    branchName: branchName,
+                    remoteName: remoteName,
+                    remoteBranchName: remoteBranchName,
+                    originalTipSha: originalTipSha,
+                    targetTipSha: targetTipSha,
+                    journalStore: journalStore,
+                    diagnosticDetail: diagnosticDetail);
+            }
+            catch
+            {
+                // Keep sync operations non-fatal if journal persistence fails.
+            }
         }
     }
 }

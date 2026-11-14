@@ -128,7 +128,8 @@ namespace SourceGit.ViewModels
                 _selectedRemote,
                 _selectedBranch.Name,
                 log,
-                token);
+                token,
+                Models.OperationJournalStore.Instance);
 
             log.Complete();
             _cancellation = null;

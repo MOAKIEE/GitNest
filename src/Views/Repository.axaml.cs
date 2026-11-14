@@ -506,6 +506,24 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
+        private async void OnOpenRecoveryLogs(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.Repository repo)
+            {
+                await this.ShowDialogAsync(new ViewModels.ViewLogs(repo, focusRecoveryTab: true));
+                e.Handled = true;
+            }
+        }
+
+        private void OnDismissRecoveryBanner(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.Repository repo)
+            {
+                repo.DismissPendingRecoveryBanner();
+                e.Handled = true;
+            }
+        }
+
         private void OnRightPagePropertyChanged(object sender, AvaloniaPropertyChangedEventArgs e)
         {
             if (e.Property == Control.IsVisibleProperty && sender is Control page)

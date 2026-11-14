@@ -190,6 +190,7 @@ namespace SourceGit.Models
         public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
         public DateTime? CompletedAtUtc { get; set; }
         public bool IsUnfinishedOnStartup { get; set; }
+        public bool IsAcknowledged { get; set; }
         public string ReconciliationNote { get; set; } = string.Empty;
     }
 

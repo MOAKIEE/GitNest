@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,6 +29,8 @@ namespace SourceGit.ViewModels
         {
             get;
         }
+
+        public string GitCommonDir => _gitCommonDir;
 
         public Models.RepositorySettings Settings
         {
@@ -1020,7 +1023,12 @@ namespace SourceGit.ViewModels
             {
                 if (SetProperty(ref _pendingReconciliation, value))
                 {
+                    var key = BuildRecoveryDismissKey(value);
+                    if (string.IsNullOrEmpty(key) || !string.Equals(key, _dismissedRecoveryKey, StringComparison.Ordinal))
+                        _dismissedRecoveryKey = string.Empty;
+
                     OnPropertyChanged(nameof(HasPendingRecoveryOperations));
+                    OnPropertyChanged(nameof(ShowPendingRecoveryBanner));
                     OnPropertyChanged(nameof(PendingRecoverySummary));
                 }
             }
@@ -1028,7 +1036,25 @@ namespace SourceGit.ViewModels
 
         public bool HasPendingRecoveryOperations => _pendingReconciliation is { HasPendingAttention: true };
 
+        public bool ShowPendingRecoveryBanner =>
+            HasPendingRecoveryOperations &&
+            !string.Equals(BuildRecoveryDismissKey(_pendingReconciliation), _dismissedRecoveryKey, StringComparison.Ordinal);
+
         public string PendingRecoverySummary => _pendingReconciliation?.Summary ?? string.Empty;
+
+        public void DismissPendingRecoveryBanner()
+        {
+            _dismissedRecoveryKey = BuildRecoveryDismissKey(_pendingReconciliation);
+            OnPropertyChanged(nameof(ShowPendingRecoveryBanner));
+        }
+
+        private static string BuildRecoveryDismissKey(Models.OperationReconciliationReport report)
+        {
+            if (report is not { HasPendingAttention: true })
+                return string.Empty;
+
+            return string.Join("|", report.UnfinishedRecords.Select(r => $"{r.OperationId}:{r.Stage}"));
+        }
 
         public async Task RefreshRecoveryStatusAsync(Models.OperationJournalStore journalStore = null)
         {
@@ -2154,6 +2180,7 @@ namespace SourceGit.ViewModels
         private string _lastFetchError = string.Empty;
         private DateTime _lastWindowActivationRefreshUtc = DateTime.MinValue;
         private Models.OperationReconciliationReport _pendingReconciliation = null;
+        private string _dismissedRecoveryKey = string.Empty;
 
         private Models.BisectState _bisectState = Models.BisectState.None;
         private bool _isBisectCommandRunning = false;

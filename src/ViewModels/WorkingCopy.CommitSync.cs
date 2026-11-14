@@ -186,7 +186,11 @@ namespace SourceGit.ViewModels
             try
             {
                 var log = _repo.CreateLog("Retry Push");
-                var updated = await Commands.GitSyncService.RetryPushSessionAsync(_activeTwoStepSession, null, log);
+                var updated = await Commands.GitSyncService.RetryPushSessionAsync(
+                    _activeTwoStepSession,
+                    null,
+                    log,
+                    journalStore: Models.OperationJournalStore.Instance);
                 log.Complete();
 
                 ApplyTwoStepSessionState(updated);

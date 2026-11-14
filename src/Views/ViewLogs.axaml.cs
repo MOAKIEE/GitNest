@@ -1,6 +1,7 @@
 using System;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 
 namespace SourceGit.Views
 {
@@ -12,12 +13,125 @@ namespace SourceGit.Views
             InitializeComponent();
         }
 
-        protected override void OnOpened(EventArgs e)
+        protected override async void OnOpened(EventArgs e)
         {
             base.OnOpened(e);
 
-            if (DataContext is ViewModels.ViewLogs vm && vm.Logs.Count > 0)
-                vm.SelectedLog = vm.Logs[0];
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                if (vm.Logs.Count > 0)
+                    vm.SelectedLog = vm.Logs[0];
+
+                await vm.RefreshOperationsAsync(runReconciliation: false);
+            }
+        }
+
+        private void OnSelectOperationsTab(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                vm.SelectTab(0);
+                e.Handled = true;
+            }
+        }
+
+        private void OnSelectRawLogsTab(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                vm.SelectTab(1);
+                e.Handled = true;
+            }
+        }
+
+        private async void OnReconcileAllOperations(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                await vm.RefreshOperationsAsync(runReconciliation: true);
+                e.Handled = true;
+            }
+        }
+
+        private async void OnPreviewExpiredBackups(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                await vm.PreviewExpiredBackupsAsync();
+                e.Handled = true;
+            }
+        }
+
+        private async void OnConfirmPruneExpiredBackups(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                await vm.ConfirmPruneExpiredBackupsAsync();
+                e.Handled = true;
+            }
+        }
+
+        private void OnCancelPrunePreview(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                vm.CancelPrunePreview();
+                e.Handled = true;
+            }
+        }
+
+        private async void OnVerifySelectedOperation(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                await vm.VerifySelectedOperationAsync();
+                e.Handled = true;
+            }
+        }
+
+        private async void OnAcknowledgeSelectedOperation(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                await vm.AcknowledgeSelectedOperationAsync();
+                e.Handled = true;
+            }
+        }
+
+        private async void OnRestoreSelectedBackup(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                await vm.RestoreSelectedBackupAsync();
+                e.Handled = true;
+            }
+        }
+
+        private async void OnCopySelectedDiagnostics(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm && !string.IsNullOrEmpty(vm.SelectedOperationDiagnosticText))
+            {
+                await this.CopyTextAsync(vm.SelectedOperationDiagnosticText);
+                e.Handled = true;
+            }
+        }
+
+        private void OnDismissFeedback(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                vm.DismissFeedback();
+                e.Handled = true;
+            }
+        }
+
+        private void OnClearAllLogs(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                vm.ClearAll();
+                e.Handled = true;
+            }
         }
 
         private void OnLogContextRequested(object sender, ContextRequestedEventArgs e)

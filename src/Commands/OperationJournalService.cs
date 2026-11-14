@@ -212,7 +212,8 @@ namespace SourceGit.Commands
             string targetTipSha = null,
             string expectedRemoteTipSha = null,
             string backupRefName = null,
-            Models.OperationJournalStore journalStore = null)
+            Models.OperationJournalStore journalStore = null,
+            string diagnosticDetail = null)
         {
             var store = journalStore ?? Models.OperationJournalStore.Instance;
             var record = new Models.GitOperationRecord
@@ -232,6 +233,7 @@ namespace SourceGit.Commands
                 Stage = stage,
                 StepSummary = summary ?? string.Empty,
                 CommandSummary = commandLogText ?? string.Empty,
+                DiagnosticDetail = diagnosticDetail ?? string.Empty,
                 CompletedAtUtc = Models.OperationJournalStore.RequiresAttentionStage(stage) ? null : DateTime.UtcNow,
             };
 
@@ -373,6 +375,7 @@ namespace SourceGit.Commands
             if (markResolved)
             {
                 record.IsUnfinishedOnStartup = false;
+                record.IsAcknowledged = true;
                 if (record.Stage is Models.GitOperationStage.PendingVerification or Models.GitOperationStage.CanceledUncertain)
                 {
                     record.Stage = !string.IsNullOrEmpty(record.TargetTipSha) && string.Equals(branchTip, record.TargetTipSha, StringComparison.Ordinal)

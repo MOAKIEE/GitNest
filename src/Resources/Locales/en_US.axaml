@@ -1309,4 +1309,44 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.WorkingCopy.RetryPushOnly" xml:space="preserve">RETRY PUSH ONLY</x:String>
   <x:String x:Key="Text.WorkingCopy.OpenPushPopup" xml:space="preserve">PUSH OPTIONS...</x:String>
   <x:String x:Key="Text.WorkingCopy.DismissBanner" xml:space="preserve">Dismiss</x:String>
+
+  <x:String x:Key="Text.ViewLogs.TabOperations" xml:space="preserve">Operations &amp; Recovery</x:String>
+  <x:String x:Key="Text.ViewLogs.TabCommandLogs" xml:space="preserve">Raw Command Logs</x:String>
+  <x:String x:Key="Text.OperationRecovery.BannerOpen" xml:space="preserve">REVIEW &amp; RECOVER</x:String>
+  <x:String x:Key="Text.OperationRecovery.BannerDismiss" xml:space="preserve">Dismiss</x:String>
+  <x:String x:Key="Text.OperationRecovery.CurrentRepoState" xml:space="preserve">Current HEAD: {0} ({1})</x:String>
+  <x:String x:Key="Text.OperationRecovery.ActiveBackupsCount" xml:space="preserve">Local backup refs: {0}</x:String>
+  <x:String x:Key="Text.OperationRecovery.ReconcileAll" xml:space="preserve">Verify All</x:String>
+  <x:String x:Key="Text.OperationRecovery.PreviewExpiredBackups" xml:space="preserve">Prune Expired Backups</x:String>
+  <x:String x:Key="Text.OperationRecovery.EmptyOperations" xml:space="preserve">No recorded operations for this repository yet.</x:String>
+  <x:String x:Key="Text.OperationRecovery.OperationId" xml:space="preserve">Operation ID</x:String>
+  <x:String x:Key="Text.OperationRecovery.TimeLabel" xml:space="preserve">Timestamp</x:String>
+  <x:String x:Key="Text.OperationRecovery.BranchLabel" xml:space="preserve">Branch</x:String>
+  <x:String x:Key="Text.OperationRecovery.RemoteLabel" xml:space="preserve">Remote Target</x:String>
+  <x:String x:Key="Text.OperationRecovery.OriginalTip" xml:space="preserve">Original Tip</x:String>
+  <x:String x:Key="Text.OperationRecovery.TargetTip" xml:space="preserve">Target / Result Tip</x:String>
+  <x:String x:Key="Text.OperationRecovery.ExpectedRemoteTip" xml:space="preserve">Expected Remote Tip</x:String>
+  <x:String x:Key="Text.OperationRecovery.BackupRef" xml:space="preserve">Local Backup Ref</x:String>
+  <x:String x:Key="Text.OperationRecovery.SummaryLabel" xml:space="preserve">Summary</x:String>
+  <x:String x:Key="Text.OperationRecovery.ReconciliationLabel" xml:space="preserve">Disk Truth Check</x:String>
+  <x:String x:Key="Text.OperationRecovery.VerifySelected" xml:space="preserve">Verify Current State</x:String>
+  <x:String x:Key="Text.OperationRecovery.AcknowledgeSelected" xml:space="preserve">Mark Resolved</x:String>
+  <x:String x:Key="Text.OperationRecovery.RestoreBranchWatermark" xml:space="preserve">Target branch name to restore</x:String>
+  <x:String x:Key="Text.OperationRecovery.RestoreBackupBtn" xml:space="preserve">Restore Branch</x:String>
+  <x:String x:Key="Text.OperationRecovery.DiagnosticsExpander" xml:space="preserve">Redacted Command &amp; Diagnostic Details</x:String>
+  <x:String x:Key="Text.OperationRecovery.CopyCommandDetails" xml:space="preserve">Copy Redacted Details</x:String>
+  <x:String x:Key="Text.OperationRecovery.PrunePanelTitle" xml:space="preserve">Expired Local Backup Refs (&gt;30 Days) — Confirm Deletion</x:String>
+  <x:String x:Key="Text.OperationRecovery.PruneConfirmBtn" xml:space="preserve">Confirm Prune</x:String>
+  <x:String x:Key="Text.OperationRecovery.PruneCancelBtn" xml:space="preserve">Cancel</x:String>
+  <x:String x:Key="Text.OperationRecovery.NoExpiredBackups" xml:space="preserve">No local backup refs have exceeded the 30-day retention period.</x:String>
+  <x:String x:Key="Text.OperationRecovery.VerifyCompleted" xml:space="preserve">Verified operation against live Git repository state.</x:String>
+  <x:String x:Key="Text.OperationRecovery.AcknowledgeCompleted" xml:space="preserve">Operation state confirmed and startup alert cleared.</x:String>
+  <x:String x:Key="Text.OperationRecovery.Stage.Preparing" xml:space="preserve">Preparing</x:String>
+  <x:String x:Key="Text.OperationRecovery.Stage.AwaitingConfirmation" xml:space="preserve">Awaiting Confirmation</x:String>
+  <x:String x:Key="Text.OperationRecovery.Stage.Executing" xml:space="preserve">In Progress</x:String>
+  <x:String x:Key="Text.OperationRecovery.Stage.PendingVerification" xml:space="preserve">Interrupted · Verify State</x:String>
+  <x:String x:Key="Text.OperationRecovery.Stage.CanceledUncertain" xml:space="preserve">Canceled · State Uncertain</x:String>
+  <x:String x:Key="Text.OperationRecovery.Stage.PartialSuccess" xml:space="preserve">Partial Success</x:String>
+  <x:String x:Key="Text.OperationRecovery.Stage.Failed" xml:space="preserve">Failed</x:String>
+  <x:String x:Key="Text.OperationRecovery.Stage.Succeeded" xml:space="preserve">Succeeded</x:String>
 </ResourceDictionary>

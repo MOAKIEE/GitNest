@@ -57,6 +57,10 @@ internal static partial class Program
             {
                 RunCommitSync();
             }
+            else if (args.Contains("--operation-recovery"))
+            {
+                RunOperationRecovery();
+            }
             else
             {
                 RunOverview();
@@ -246,5 +250,6 @@ internal static partial class Program
     static partial void RunComparison();
     static partial void RunConfig();
     static partial void RunCommitSync();
+    static partial void RunOperationRecovery();
 
 }

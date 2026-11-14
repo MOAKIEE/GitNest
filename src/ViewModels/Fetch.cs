@@ -85,7 +85,7 @@ namespace SourceGit.ViewModels
             if (FetchAllRemotes)
             {
                 var targets = _repo.Remotes;
-                var res = await Commands.GitSyncService.FetchAsync(_repo.FullPath, targets, notags, force, log, token);
+                var res = await Commands.GitSyncService.FetchAsync(_repo.FullPath, targets, notags, force, log, token, Models.OperationJournalStore.Instance);
                 log.Complete();
                 _repo.MarkFetchResult(res);
 
@@ -103,7 +103,7 @@ namespace SourceGit.ViewModels
             }
             else
             {
-                var res = await Commands.GitSyncService.FetchAsync(_repo.FullPath, [SelectedRemote], notags, force, log, token);
+                var res = await Commands.GitSyncService.FetchAsync(_repo.FullPath, [SelectedRemote], notags, force, log, token, Models.OperationJournalStore.Instance);
                 log.Complete();
                 _repo.MarkFetchResult(res);
 

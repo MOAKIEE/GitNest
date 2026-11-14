@@ -224,14 +224,32 @@ internal static partial class Program
         await GitAsync(realGit, "-C", oldCommitEnvDir, "config", "--local", "user.email", "old@example.invalid");
         File.WriteAllText(Path.Combine(oldCommitEnvDir, "old.txt"), "old\n", utf8NoBom);
         await GitAsync(realGit, "-C", oldCommitEnvDir, "add", "old.txt");
-        await GitAsync(realGit, "-C", oldCommitEnvDir,
-            "-c", "user.name=Old Author",
-            "commit", "--date=2025-01-01T00:00:00Z", "-m", "old commit date");
+        var oldCommitStartInfo = new System.Diagnostics.ProcessStartInfo(realGit)
+        {
+            WorkingDirectory = oldCommitEnvDir,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        oldCommitStartInfo.Environment["GIT_AUTHOR_DATE"] = "2025-01-01T00:00:00Z";
+        oldCommitStartInfo.Environment["GIT_COMMITTER_DATE"] = "2025-01-01T00:00:00Z";
+        oldCommitStartInfo.ArgumentList.Add("commit");
+        oldCommitStartInfo.ArgumentList.Add("-m");
+        oldCommitStartInfo.ArgumentList.Add("old commit date");
+        using (var proc = System.Diagnostics.Process.Start(oldCommitStartInfo)!)
+        {
+            var err = await proc.StandardError.ReadToEndAsync();
+            await proc.WaitForExitAsync();
+            if (proc.ExitCode != 0)
+                throw new InvalidOperationException("Old commit fixture failed: " + err);
+        }
         var oldCommitSha = (await GitAsync(realGit, "-C", oldCommitEnvDir, "rev-parse", "HEAD")).Trim();
         await GitAsync(realGit, "-C", oldCommitEnvDir, "checkout", "--detach", oldCommitSha);
         var detachedBackup = await BackupRefs.CreateAsync(oldCommitEnvDir, "20261114-detached-1", "HEAD");
 
-        var freshPreview = await BackupRefs.PreviewExpiredAsync(oldCommitEnvDir, 30, journal);
+        var emptyJournal = new OperationJournalStore(Path.Combine(suiteRoot, "empty-journal.json"));
+        var freshPreview = await BackupRefs.PreviewExpiredAsync(oldCommitEnvDir, 30, emptyJournal);
         Check(detachedBackup.Succeeded &&
               freshPreview.ExpiredBackups.Count == 0 &&
               freshPreview.RetainedBackups.Count == 1 &&
@@ -319,5 +337,41 @@ internal static partial class Program
         var vmRepo = new SourceGit.ViewModels.Repository(false, oldCommitEnvDir, Path.Combine(oldCommitEnvDir, ".git"));
         Check(string.IsNullOrEmpty(vmRepo.LastFetchDisplayTime),
             "Repository reports empty LastFetchDisplayTime when never fetched rather than fabricating open time");
+
+        // 6. Verify GitSyncService records journal entries only when explicit journalStore is provided
+        var countBeforeNullCommit = reloadedStore.GetByRepository(repoCommonDir).Count;
+        File.WriteAllText(Path.Combine(repoDir, "sync-silent.txt"), "silent\n", utf8NoBom);
+        await GitAsync(realGit, "-C", repoDir, "add", "sync-silent.txt");
+        var snapBeforeSilent = await QueryStagedSnapshot.CaptureAsync(repoDir);
+        var silentCommitRes = await GitSyncService.CommitAsync(
+            repoDir,
+            new CommitExecutionOptions
+            {
+                Message = "commit without explicit journal store",
+                ExpectedSnapshot = snapBeforeSilent,
+            });
+        var countAfterNullCommit = reloadedStore.GetByRepository(repoCommonDir).Count;
+        Check(silentCommitRes.Succeeded && countAfterNullCommit == countBeforeNullCommit,
+            "GitSyncService leaves global/custom OperationJournalStore untouched when journalStore parameter is omitted");
+
+        File.WriteAllText(Path.Combine(repoDir, "sync-recorded.txt"), "recorded\n", utf8NoBom);
+        await GitAsync(realGit, "-C", repoDir, "add", "sync-recorded.txt");
+        var snapBeforeRecorded = await QueryStagedSnapshot.CaptureAsync(repoDir);
+        var recordedCommitRes = await GitSyncService.CommitAsync(
+            repoDir,
+            new CommitExecutionOptions
+            {
+                Message = "commit with explicit journal store",
+                ExpectedSnapshot = snapBeforeRecorded,
+            },
+            journalStore: reloadedStore);
+        var entriesAfterRecorded = reloadedStore.GetByRepository(repoCommonDir);
+        Check(recordedCommitRes.Succeeded &&
+              entriesAfterRecorded.Count == countBeforeNullCommit + 1 &&
+              entriesAfterRecorded[0].Kind == GitOperationKind.Commit &&
+              entriesAfterRecorded[0].Stage == GitOperationStage.Succeeded &&
+              entriesAfterRecorded[0].OriginalTipSha == snapBeforeRecorded.HeadOid &&
+              entriesAfterRecorded[0].TargetTipSha == recordedCommitRes.CommitSha,
+            "GitSyncService records Commit operation tips accurately into injected OperationJournalStore");
     }
 }

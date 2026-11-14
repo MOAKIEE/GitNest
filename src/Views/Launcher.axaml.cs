@@ -105,8 +105,7 @@ namespace SourceGit.Views
                     vm.CommandPalette = null;
                 else if (IsActive && DataContext is ViewModels.Launcher { ActivePage.Data: ViewModels.Repository activeRepo })
                 {
-                    activeRepo.RefreshWorktrees();
-                    activeRepo.RefreshWorkingCopyChanges();
+                    activeRepo.RefreshOnWindowActivated();
                 }
             }
 

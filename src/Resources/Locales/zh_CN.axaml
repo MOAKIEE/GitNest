@@ -1313,4 +1313,44 @@
   <x:String x:Key="Text.WorkingCopy.RetryPushOnly" xml:space="preserve">仅重试推送</x:String>
   <x:String x:Key="Text.WorkingCopy.OpenPushPopup" xml:space="preserve">调整推送目标...</x:String>
   <x:String x:Key="Text.WorkingCopy.DismissBanner" xml:space="preserve">关闭</x:String>
+
+  <x:String x:Key="Text.ViewLogs.TabOperations" xml:space="preserve">最近操作与恢复</x:String>
+  <x:String x:Key="Text.ViewLogs.TabCommandLogs" xml:space="preserve">原始命令日志</x:String>
+  <x:String x:Key="Text.OperationRecovery.BannerOpen" xml:space="preserve">查看与恢复</x:String>
+  <x:String x:Key="Text.OperationRecovery.BannerDismiss" xml:space="preserve">暂不提醒</x:String>
+  <x:String x:Key="Text.OperationRecovery.CurrentRepoState" xml:space="preserve">当前分支：{0} ({1})</x:String>
+  <x:String x:Key="Text.OperationRecovery.ActiveBackupsCount" xml:space="preserve">本地恢复点：{0} 个</x:String>
+  <x:String x:Key="Text.OperationRecovery.ReconcileAll" xml:space="preserve">全部核实</x:String>
+  <x:String x:Key="Text.OperationRecovery.PreviewExpiredBackups" xml:space="preserve">清理过期备份</x:String>
+  <x:String x:Key="Text.OperationRecovery.EmptyOperations" xml:space="preserve">当前仓库暂无可追踪的操作记录。</x:String>
+  <x:String x:Key="Text.OperationRecovery.OperationId" xml:space="preserve">操作编号</x:String>
+  <x:String x:Key="Text.OperationRecovery.TimeLabel" xml:space="preserve">记录时间</x:String>
+  <x:String x:Key="Text.OperationRecovery.BranchLabel" xml:space="preserve">影响分支</x:String>
+  <x:String x:Key="Text.OperationRecovery.RemoteLabel" xml:space="preserve">远端目标</x:String>
+  <x:String x:Key="Text.OperationRecovery.OriginalTip" xml:space="preserve">操作前提交</x:String>
+  <x:String x:Key="Text.OperationRecovery.TargetTip" xml:space="preserve">目标/结果提交</x:String>
+  <x:String x:Key="Text.OperationRecovery.ExpectedRemoteTip" xml:space="preserve">远端预期提交</x:String>
+  <x:String x:Key="Text.OperationRecovery.BackupRef" xml:space="preserve">本地恢复引用</x:String>
+  <x:String x:Key="Text.OperationRecovery.SummaryLabel" xml:space="preserve">操作摘要</x:String>
+  <x:String x:Key="Text.OperationRecovery.ReconciliationLabel" xml:space="preserve">磁盘实测核对</x:String>
+  <x:String x:Key="Text.OperationRecovery.VerifySelected" xml:space="preserve">核实当前状态</x:String>
+  <x:String x:Key="Text.OperationRecovery.AcknowledgeSelected" xml:space="preserve">确认已完成/消除提醒</x:String>
+  <x:String x:Key="Text.OperationRecovery.RestoreBranchWatermark" xml:space="preserve">目标恢复分支名称</x:String>
+  <x:String x:Key="Text.OperationRecovery.RestoreBackupBtn" xml:space="preserve">从备份恢复分支</x:String>
+  <x:String x:Key="Text.OperationRecovery.DiagnosticsExpander" xml:space="preserve">脱敏命令与诊断输出</x:String>
+  <x:String x:Key="Text.OperationRecovery.CopyCommandDetails" xml:space="preserve">复制脱敏详情</x:String>
+  <x:String x:Key="Text.OperationRecovery.PrunePanelTitle" xml:space="preserve">超过 30 天保留期的本地恢复引用 — 请确认后删除</x:String>
+  <x:String x:Key="Text.OperationRecovery.PruneConfirmBtn" xml:space="preserve">确认清理过期备份</x:String>
+  <x:String x:Key="Text.OperationRecovery.PruneCancelBtn" xml:space="preserve">取消</x:String>
+  <x:String x:Key="Text.OperationRecovery.NoExpiredBackups" xml:space="preserve">当前没有超过 30 天保留期的过期本地恢复引用。</x:String>
+  <x:String x:Key="Text.OperationRecovery.VerifyCompleted" xml:space="preserve">已按磁盘真实 Git 状态重新核对当前操作。</x:String>
+  <x:String x:Key="Text.OperationRecovery.AcknowledgeCompleted" xml:space="preserve">已确认操作状态并消除待处理提醒。</x:String>
+  <x:String x:Key="Text.OperationRecovery.Stage.Preparing" xml:space="preserve">准备中</x:String>
+  <x:String x:Key="Text.OperationRecovery.Stage.AwaitingConfirmation" xml:space="preserve">等待确认</x:String>
+  <x:String x:Key="Text.OperationRecovery.Stage.Executing" xml:space="preserve">执行中</x:String>
+  <x:String x:Key="Text.OperationRecovery.Stage.PendingVerification" xml:space="preserve">上次中断 · 待核实</x:String>
+  <x:String x:Key="Text.OperationRecovery.Stage.CanceledUncertain" xml:space="preserve">已取消 · 状态未定</x:String>
+  <x:String x:Key="Text.OperationRecovery.Stage.PartialSuccess" xml:space="preserve">部分完成</x:String>
+  <x:String x:Key="Text.OperationRecovery.Stage.Failed" xml:space="preserve">失败</x:String>
+  <x:String x:Key="Text.OperationRecovery.Stage.Succeeded" xml:space="preserve">已完成</x:String>
 </ResourceDictionary>

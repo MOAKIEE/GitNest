@@ -761,7 +761,8 @@ namespace SourceGit.ViewModels
                         CheckIdentity = true,
                         ExpectedSnapshot = baselineSnapshot,
                     },
-                    log);
+                    log,
+                    journalStore: Models.OperationJournalStore.Instance);
                 log.Complete();
 
                 if (!commitResult.Succeeded)
@@ -808,7 +809,11 @@ namespace SourceGit.ViewModels
                             PendingPushOptions = pushOpts,
                         };
 
-                        var afterPush = await Commands.GitSyncService.RetryPushSessionAsync(session, pushOpts, pushLog);
+                        var afterPush = await Commands.GitSyncService.RetryPushSessionAsync(
+                            session,
+                            pushOpts,
+                            pushLog,
+                            journalStore: Models.OperationJournalStore.Instance);
                         pushLog.Complete();
                         ApplyTwoStepSessionState(afterPush);
 
