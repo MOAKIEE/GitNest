@@ -191,3 +191,10 @@
 - 末次代码修改后全量验证：`.\build\scripts\build-gitnest.ps1 -Publish`（0 警告 0 错误，输出 `artifacts/windows-x64/GitNest.exe`）、`.\build\scripts\test-gitnest.ps1`（155/155 通过）、`.\build\scripts\probe-gitnest.ps1 -CommitSync`（11/11 通过）。
 
 阶段二（批次 2.1～2.5）全部完成；接续进入阶段三（批次 3.1：写操作串行化、确认快照、操作记录与恢复基础）。
+
+## 2026-11-14 · 批次 3.1a：写串行化、确认快照、备份引用与恢复日志引擎
+
+- 新增 `src/Models/OperationSafetyModels.cs`、`src/Models/OperationJournalStore.cs`（注册到 `src/App.JsonCodeGen.cs`）与 `src/Commands/CaptureOperationSnapshot.cs`、`src/Commands/BackupRefs.cs`、`src/Commands/OperationJournalService.cs`，建立统一的“确认快照捕获→锁内执行前多维度复核→脱敏操作日志→本地恢复引用（30 天保留 + 同名分支防覆盖）→重启未完成状态核查”引擎。
+- 修复 `src/Models/Watcher.cs` 对主仓与 linked worktree 下合并/变基/revert/cherry-pick 状态标记的监听遗漏；分离 `src/ViewModels/Repository.cs` 自动获取计时锚点与真实 `_lastFetchTime`，消除从未获取仓库虚构初始获取时间的问题，并增加重开核查与激活刷新接口。
+- 新增 `tests/GitNest.IntegrationTests/OperationSafetyTests.cs` 接入 `Program.cs`；Release 构建 `0` 警告 `0` 错误，`.\build\scripts\test-gitnest.ps1` 全量 **173 / 173** 项检查通过（过程与清单见 [phase-3.1.md](verification/phase-3.1.md)）。
+- 下一批次（3.1b）将在 SourceGit 原生界面中提供“最近操作与恢复”视图、未完成提示横幅、焦点激活刷新与 UI 探针验收。

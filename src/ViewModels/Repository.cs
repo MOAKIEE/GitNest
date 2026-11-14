@@ -474,9 +474,10 @@ namespace SourceGit.ViewModels
             _workingCopy = new WorkingCopy(this) { CommitMessage = _uiStates.LastCommitMessage };
             _stashesPage = new StashesPage(this);
             _selectedViewIndex = Preferences.Instance.ShowLocalChangesByDefault ? 1 : 0;
-            _lastFetchTime = DateTime.Now;
+            _autoFetchAnchorTime = DateTime.Now;
             _autoFetchTimer = new Timer(AutoFetchByTimer, null, 5000, 5000);
             RefreshAll();
+            _ = RefreshRecoveryStatusAsync();
         }
 
         public void Close()
@@ -979,7 +980,9 @@ namespace SourceGit.ViewModels
 
         public void MarkFetched()
         {
-            _lastFetchTime = DateTime.Now;
+            var now = DateTime.Now;
+            _lastFetchTime = now;
+            _autoFetchAnchorTime = now;
             LastFetchFailed = false;
             LastFetchError = string.Empty;
             OnPropertyChanged(nameof(LastFetchDisplayTime));
@@ -992,6 +995,7 @@ namespace SourceGit.ViewModels
             if (result == null)
                 return;
 
+            _autoFetchAnchorTime = DateTime.Now;
             if (result.Succeeded)
             {
                 _lastFetchTime = result.FetchedAtUtc?.LocalDateTime ?? DateTime.Now;
@@ -1007,6 +1011,56 @@ namespace SourceGit.ViewModels
             OnPropertyChanged(nameof(LastFetchDisplayTime));
             OnPropertyChanged(nameof(StatusSummary));
             OnPropertyChanged(nameof(StatusSummaryDetail));
+        }
+
+        public Models.OperationReconciliationReport PendingReconciliation
+        {
+            get => _pendingReconciliation;
+            private set
+            {
+                if (SetProperty(ref _pendingReconciliation, value))
+                {
+                    OnPropertyChanged(nameof(HasPendingRecoveryOperations));
+                    OnPropertyChanged(nameof(PendingRecoverySummary));
+                }
+            }
+        }
+
+        public bool HasPendingRecoveryOperations => _pendingReconciliation is { HasPendingAttention: true };
+
+        public string PendingRecoverySummary => _pendingReconciliation?.Summary ?? string.Empty;
+
+        public async Task RefreshRecoveryStatusAsync(Models.OperationJournalStore journalStore = null)
+        {
+            try
+            {
+                var report = await Commands.OperationJournalService
+                    .ReconcileOnOpenAsync(FullPath, journalStore)
+                    .ConfigureAwait(false);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (!_isTaskOverviewClosed)
+                        PendingReconciliation = report;
+                });
+            }
+            catch
+            {
+                // Keep opening resilient if journal inspection fails.
+            }
+        }
+
+        public void RefreshOnWindowActivated()
+        {
+            var now = DateTime.UtcNow;
+            if ((now - _lastWindowActivationRefreshUtc).TotalSeconds < 1.5)
+                return;
+
+            _lastWindowActivationRefreshUtc = now;
+            RefreshBranches();
+            RefreshWorkingCopyChanges();
+            RefreshWorktrees();
+            RefreshStashes();
+            _ = RefreshRecoveryStatusAsync();
         }
 
         public void NavigateToCommit(string sha, bool isDelayMode = false)
@@ -2024,7 +2078,7 @@ namespace SourceGit.ViewModels
             {
                 if (!Preferences.Instance.EnableAutoFetch || !CanCreatePopup())
                 {
-                    _lastFetchTime = DateTime.Now;
+                    _autoFetchAnchorTime = DateTime.Now;
                     return;
                 }
 
@@ -2033,7 +2087,7 @@ namespace SourceGit.ViewModels
                     return;
 
                 var now = DateTime.Now;
-                var desire = _lastFetchTime.AddMinutes(Preferences.Instance.AutoFetchInterval);
+                var desire = _autoFetchAnchorTime.AddMinutes(Preferences.Instance.AutoFetchInterval);
                 if (desire > now)
                     return;
 
@@ -2094,9 +2148,12 @@ namespace SourceGit.ViewModels
 
         private bool _isAutoFetching = false;
         private Timer _autoFetchTimer = null;
+        private DateTime _autoFetchAnchorTime = DateTime.MinValue;
         private DateTime _lastFetchTime = DateTime.MinValue;
         private bool _lastFetchFailed = false;
         private string _lastFetchError = string.Empty;
+        private DateTime _lastWindowActivationRefreshUtc = DateTime.MinValue;
+        private Models.OperationReconciliationReport _pendingReconciliation = null;
 
         private Models.BisectState _bisectState = Models.BisectState.None;
         private bool _isBisectCommandRunning = false;

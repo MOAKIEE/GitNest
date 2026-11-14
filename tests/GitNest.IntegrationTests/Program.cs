@@ -157,6 +157,7 @@ internal static partial class Program
             await RunComparisonTestsAsync(realGit, root);
             await RunConfigTestsAsync(realGit, root);
             await RunCommitSyncTestsAsync(realGit, root);
+            await RunOperationSafetyTestsAsync(realGit, root);
         }
         finally
         {

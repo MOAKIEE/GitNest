@@ -298,10 +298,13 @@ namespace SourceGit.Models
                     Interlocked.Exchange(ref _updateWC, desired);
                 }
             }
-            else if (name.Equals("MERGE_HEAD", StringComparison.Ordinal) ||
-                name.Equals("AUTO_MERGE", StringComparison.Ordinal))
+            else if (IsOperationStateFile(name))
             {
-                if (_repo.MayHaveSubmodules())
+                var desired = DateTime.Now.AddSeconds(.5).ToFileTime();
+                Interlocked.Exchange(ref _updateBranch, desired);
+                Interlocked.Exchange(ref _updateWC, desired);
+                if (_repo.MayHaveSubmodules() &&
+                    (name.Equals("MERGE_HEAD", StringComparison.Ordinal) || name.Equals("AUTO_MERGE", StringComparison.Ordinal)))
                     Interlocked.Exchange(ref _updateSubmodules, DateTime.Now.AddSeconds(1).ToFileTime());
             }
             else if (name.StartsWith("refs/tags", StringComparison.Ordinal))
@@ -318,9 +321,13 @@ namespace SourceGit.Models
                 name.Equals("BISECT_START", StringComparison.Ordinal) ||
                 name.StartsWith("refs/heads/", StringComparison.Ordinal) ||
                 name.StartsWith("refs/remotes/", StringComparison.Ordinal) ||
-                (name.StartsWith("worktrees/", StringComparison.Ordinal) && name.EndsWith("/HEAD", StringComparison.Ordinal)))
+                (name.StartsWith("worktrees/", StringComparison.Ordinal) &&
+                 (name.EndsWith("/HEAD", StringComparison.Ordinal) || IsOperationStateFile(GetWorktreeRelativeGitPath(name)))))
             {
-                Interlocked.Exchange(ref _updateBranch, DateTime.Now.AddSeconds(.5).ToFileTime());
+                var desired = DateTime.Now.AddSeconds(.5).ToFileTime();
+                Interlocked.Exchange(ref _updateBranch, desired);
+                if (name.StartsWith("worktrees/", StringComparison.Ordinal))
+                    Interlocked.Exchange(ref _updateWC, desired);
             }
             else if (name.Equals("packed-refs", StringComparison.Ordinal))
             {
@@ -342,6 +349,35 @@ namespace SourceGit.Models
             {
                 Interlocked.Exchange(ref _updateWC, DateTime.Now.AddSeconds(1).ToFileTime());
             }
+        }
+
+        public static bool IsOperationStateFile(string relativeGitPath)
+        {
+            if (string.IsNullOrEmpty(relativeGitPath))
+                return false;
+
+            return relativeGitPath.Equals("MERGE_HEAD", StringComparison.Ordinal) ||
+                   relativeGitPath.Equals("AUTO_MERGE", StringComparison.Ordinal) ||
+                   relativeGitPath.Equals("CHERRY_PICK_HEAD", StringComparison.Ordinal) ||
+                   relativeGitPath.Equals("REVERT_HEAD", StringComparison.Ordinal) ||
+                   relativeGitPath.Equals("REBASE_HEAD", StringComparison.Ordinal) ||
+                   relativeGitPath.Equals("BISECT_LOG", StringComparison.Ordinal) ||
+                   relativeGitPath.Equals("rebase-merge", StringComparison.Ordinal) ||
+                   relativeGitPath.StartsWith("rebase-merge/", StringComparison.Ordinal) ||
+                   relativeGitPath.Equals("rebase-apply", StringComparison.Ordinal) ||
+                   relativeGitPath.StartsWith("rebase-apply/", StringComparison.Ordinal);
+        }
+
+        private static string GetWorktreeRelativeGitPath(string worktreeGitPath)
+        {
+            if (string.IsNullOrEmpty(worktreeGitPath) || !worktreeGitPath.StartsWith("worktrees/", StringComparison.Ordinal))
+                return string.Empty;
+
+            var slashAfterName = worktreeGitPath.IndexOf('/', "worktrees/".Length);
+            if (slashAfterName < 0 || slashAfterName + 1 >= worktreeGitPath.Length)
+                return string.Empty;
+
+            return worktreeGitPath.Substring(slashAfterName + 1);
         }
 
         private void HandleWorkingCopyFileChanged(string name, string fullpath)
