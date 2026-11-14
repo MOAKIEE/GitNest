@@ -114,7 +114,12 @@
                 <Path Grid.Column="0" Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,8,0" Data="{StaticResource Icons.Error}" Fill="DarkOrange"/>
                 <TextBlock Grid.Column="1" TextWrapping="Wrap" Text="{Binding WorktreeBlockMessage, Mode=OneWay}"/>
               </Grid>
-              <CheckBox IsChecked="{Binding DeleteWorktree, Mode=TwoWay}"
+              <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding HasAttachedWorktreeDetail, Mode=OneWay}">
+                <Path Grid.Column="0" Width="12" Height="12" VerticalAlignment="Top" Margin="2,3,8,0" Data="{StaticResource Icons.Info}" Fill="DarkOrange"/>
+                <TextBlock Grid.Column="1" FontSize="11" TextWrapping="Wrap" Text="{Binding AttachedWorktreeDetail, Mode=OneWay}"/>
+              </Grid>
+              <CheckBox IsEnabled="{Binding CanCheckDeleteAttachedWorktree, Mode=OneWay}"
+                        IsChecked="{Binding DeleteWorktree, Mode=TwoWay}"
                         Content="{DynamicResource Text.DeleteBranch.DeleteAttachedWorktreeOrder}"/>
               <CheckBox Margin="20,0,0,0"
                         IsChecked="{Binding ForceRemoveWorktree, Mode=TwoWay}"

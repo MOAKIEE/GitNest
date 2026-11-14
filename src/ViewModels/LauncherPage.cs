@@ -93,7 +93,8 @@ namespace SourceGit.ViewModels
                     if (finished)
                     {
                         dump.Cleanup();
-                        Popup = null;
+                        if (Popup == dump)
+                            Popup = null;
                     }
                 }
                 catch (Exception e)

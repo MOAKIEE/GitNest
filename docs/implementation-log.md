@@ -229,3 +229,12 @@
 - 新增 `src/Models/WorktreeDeletionModels.cs` 与 `src/Commands/WorktreeDeletionService.cs`，重构 `src/Models/BranchDeletionModels.cs` 与 `src/Commands/BranchDeletionService.cs` 消除工作树与分支双入口重复路径：共同使用单一的工作树多态检查/移除内核与“本地恢复引用 -> `-d`/`-D` -> 冻结 `--force-with-lease`”分支删除内核；覆盖主工作树保护、`.gitignore` 忽略文件防静默删除、`StateDigest` 内容变化防漂移、锁定阻断与 `UnlockWorktreeAsync`、子模块/嵌套 `.git` 仓库强删阻断、detached HEAD 删前恢复引用及 dry-run `PreviewPruneWorktreesAsync` / `PruneWorktreesAsync`。
 - 新增 `tests/GitNest.IntegrationTests/WorktreeDeleteTests.cs`（15 项真实 Git 与多克隆测试）并接入 `Program.cs`；末次代码改动后 `.\build\scripts\build-gitnest.ps1` 构建 `0` 警告 `0` 错误，`.\build\scripts\test-gitnest.ps1` 全量 **206 / 206** 项检查通过（过程与清单见 [phase-3.3.md](verification/phase-3.3.md)）。
 - 下一批次（3.3b）将实现正在打开工作树自动切换主仓关闭视图、原生 `RemoveWorktree` 与 `PruneWorktrees` 对话框及 `-WorktreeDelete` UI 探针截图验收。
+
+## 2026-11-14 · 批次 3.3b：工作树移除与清理预览原生弹窗、打开视图自动切换及 UI 探针验收
+
+- 前一批提交：`7d03bcf6`（批次 3.3a：工作树预检引擎、锁定/嵌套/忽略保护、detached 备份与统一三步清理编排）。
+- 在 `src/ViewModels/Launcher.cs` 与 `LauncherPage.cs`、`Repository.cs` 新增打开工作树标签页检测与移除前自动切回主仓、转移弹窗进度并关闭原页签能力；在 `src/Views/Repository.axaml` 与 `.axaml.cs` 新增工作树分组标题清理按钮与窄侧栏防重叠布局，开放当前已打开关联工作树菜单移除入口并严格屏蔽主工作树删除。
+- 重构 `src/ViewModels/RemoveWorktree.cs`、`src/Views/RemoveWorktree.axaml`/`.axaml.cs` 与 `PruneWorktrees.cs`/`.axaml`/`.axaml.cs`，并在 `src/ViewModels/DeleteBranch.cs`、`src/Views/DeleteBranch.axaml` 复用 `AttachedWorktreePreflight` 细节检查、工作树视图切换回调与任务概览刷新；新增并校对中英双语词条（`en=1401 zh=1401 diff=0`）。
+- 同步排查并修复截图检查发现的两处问题：`RemoveWorktree.IsLoadingPreflight` 结束时补发 `CanShowForceOption`/`ShowForceLossWarning`/`CanOfferLocalBranchDelete` 等依赖属性变更通知，并用紧凑滚动列表与窄侧栏 `TextTrimming` 消除弹窗内控件裁切与分组计数重叠。
+- 末次代码改动后验证：`.\build\scripts\build-gitnest.ps1 -Publish`（`0` 警告 `0` 错误，生成 `artifacts/windows-x64/GitNest.exe`）、`.\build\scripts\test-gitnest.ps1`（**206 / 206** 通过）、`.\build\scripts\probe-gitnest.ps1 -BranchDelete`（**13 / 13** 通过）与 `.\build\scripts\probe-gitnest.ps1 -WorktreeDelete`（**20 / 20** 通过，并逐张核对 `artifacts/probes/phase-3.3/` 下 4 张浅色/暗黑/窄窗截图；详情见 [phase-3.3.md](verification/phase-3.3.md)）。
+- 批次 3.3（3.3a / 3.3b）全部完成；按用户指示在此阶段停下待命，后续接续批次 3.4（定向合并、revert 及冲突归属检查）。

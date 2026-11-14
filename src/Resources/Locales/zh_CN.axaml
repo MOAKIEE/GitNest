@@ -481,6 +481,9 @@
   <x:String x:Key="Text.DeleteBranch.LoadingPreflight" xml:space="preserve">正在核查分支状态、工作树占用与关联远端...</x:String>
   <x:String x:Key="Text.DeleteBranch.CurrentBlocked" xml:space="preserve">不能直接删除当前检出的分支 '{0}'，请先切换到其他分支。</x:String>
   <x:String x:Key="Text.DeleteBranch.WorktreeBlocked" xml:space="preserve">分支 '{0}' 正在被工作树 '{1}' 使用，禁止直接删除；请先移除该工作树，或勾选下方“先移除关联工作树，再删除本地分支”。</x:String>
+  <x:String x:Key="Text.DeleteBranch.WorktreeLockedBlock" xml:space="preserve">关联工作树已锁定（原因：{0}），禁止在此直接删除；请先在工作树列表中显式解锁后再操作。</x:String>
+  <x:String x:Key="Text.DeleteBranch.WorktreeMissingBlock" xml:space="preserve">关联工作树目录 '{0}' 在磁盘上已缺失，请先使用“清理工作树”清理失效登记后再删除该分支。</x:String>
+  <x:String x:Key="Text.DeleteBranch.WorktreeNestedBlock" xml:space="preserve">关联工作树内存在嵌套 Git 仓库或子模块，已完全阻止直接删除（含 --force）：{0}</x:String>
   <x:String x:Key="Text.DeleteBranch.DeleteAttachedWorktreeOrder" xml:space="preserve">先移除关联工作树，再删除本地分支</x:String>
   <x:String x:Key="Text.DeleteBranch.ForceWorktree" xml:space="preserve">工作树包含未提交改动或已锁定，允许强制移除工作树（--force）</x:String>
   <x:String x:Key="Text.DeleteBranch.WorktreeRemovedNote" xml:space="preserve">关联工作树 '{0}' 已完成移除。</x:String>
@@ -903,6 +906,10 @@
   <x:String x:Key="Text.PruneRemote" xml:space="preserve">清理远程已删除分支</x:String>
   <x:String x:Key="Text.PruneRemote.Target" xml:space="preserve">目标 ：</x:String>
   <x:String x:Key="Text.PruneWorktrees" xml:space="preserve">清理工作树</x:String>
+  <x:String x:Key="Text.PruneWorktrees.CandidatesTitle" xml:space="preserve">将被清理的失效工作树记录：</x:String>
+  <x:String x:Key="Text.PruneWorktrees.ConfirmBtn" xml:space="preserve">确认清理失效记录</x:String>
+  <x:String x:Key="Text.PruneWorktrees.MultiExpireWarning" xml:space="preserve">检测到多条待清理的失效工作树记录；已锁定或磁盘目录仍存在的正常关联工作树会自动保留，不会被本次清理误删。</x:String>
+  <x:String x:Key="Text.PruneWorktrees.RetainedLockedTitle" xml:space="preserve">已锁定并自动保留的记录（不会被清理）：</x:String>
   <x:String x:Key="Text.PruneWorktrees.Tip" xml:space="preserve">清理在`$GIT_COMMON_DIR/worktrees`中的无效工作树信息</x:String>
   <x:String x:Key="Text.Pull" xml:space="preserve">拉取到本机</x:String>
   <x:String x:Key="Text.Pull.Branch" xml:space="preserve">拉取分支 ：</x:String>
@@ -956,8 +963,41 @@
   <x:String x:Key="Text.RemoteCM.Prune" xml:space="preserve">清理远程已删除分支</x:String>
   <x:String x:Key="Text.RemoteCM.SetPushURL" xml:space="preserve">设置独立推送地址...</x:String>
   <x:String x:Key="Text.RemoveWorktree" xml:space="preserve">移除工作树操作确认</x:String>
+  <x:String x:Key="Text.RemoveWorktree.AlsoDeleteLocalBranch" xml:space="preserve">同时删除当前检出的本地分支 '{0}'（仅在工作树移除成功后执行）</x:String>
+  <x:String x:Key="Text.RemoveWorktree.AlsoDeleteRemoteBranch" xml:space="preserve">同时删除关联远端分支 '{0}'（可选，默认不勾选）</x:String>
+  <x:String x:Key="Text.RemoveWorktree.BtnDeleteAll" xml:space="preserve">移除工作树并删本地/远端</x:String>
+  <x:String x:Key="Text.RemoveWorktree.BtnDeleteOnly" xml:space="preserve">移除工作树</x:String>
+  <x:String x:Key="Text.RemoveWorktree.BtnDeleteWithLocal" xml:space="preserve">移除工作树并删本地分支</x:String>
+  <x:String x:Key="Text.RemoveWorktree.BtnForceDelete" xml:space="preserve">强制移除工作树（--force）</x:String>
+  <x:String x:Key="Text.RemoveWorktree.ConfirmUnlockCheck" xml:space="preserve">我已知晓该工作树的锁定原因，并明确确认先执行解锁</x:String>
+  <x:String x:Key="Text.RemoveWorktree.DetachedBackupHint" xml:space="preserve">该工作树当前处于分离头指针（detached HEAD）状态；正式移除前会自动创建保留 30 天的本地恢复引用。</x:String>
+  <x:String x:Key="Text.RemoveWorktree.DirtyAndIgnoredBlockHint" xml:space="preserve">检测到未提交改动、未跟踪文件或被 .gitignore 忽略的文件（如构建产物、本地环境配置），常规删除已阻止；如需一并永久清除工作树目录，请勾选下方二次强删确认。</x:String>
+  <x:String x:Key="Text.RemoveWorktree.ExpandFilesHeader" xml:space="preserve">查看将被删除的工作树文件明细</x:String>
+  <x:String x:Key="Text.RemoveWorktree.FileBreakdownSummary" xml:space="preserve">工作树文件分布：已暂存 {0}、未暂存 {1}、冲突 {2}、未跟踪 {3}、被忽略(.gitignore) {4}</x:String>
+  <x:String x:Key="Text.RemoveWorktree.FollowUpKeepOrForceHint" xml:space="preserve">工作树目录已经移除；您可以就此保留该未合并本地分支，或点击下方按钮显式强制删除（-D，实际删除前同样会自动保存 30 天本地恢复引用）。</x:String>
+  <x:String x:Key="Text.RemoveWorktree.FollowUpUnmergedHeader" xml:space="preserve">工作树已移除，但常规删除（git branch -d）已安全停止：分支 '{0}' 仍有 {1} 个未合并提交：</x:String>
   <x:String x:Key="Text.RemoveWorktree.Force" xml:space="preserve">启用`--force`选项</x:String>
+  <x:String x:Key="Text.RemoveWorktree.ForceDeleteRemainingBranchBtn" xml:space="preserve">仍然强制删除剩余分支（-D）</x:String>
+  <x:String x:Key="Text.RemoveWorktree.ForceLossWarning" xml:space="preserve">警告：不可逆本地数据损失！确认强制移除将直接永久删除目录 '{0}' 及其中的 {1} 个未提交/被忽略文件，不经过回收站且无法撤销。</x:String>
+  <x:String x:Key="Text.RemoveWorktree.ForceOptionLabel" xml:space="preserve">我已知晓以上永久丢失风险，仍显式强制移除该工作树（--force）</x:String>
+  <x:String x:Key="Text.RemoveWorktree.LoadingPreflight" xml:space="preserve">正在核查工作树锁定状态、嵌套仓库/子模块、未提交与被忽略文件及分支同步状态...</x:String>
+  <x:String x:Key="Text.RemoveWorktree.LockReasonEmpty" xml:space="preserve">（未填写锁定原因）</x:String>
+  <x:String x:Key="Text.RemoveWorktree.LockedExplain" xml:space="preserve">已锁定的关联工作树禁止直接删除（包含 --force）。如确需移除，请先勾选下方确认并点击“解锁并重新检查”。</x:String>
+  <x:String x:Key="Text.RemoveWorktree.LockedTitle" xml:space="preserve">该关联工作树处于锁定保护状态</x:String>
+  <x:String x:Key="Text.RemoveWorktree.MissingDirectoryHint" xml:space="preserve">该工作树的磁盘目录已不存在；请使用“清理工作树”预览并清理该失效登记记录（不会误删未缺失或已锁定的工作树）。</x:String>
+  <x:String x:Key="Text.RemoveWorktree.NestedBlockedTitle" xml:space="preserve">已阻止移除：工作树内存在独立嵌套 Git 仓库或子模块（包含强制模式均禁止直接删除）</x:String>
+  <x:String x:Key="Text.RemoveWorktree.OpenPrunePreviewBtn" xml:space="preserve">打开“清理工作树”预览...</x:String>
+  <x:String x:Key="Text.RemoveWorktree.OpenTabWillSwitchHint" xml:space="preserve">该工作树当前正在 GitNest 标签页中打开；移除前会自动切换回主仓库标签页并关闭该工作树页签，防止目录占用。</x:String>
+  <x:String x:Key="Text.RemoveWorktree.OrderedTargetsTitle" xml:space="preserve">确认后将按以下顺序分步执行：</x:String>
+  <x:String x:Key="Text.RemoveWorktree.PathLabel" xml:space="preserve">工作树路径 ：</x:String>
+  <x:String x:Key="Text.RemoveWorktree.PermanentSafetyHint" xml:space="preserve">移除工作树仅删除该工作目录及其 Git 管理链接，不会抹除分支历史提交；未提交改动、未跟踪或被忽略文件均需二次强删确认。</x:String>
+  <x:String x:Key="Text.RemoveWorktree.RefreshPreflightBtn" xml:space="preserve">重新检查</x:String>
+  <x:String x:Key="Text.RemoveWorktree.SyncLabel" xml:space="preserve">同步状态 ：</x:String>
   <x:String x:Key="Text.RemoveWorktree.Target" xml:space="preserve">目标工作树 ：</x:String>
+  <x:String x:Key="Text.RemoveWorktree.TargetStep1Worktree" xml:space="preserve">1. 工作树目录 ：</x:String>
+  <x:String x:Key="Text.RemoveWorktree.TargetStep2Local" xml:space="preserve">2. 本地分支 ：</x:String>
+  <x:String x:Key="Text.RemoveWorktree.TargetStep3Remote" xml:space="preserve">3. 远端分支 ：</x:String>
+  <x:String x:Key="Text.RemoveWorktree.UnlockAndReinspectBtn" xml:space="preserve">解锁并重新检查</x:String>
   <x:String x:Key="Text.RenameBranch" xml:space="preserve">分支重命名</x:String>
   <x:String x:Key="Text.RenameBranch.Name" xml:space="preserve">新的名称 ：</x:String>
   <x:String x:Key="Text.RenameBranch.Name.Placeholder" xml:space="preserve">新的分支名不能与现有分支名相同</x:String>

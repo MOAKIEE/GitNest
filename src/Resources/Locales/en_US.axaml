@@ -477,6 +477,9 @@
   <x:String x:Key="Text.DeleteBranch.LoadingPreflight" xml:space="preserve">Inspecting branch state, linked worktrees, and remote status...</x:String>
   <x:String x:Key="Text.DeleteBranch.CurrentBlocked" xml:space="preserve">Cannot delete the currently checked-out branch '{0}'. Switch to another branch first.</x:String>
   <x:String x:Key="Text.DeleteBranch.WorktreeBlocked" xml:space="preserve">Branch '{0}' is currently checked out by linked worktree '{1}'. Remove that worktree first or check below to clean it before deleting the branch.</x:String>
+  <x:String x:Key="Text.DeleteBranch.WorktreeLockedBlock" xml:space="preserve">Linked worktree is locked (reason: {0}). Unlock it explicitly in the Worktree panel before removing it.</x:String>
+  <x:String x:Key="Text.DeleteBranch.WorktreeMissingBlock" xml:space="preserve">Linked worktree directory '{0}' is missing on disk. Use Prune Worktrees to clean stale records before deleting the branch.</x:String>
+  <x:String x:Key="Text.DeleteBranch.WorktreeNestedBlock" xml:space="preserve">Linked worktree contains nested Git repository or submodule path(s) and cannot be deleted (even with force): {0}</x:String>
   <x:String x:Key="Text.DeleteBranch.DeleteAttachedWorktreeOrder" xml:space="preserve">Remove linked worktree first, then delete local branch</x:String>
   <x:String x:Key="Text.DeleteBranch.ForceWorktree" xml:space="preserve">Allow force removal (--force) because worktree has changes or is locked</x:String>
   <x:String x:Key="Text.DeleteBranch.WorktreeRemovedNote" xml:space="preserve">Linked worktree '{0}' has been removed.</x:String>
@@ -899,6 +902,10 @@
   <x:String x:Key="Text.PruneRemote" xml:space="preserve">Prune Remote</x:String>
   <x:String x:Key="Text.PruneRemote.Target" xml:space="preserve">Target:</x:String>
   <x:String x:Key="Text.PruneWorktrees" xml:space="preserve">Prune Worktrees</x:String>
+  <x:String x:Key="Text.PruneWorktrees.CandidatesTitle" xml:space="preserve">Stale worktree records to remove:</x:String>
+  <x:String x:Key="Text.PruneWorktrees.ConfirmBtn" xml:space="preserve">Confirm Prune Stale Records</x:String>
+  <x:String x:Key="Text.PruneWorktrees.MultiExpireWarning" xml:space="preserve">Multiple stale records detected. Locked or active linked worktrees remain untouched.</x:String>
+  <x:String x:Key="Text.PruneWorktrees.RetainedLockedTitle" xml:space="preserve">Locked records retained (will not be pruned):</x:String>
   <x:String x:Key="Text.PruneWorktrees.Tip" xml:space="preserve">Prune worktree information in `$GIT_COMMON_DIR/worktrees`</x:String>
   <x:String x:Key="Text.Pull" xml:space="preserve">Pull</x:String>
   <x:String x:Key="Text.Pull.Branch" xml:space="preserve">Remote Branch:</x:String>
@@ -952,8 +959,41 @@
   <x:String x:Key="Text.RemoteCM.Prune" xml:space="preserve">Prune</x:String>
   <x:String x:Key="Text.RemoteCM.SetPushURL" xml:space="preserve">Set Push URL...</x:String>
   <x:String x:Key="Text.RemoveWorktree" xml:space="preserve">Confirm to Remove Worktree</x:String>
+  <x:String x:Key="Text.RemoveWorktree.AlsoDeleteLocalBranch" xml:space="preserve">Also delete checked-out local branch '{0}' (only after worktree removal)</x:String>
+  <x:String x:Key="Text.RemoveWorktree.AlsoDeleteRemoteBranch" xml:space="preserve">Also delete configured upstream remote branch '{0}' (optional)</x:String>
+  <x:String x:Key="Text.RemoveWorktree.BtnDeleteAll" xml:space="preserve">Remove Worktree, Local &amp; Remote</x:String>
+  <x:String x:Key="Text.RemoveWorktree.BtnDeleteOnly" xml:space="preserve">Remove Worktree</x:String>
+  <x:String x:Key="Text.RemoveWorktree.BtnDeleteWithLocal" xml:space="preserve">Remove Worktree &amp; Local Branch</x:String>
+  <x:String x:Key="Text.RemoveWorktree.BtnForceDelete" xml:space="preserve">Force Remove Worktree</x:String>
+  <x:String x:Key="Text.RemoveWorktree.ConfirmUnlockCheck" xml:space="preserve">I understand this worktree is locked and explicitly confirm unlocking it</x:String>
+  <x:String x:Key="Text.RemoveWorktree.DetachedBackupHint" xml:space="preserve">This worktree is in detached HEAD state. A local backup ref (30-day retention) will be created automatically before removal.</x:String>
+  <x:String x:Key="Text.RemoveWorktree.DirtyAndIgnoredBlockHint" xml:space="preserve">Uncommitted changes, untracked files, or ignored files (.gitignore) were detected. Regular removal is blocked; check explicit force confirmation below to permanently delete the worktree directory.</x:String>
+  <x:String x:Key="Text.RemoveWorktree.ExpandFilesHeader" xml:space="preserve">Inspect workspace files to be deleted</x:String>
+  <x:String x:Key="Text.RemoveWorktree.FileBreakdownSummary" xml:space="preserve">Detected workspace files — Staged: {0}, Unstaged: {1}, Conflicted: {2}, Untracked: {3}, Ignored: {4}</x:String>
+  <x:String x:Key="Text.RemoveWorktree.FollowUpKeepOrForceHint" xml:space="preserve">The linked worktree directory has been removed. You can stop here and keep the unmerged branch, or explicitly force-delete it (-D; a 30-day backup ref will be created first).</x:String>
+  <x:String x:Key="Text.RemoveWorktree.FollowUpUnmergedHeader" xml:space="preserve">Worktree removed, but regular delete (-d) stopped: branch '{0}' has {1} unmerged commit(s):</x:String>
   <x:String x:Key="Text.RemoveWorktree.Force" xml:space="preserve">Enable `--force` Option</x:String>
+  <x:String x:Key="Text.RemoveWorktree.ForceDeleteRemainingBranchBtn" xml:space="preserve">Force Delete Remaining Branch (-D)</x:String>
+  <x:String x:Key="Text.RemoveWorktree.ForceLossWarning" xml:space="preserve">WARNING: Permanent local data loss! Forcing removal will directly delete directory '{0}' and all {1} listed file(s), including ignored files, without moving them to the Recycle Bin.</x:String>
+  <x:String x:Key="Text.RemoveWorktree.ForceOptionLabel" xml:space="preserve">I understand the permanent data-loss risk and explicitly force remove (--force)</x:String>
+  <x:String x:Key="Text.RemoveWorktree.LoadingPreflight" xml:space="preserve">Inspecting lock status, nested repositories, staged/untracked/ignored files, and branch sync...</x:String>
+  <x:String x:Key="Text.RemoveWorktree.LockReasonEmpty" xml:space="preserve">(No lock reason specified)</x:String>
+  <x:String x:Key="Text.RemoveWorktree.LockedExplain" xml:space="preserve">Locked linked worktrees are protected against deletion (including --force). Check confirmation below and click Unlock &amp; Reinspect first if you still intend to remove it.</x:String>
+  <x:String x:Key="Text.RemoveWorktree.LockedTitle" xml:space="preserve">This linked worktree is locked</x:String>
+  <x:String x:Key="Text.RemoveWorktree.MissingDirectoryHint" xml:space="preserve">This worktree directory no longer exists on disk. Use Prune Worktrees to preview and clean the stale administrative record safely.</x:String>
+  <x:String x:Key="Text.RemoveWorktree.NestedBlockedTitle" xml:space="preserve">Blocked: Nested Git repository or submodule detected (disallowed even with --force)</x:String>
+  <x:String x:Key="Text.RemoveWorktree.OpenPrunePreviewBtn" xml:space="preserve">Open Prune Worktrees Preview...</x:String>
+  <x:String x:Key="Text.RemoveWorktree.OpenTabWillSwitchHint" xml:space="preserve">This worktree is currently open in a GitNest tab. Removing it will automatically switch back to the main repository tab and close this worktree tab first.</x:String>
+  <x:String x:Key="Text.RemoveWorktree.OrderedTargetsTitle" xml:space="preserve">Ordered execution plan upon confirmation:</x:String>
+  <x:String x:Key="Text.RemoveWorktree.PathLabel" xml:space="preserve">Path:</x:String>
+  <x:String x:Key="Text.RemoveWorktree.PermanentSafetyHint" xml:space="preserve">Removing a worktree deletes only that directory and its admin link. Commits on branches stay intact; uncommitted, untracked, and ignored files trigger explicit confirmation.</x:String>
+  <x:String x:Key="Text.RemoveWorktree.RefreshPreflightBtn" xml:space="preserve">Re-inspect</x:String>
+  <x:String x:Key="Text.RemoveWorktree.SyncLabel" xml:space="preserve">Sync Status:</x:String>
   <x:String x:Key="Text.RemoveWorktree.Target" xml:space="preserve">Target:</x:String>
+  <x:String x:Key="Text.RemoveWorktree.TargetStep1Worktree" xml:space="preserve">1. Worktree directory:</x:String>
+  <x:String x:Key="Text.RemoveWorktree.TargetStep2Local" xml:space="preserve">2. Local branch:</x:String>
+  <x:String x:Key="Text.RemoveWorktree.TargetStep3Remote" xml:space="preserve">3. Remote branch:</x:String>
+  <x:String x:Key="Text.RemoveWorktree.UnlockAndReinspectBtn" xml:space="preserve">Unlock &amp; Reinspect</x:String>
   <x:String x:Key="Text.RenameBranch" xml:space="preserve">Rename Branch</x:String>
   <x:String x:Key="Text.RenameBranch.Name" xml:space="preserve">New Name:</x:String>
   <x:String x:Key="Text.RenameBranch.Name.Placeholder" xml:space="preserve">Unique name for this branch</x:String>

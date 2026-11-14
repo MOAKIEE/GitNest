@@ -167,43 +167,44 @@ namespace SourceGit.Views
                 menu.Items.Add(switchTo);
                 menu.Items.Add(new MenuItem() { Header = "-" });
 
-                if (worktree.IsLocked)
+                if (!worktree.IsMain)
                 {
-                    var unlock = new MenuItem();
-                    unlock.Header = App.Text("Worktree.Unlock");
-                    unlock.Icon = this.CreateMenuIcon("Icons.Unlock");
-                    unlock.Click += async (_, ev) =>
+                    if (worktree.IsLocked)
                     {
-                        await repo.UnlockWorktreeAsync(worktree);
-                        ev.Handled = true;
-                    };
-                    menu.Items.Add(unlock);
-                }
-                else
-                {
-                    var loc = new MenuItem();
-                    loc.Header = App.Text("Worktree.Lock");
-                    loc.Icon = this.CreateMenuIcon("Icons.Lock");
-                    loc.IsEnabled = !worktree.IsMain;
-                    loc.Click += async (_, ev) =>
+                        var unlock = new MenuItem();
+                        unlock.Header = App.Text("Worktree.Unlock");
+                        unlock.Icon = this.CreateMenuIcon("Icons.Unlock");
+                        unlock.Click += async (_, ev) =>
+                        {
+                            await repo.UnlockWorktreeAsync(worktree);
+                            ev.Handled = true;
+                        };
+                        menu.Items.Add(unlock);
+                    }
+                    else
                     {
-                        await repo.LockWorktreeAsync(worktree);
-                        ev.Handled = true;
-                    };
-                    menu.Items.Add(loc);
-                }
+                        var loc = new MenuItem();
+                        loc.Header = App.Text("Worktree.Lock");
+                        loc.Icon = this.CreateMenuIcon("Icons.Lock");
+                        loc.Click += async (_, ev) =>
+                        {
+                            await repo.LockWorktreeAsync(worktree);
+                            ev.Handled = true;
+                        };
+                        menu.Items.Add(loc);
+                    }
 
-                var remove = new MenuItem();
-                remove.Header = App.Text("Worktree.Remove");
-                remove.Icon = this.CreateMenuIcon("Icons.Clear");
-                remove.IsEnabled = !worktree.IsCurrent && !worktree.IsMain;
-                remove.Click += (_, ev) =>
-                {
-                    if (repo.CanCreatePopup())
-                        repo.ShowPopup(new ViewModels.RemoveWorktree(repo, worktree));
-                    ev.Handled = true;
-                };
-                menu.Items.Add(remove);
+                    var remove = new MenuItem();
+                    remove.Header = App.Text("Worktree.Remove");
+                    remove.Icon = this.CreateMenuIcon("Icons.Clear");
+                    remove.Click += (_, ev) =>
+                    {
+                        if (repo.CanCreatePopup())
+                            repo.ShowPopup(new ViewModels.RemoveWorktree(repo, worktree));
+                        ev.Handled = true;
+                    };
+                    menu.Items.Add(remove);
+                }
 
                 var copy = new MenuItem();
                 copy.Header = App.Text("Worktree.CopyPath");

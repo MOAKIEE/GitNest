@@ -81,9 +81,56 @@ namespace SourceGit.ViewModels
 
         public bool IsCheckedOutInOtherWorktree => _preflight?.IsCheckedOutInOtherWorktree ?? Target.HasWorktree;
         public string AttachedWorktreePath => _preflight?.AttachedWorktreePath ?? Target.WorktreePath ?? string.Empty;
+        public bool AttachedWorktreeIsLocked =>
+            _preflight?.AttachedWorktreePreflight?.IsLocked ?? (_preflight?.AttachedWorktreeLocked ?? false);
+        public bool AttachedWorktreeHasNestedRepo =>
+            _preflight?.AttachedWorktreePreflight?.HasNestedRepoOrSubmodule ?? false;
+        public bool AttachedWorktreeIsMissing =>
+            _preflight?.AttachedWorktreePreflight?.IsDirectoryMissing ?? false;
+        public bool AttachedWorktreeRequiresForce =>
+            _preflight?.AttachedWorktreePreflight?.RequiresForceToDeleteFiles ?? (_preflight?.AttachedWorktreeHasChanges ?? false);
+        public bool CanCheckDeleteAttachedWorktree =>
+            !AttachedWorktreeIsLocked && !AttachedWorktreeHasNestedRepo && !AttachedWorktreeIsMissing;
+        public string AttachedWorktreeLockReasonDisplay =>
+            string.IsNullOrWhiteSpace(_preflight?.AttachedWorktreePreflight?.LockReason)
+                ? App.Text("RemoveWorktree.LockReasonEmpty")
+                : _preflight.AttachedWorktreePreflight.LockReason;
+        public string AttachedWorktreeNestedPathsDisplay =>
+            _preflight?.AttachedWorktreePreflight is { NestedRepoOrSubmodulePaths.Count: > 0 } aw
+                ? string.Join(Environment.NewLine, aw.NestedRepoOrSubmodulePaths)
+                : string.Empty;
+        public string AttachedWorktreeDetail
+        {
+            get
+            {
+                var aw = _preflight?.AttachedWorktreePreflight;
+                if (aw == null)
+                    return string.Empty;
+                if (aw.IsLocked)
+                    return App.Text("DeleteBranch.WorktreeLockedBlock", AttachedWorktreeLockReasonDisplay);
+                if (aw.HasNestedRepoOrSubmodule)
+                    return App.Text("DeleteBranch.WorktreeNestedBlock", AttachedWorktreeNestedPathsDisplay);
+                if (aw.IsDirectoryMissing)
+                    return App.Text("DeleteBranch.WorktreeMissingBlock", AttachedWorktreePath);
+                if (aw.RequiresForceToDeleteFiles)
+                {
+                    return App.Text(
+                        "RemoveWorktree.FileBreakdownSummary",
+                        aw.StagedFiles.Count,
+                        aw.UnstagedFiles.Count,
+                        aw.ConflictedFiles.Count,
+                        aw.UntrackedFiles.Count,
+                        aw.IgnoredFiles.Count);
+                }
+
+                return string.Empty;
+            }
+        }
+        public bool HasAttachedWorktreeDetail => !string.IsNullOrEmpty(AttachedWorktreeDetail);
         public bool AttachedWorktreeNeedsForceOption =>
             DeleteWorktree &&
-            ((_preflight?.AttachedWorktreeHasChanges ?? false) || (_preflight?.AttachedWorktreeLocked ?? false));
+            CanCheckDeleteAttachedWorktree &&
+            AttachedWorktreeRequiresForce;
         public string WorktreeBlockMessage => IsCheckedOutInOtherWorktree
             ? App.Text("DeleteBranch.WorktreeBlocked", Target.Name, AttachedWorktreePath)
             : string.Empty;
@@ -107,7 +154,11 @@ namespace SourceGit.ViewModels
         public bool ForceRemoveWorktree
         {
             get => _forceRemoveWorktree;
-            set => SetProperty(ref _forceRemoveWorktree, value);
+            set
+            {
+                if (SetProperty(ref _forceRemoveWorktree, value))
+                    NotifyPopupButtonsChanged();
+            }
         }
 
         public string WorktreeRemovedNotice
@@ -330,8 +381,13 @@ namespace SourceGit.ViewModels
                     return false;
                 if (IsLocal && IsCurrent)
                     return false;
-                if (IsLocal && IsCheckedOutInOtherWorktree && !DeleteWorktree)
-                    return false;
+                if (IsLocal && IsCheckedOutInOtherWorktree)
+                {
+                    if (!DeleteWorktree || !CanCheckDeleteAttachedWorktree)
+                        return false;
+                    if (AttachedWorktreeRequiresForce && !ForceRemoveWorktree)
+                        return false;
+                }
                 if (IsLocal && DeleteUpstream && (_remoteProbe == null || !_remoteProbe.QuerySucceeded))
                     return false;
                 if (IsRemote && (_remoteProbe == null || !_remoteProbe.QuerySucceeded))
@@ -384,6 +440,17 @@ namespace SourceGit.ViewModels
                         PruneStaleTrackingCacheWhenRemoteAbsent = DeleteUpstream && HasConfiguredUpstream && _remoteProbe is { QuerySucceeded: true, ExistsOnServer: false },
                         ConfirmedExpectedRemoteTipSha = _remoteProbe?.LiveTipSha,
                         ConfirmedRemoteExistsOnServer = _remoteProbe?.ExistsOnServer,
+                        BeforeWorktreeRemoveAsync = (mainRoot, wtPath, _) =>
+                        {
+                            var switched = App.GetLauncher()?.SwitchAwayAndCloseWorktreeTabs(mainRoot, wtPath, this);
+                            if (switched is { MainRepo: not null } sw)
+                            {
+                                _repo = sw.MainRepo;
+                                _switchedHostPage = sw.MainPage;
+                            }
+
+                            return Task.CompletedTask;
+                        },
                     };
 
                     outcome = await Commands.BranchDeletionService.DeleteLocalBranchAsync(
@@ -412,10 +479,15 @@ namespace SourceGit.ViewModels
                         log).ConfigureAwait(true);
                 }
 
+                if (outcome.WorktreeRemoved)
+                {
+                    _repo.RefreshTaskOverview();
+                    _repo.MarkBranchesDirtyManually();
+                }
+
                 if (outcome.WorktreeRemoved && !outcome.LocalBranchDeleted)
                 {
                     WorktreeRemovedNotice = App.Text("DeleteBranch.WorktreeRemovedNote", AttachedWorktreePath);
-                    _repo.MarkBranchesDirtyManually();
                 }
 
                 if (outcome.RequiresForceLocalConfirmation)
@@ -475,6 +547,8 @@ namespace SourceGit.ViewModels
 
                 _repo.MarkBranchesDirtyManually();
                 _repo.SendNotification(outcome.Summary);
+                if (_switchedHostPage != null && _switchedHostPage.Popup == this)
+                    _switchedHostPage.Popup = null;
                 return true;
             }
             finally
@@ -549,6 +623,15 @@ namespace SourceGit.ViewModels
                 OnPropertyChanged(nameof(TargetTipShortSha));
                 OnPropertyChanged(nameof(IsCheckedOutInOtherWorktree));
                 OnPropertyChanged(nameof(AttachedWorktreePath));
+                OnPropertyChanged(nameof(AttachedWorktreeIsLocked));
+                OnPropertyChanged(nameof(AttachedWorktreeHasNestedRepo));
+                OnPropertyChanged(nameof(AttachedWorktreeIsMissing));
+                OnPropertyChanged(nameof(AttachedWorktreeRequiresForce));
+                OnPropertyChanged(nameof(CanCheckDeleteAttachedWorktree));
+                OnPropertyChanged(nameof(AttachedWorktreeLockReasonDisplay));
+                OnPropertyChanged(nameof(AttachedWorktreeNestedPathsDisplay));
+                OnPropertyChanged(nameof(AttachedWorktreeDetail));
+                OnPropertyChanged(nameof(HasAttachedWorktreeDetail));
                 OnPropertyChanged(nameof(AttachedWorktreeNeedsForceOption));
                 OnPropertyChanged(nameof(WorktreeBlockMessage));
                 OnPropertyChanged(nameof(CurrentBlockMessage));
@@ -635,7 +718,8 @@ namespace SourceGit.ViewModels
             OnPropertyChanged(nameof(UnmergedSectionHeader));
         }
 
-        private readonly Repository _repo;
+        private Repository _repo;
+        private LauncherPage _switchedHostPage;
         private readonly Models.OperationJournalStore _journalStore;
         private Task _preflightTask = Task.CompletedTask;
         private Models.BranchDeletePreflight _preflight;

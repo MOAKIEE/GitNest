@@ -1750,10 +1750,11 @@ namespace SourceGit.ViewModels
                 ShowPopup(new AddWorktree(this));
         }
 
-        public async Task PruneWorktreesAsync()
+        public Task PruneWorktreesAsync()
         {
             if (CanCreatePopup())
-                await ShowAndStartPopupAsync(new PruneWorktrees(this));
+                ShowPopup(new PruneWorktrees(this));
+            return Task.CompletedTask;
         }
 
         public void OpenWorktree(Worktree worktree)
@@ -1852,7 +1853,7 @@ namespace SourceGit.ViewModels
             return succ;
         }
 
-        private LauncherPage GetOwnerPage()
+        internal LauncherPage GetOwnerPage()
         {
             var launcher = App.GetLauncher();
             if (launcher == null)
@@ -1860,7 +1861,8 @@ namespace SourceGit.ViewModels
 
             foreach (var page in launcher.Pages)
             {
-                if (page.Node.Id.Equals(FullPath))
+                if (page.Node.Id.Equals(FullPath) ||
+                    Models.WorktreeTaskStore.PathsEqual(page.Node.Id, FullPath))
                     return page;
             }
 

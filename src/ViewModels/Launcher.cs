@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 using Avalonia.Collections;
@@ -532,6 +533,93 @@ namespace SourceGit.ViewModels
             }
 
             return new Commands.QueryGitDir(repo).GetResult();
+        }
+
+        public bool IsWorktreeOpenInTabs(string worktreePath)
+        {
+            if (string.IsNullOrWhiteSpace(worktreePath))
+                return false;
+
+            foreach (var page in Pages)
+            {
+                if (page.Data is Repository repo &&
+                    Models.WorktreeTaskStore.PathsEqual(repo.FullPath, worktreePath))
+                    return true;
+            }
+
+            return false;
+        }
+
+        public (Repository MainRepo, LauncherPage MainPage) SwitchAwayAndCloseWorktreeTabs(
+            string mainRepoPath,
+            string targetWorktreePath,
+            Popup transferPopup = null)
+        {
+            if (!Dispatcher.UIThread.CheckAccess())
+            {
+                return Dispatcher.UIThread.Invoke(() =>
+                    SwitchAwayAndCloseWorktreeTabs(mainRepoPath, targetWorktreePath, transferPopup));
+            }
+
+            if (string.IsNullOrWhiteSpace(mainRepoPath) || string.IsNullOrWhiteSpace(targetWorktreePath))
+                return (null, null);
+
+            var targetPages = new List<LauncherPage>();
+            foreach (var page in Pages)
+            {
+                if (page.Data is Repository repo &&
+                    Models.WorktreeTaskStore.PathsEqual(repo.FullPath, targetWorktreePath))
+                    targetPages.Add(page);
+            }
+
+            LauncherPage FindMainPage()
+            {
+                foreach (var page in Pages)
+                {
+                    if (page.Data is Repository repo &&
+                        Models.WorktreeTaskStore.PathsEqual(repo.FullPath, mainRepoPath))
+                        return page;
+                }
+
+                return null;
+            }
+
+            if (targetPages.Count == 0)
+            {
+                var existingMain = FindMainPage();
+                return (existingMain?.Data as Repository, existingMain);
+            }
+
+            var mainPage = FindMainPage();
+            if (mainPage == null && Directory.Exists(mainRepoPath))
+            {
+                OpenRepositoryInTab(mainRepoPath, null);
+                mainPage = FindMainPage();
+            }
+
+            if (mainPage != null)
+            {
+                if (transferPopup != null)
+                {
+                    foreach (var tp in targetPages)
+                    {
+                        if (tp.Popup == transferPopup)
+                        {
+                            tp.Popup = null;
+                            break;
+                        }
+                    }
+
+                    mainPage.Popup = transferPopup;
+                }
+
+                ActivePage = mainPage;
+            }
+
+            foreach (var tp in targetPages)
+                CloseTab(tp);
+
+            return (mainPage?.Data as Repository, mainPage);
         }
 
         private void CloseRepositoryInTab(LauncherPage page, bool removeFromWorkspace = true)

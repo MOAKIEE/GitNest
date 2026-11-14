@@ -65,6 +65,10 @@ internal static partial class Program
             {
                 RunBranchDelete();
             }
+            else if (args.Contains("--worktree-delete"))
+            {
+                RunWorktreeDelete();
+            }
             else
             {
                 RunOverview();
@@ -256,5 +260,6 @@ internal static partial class Program
     static partial void RunCommitSync();
     static partial void RunOperationRecovery();
     static partial void RunBranchDelete();
+    static partial void RunWorktreeDelete();
 
 }

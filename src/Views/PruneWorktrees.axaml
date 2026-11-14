@@ -2,21 +2,107 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="SourceGit.Views.PruneWorktrees">
+             xmlns:m="using:SourceGit.Models"
+             xmlns:vm="using:SourceGit.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="620" d:DesignHeight="420"
+             x:Class="SourceGit.Views.PruneWorktrees"
+             x:DataType="vm:PruneWorktrees"
+             MaxWidth="620">
   <StackPanel Orientation="Vertical" Margin="8,0">
-    <StackPanel Orientation="Horizontal">
-      <Path Width="16" Height="16"
-            Data="{StaticResource Icons.Clean}"/>
-
-      <TextBlock FontSize="18"
+    <Grid ColumnDefinitions="Auto,*,Auto">
+      <Path Grid.Column="0" Width="16" Height="16" Data="{StaticResource Icons.Clean}"/>
+      <TextBlock Grid.Column="1"
+                 FontSize="18"
                  Margin="8,0,0,0"
                  Classes="bold"
                  Text="{DynamicResource Text.PruneWorktrees}"/>
-    </StackPanel>
+      <Button Grid.Column="2"
+              Classes="flat"
+              Height="24"
+              Padding="10,0"
+              FontSize="11"
+              Content="{DynamicResource Text.RemoveWorktree.RefreshPreflightBtn}"
+              Click="OnRefreshPreview"/>
+    </Grid>
 
-    <TextBlock Text="{DynamicResource Text.PruneWorktrees.Tip}"
-               Margin="0,16,0,0"
-               HorizontalAlignment="Center"/>
+    <ScrollViewer MaxHeight="480"
+                  Margin="0,12,0,0"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="10">
+        <Border Padding="10,8"
+                CornerRadius="4"
+                Background="{DynamicResource Brush.Contents}"
+                BorderThickness="1"
+                BorderBrush="{DynamicResource Brush.Border1}">
+          <StackPanel Spacing="6">
+            <TextBlock TextWrapping="Wrap" Text="{Binding PreviewSummary, Mode=OneWay}"/>
+            <Grid ColumnDefinitions="Auto,*">
+              <Path Grid.Column="0" Width="13" Height="13" VerticalAlignment="Top" Margin="0,2,6,0" Data="{StaticResource Icons.Info}" Fill="{DynamicResource Brush.FG2}"/>
+              <TextBlock Grid.Column="1" FontSize="11" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap" Text="{DynamicResource Text.PruneWorktrees.MultiExpireWarning}"/>
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Dry-run candidates -->
+        <Border Padding="10,8"
+                CornerRadius="4"
+                Background="{DynamicResource Brush.Contents}"
+                BorderThickness="1"
+                BorderBrush="{DynamicResource Brush.Border1}"
+                IsVisible="{Binding HasCandidates, Mode=OneWay}">
+          <StackPanel Spacing="6">
+            <TextBlock Classes="bold" FontSize="12" Text="{DynamicResource Text.PruneWorktrees.CandidatesTitle}"/>
+            <ItemsControl ItemsSource="{Binding Candidates}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="m:WorktreePruneCandidate">
+                  <Grid ColumnDefinitions="Auto,*" Margin="0,3">
+                    <Path Grid.Column="0" Width="13" Height="13" VerticalAlignment="Top" Margin="0,2,8,0" Data="{StaticResource Icons.Clean}" Fill="OrangeRed"/>
+                    <StackPanel Grid.Column="1" Spacing="2">
+                      <TextBlock Classes="bold" FontFamily="{DynamicResource Fonts.Monospace}" FontSize="11" TextWrapping="Wrap" Text="{Binding WorktreePath}"/>
+                      <TextBlock FontSize="11" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap" Text="{Binding SummaryLine}"/>
+                    </StackPanel>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
+        <!-- Retained missing/locked entries -->
+        <Border Padding="10,8"
+                CornerRadius="4"
+                Background="#1EFF8C00"
+                BorderThickness="1"
+                BorderBrush="#55FF8C00"
+                IsVisible="{Binding HasLockedRetainedItems, Mode=OneWay}">
+          <StackPanel Spacing="6">
+            <TextBlock Classes="bold" FontSize="12" Text="{DynamicResource Text.PruneWorktrees.RetainedLockedTitle}"/>
+            <ItemsControl ItemsSource="{Binding LockedRetainedItems}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="m:WorktreeLockedMissingItem">
+                  <Grid ColumnDefinitions="Auto,*" Margin="0,3">
+                    <Path Grid.Column="0" Width="13" Height="13" VerticalAlignment="Top" Margin="0,2,8,0" Data="{StaticResource Icons.Lock}" Fill="DarkOrange"/>
+                    <StackPanel Grid.Column="1" Spacing="2">
+                      <TextBlock FontFamily="{DynamicResource Fonts.Monospace}" FontSize="11" TextWrapping="Wrap" Text="{Binding WorktreePath}"/>
+                      <TextBlock FontSize="11" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap" Text="{Binding LockReason}"/>
+                    </StackPanel>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
+        <Border Padding="10,8"
+                CornerRadius="4"
+                Background="#1EDC2626"
+                BorderThickness="1"
+                BorderBrush="#55DC2626"
+                IsVisible="{Binding HasInlineError, Mode=OneWay}">
+          <TextBlock TextWrapping="Wrap" Text="{Binding InlineErrorMessage, Mode=OneWay}"/>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
   </StackPanel>
 </UserControl>
