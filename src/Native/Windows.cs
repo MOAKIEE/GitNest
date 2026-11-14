@@ -29,6 +29,23 @@ namespace SourceGit.Native
         [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = false)]
         private static extern int SHOpenFolderAndSelectItems(IntPtr pidlFolder, int cild, IntPtr apidl, int dwFlags);
 
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct SHFILEOPSTRUCTW
+        {
+            public IntPtr hwnd;
+            public uint wFunc;
+            public IntPtr pFrom;
+            public IntPtr pTo;
+            public ushort fFlags;
+            [MarshalAs(UnmanagedType.Bool)]
+            public bool fAnyOperationsAborted;
+            public IntPtr hNameMappings;
+            public IntPtr lpszProgressTitle;
+        }
+
+        [DllImport("shell32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+        private static extern int SHFileOperationW(ref SHFILEOPSTRUCTW lpFileOp);
+
         [DllImport("kernel32.dll")]
         private static extern bool SetConsoleCtrlHandler(IntPtr handler, bool add);
 
@@ -261,6 +278,59 @@ namespace SourceGit.Native
             else
             {
                 proc.Kill(true);
+            }
+        }
+
+        public bool MoveToRecycleBin(string path, out string error)
+        {
+            const uint FO_DELETE = 0x0003;
+            const ushort FOF_SILENT = 0x0004;
+            const ushort FOF_NOCONFIRMATION = 0x0010;
+            const ushort FOF_ALLOWUNDO = 0x0040;
+            const ushort FOF_NOERRORUI = 0x0400;
+
+            var normalized = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+            var pFrom = Marshal.StringToHGlobalUni(normalized + "\0");
+            try
+            {
+                var op = new SHFILEOPSTRUCTW
+                {
+                    hwnd = IntPtr.Zero,
+                    wFunc = FO_DELETE,
+                    pFrom = pFrom,
+                    pTo = IntPtr.Zero,
+                    fFlags = FOF_SILENT | FOF_NOCONFIRMATION | FOF_ALLOWUNDO | FOF_NOERRORUI,
+                    fAnyOperationsAborted = false,
+                    hNameMappings = IntPtr.Zero,
+                    lpszProgressTitle = IntPtr.Zero,
+                };
+
+                var code = SHFileOperationW(ref op);
+                if (code != 0 || op.fAnyOperationsAborted)
+                {
+                    error = op.fAnyOperationsAborted
+                        ? $"Recycle bin operation was aborted for '{normalized}'."
+                        : $"SHFileOperationW failed with code 0x{code:X} for '{normalized}'.";
+                    return false;
+                }
+
+                if (File.Exists(normalized) || Directory.Exists(normalized))
+                {
+                    error = $"Target still exists on disk after recycle operation: '{normalized}'.";
+                    return false;
+                }
+
+                error = string.Empty;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(pFrom);
             }
         }
 

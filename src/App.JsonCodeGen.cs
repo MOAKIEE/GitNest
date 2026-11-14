@@ -76,5 +76,9 @@ namespace SourceGit
     [JsonSerializable(typeof(List<AI.ApiKey>))]
     [JsonSerializable(typeof(List<Models.WorktreeTask>))]
     [JsonSerializable(typeof(List<Models.GitOperationRecord>))]
+    [JsonSerializable(typeof(Models.DiscardBackupIndex))]
+    [JsonSerializable(typeof(Models.DiscardBackupEntry))]
+    [JsonSerializable(typeof(Models.DiscardBackupFileEntry))]
+    [JsonSerializable(typeof(List<Models.DiscardBackupEntry>))]
     internal partial class JsonCodeGen : JsonSerializerContext { }
 }

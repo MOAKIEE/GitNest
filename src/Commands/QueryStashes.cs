@@ -42,7 +42,8 @@ namespace SourceGit.Commands
                                 current.Parents.AddRange(line.Split(' ', StringSplitOptions.RemoveEmptyEntries));
                             break;
                         case 2:
-                            current.Time = ulong.Parse(line);
+                            if (ulong.TryParse(line, out var timestamp))
+                                current.Time = timestamp;
                             break;
                         case 3:
                             current.Name = line;

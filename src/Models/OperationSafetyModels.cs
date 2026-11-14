@@ -154,6 +154,7 @@ namespace SourceGit.Models
         Discard,
         RestoreBackup,
         PruneBackups,
+        SwitchBranch,
     }
 
     public enum GitOperationStage

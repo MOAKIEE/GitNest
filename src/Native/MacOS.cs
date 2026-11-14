@@ -171,6 +171,43 @@ namespace SourceGit.Native
             }
         }
 
+        public bool MoveToRecycleBin(string path, out string error)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo("osascript")
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardError = true,
+                };
+                psi.ArgumentList.Add("-e");
+                psi.ArgumentList.Add($"tell application \"Finder\" to delete POSIX file \"{path.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"");
+                using var proc = Process.Start(psi);
+                if (proc == null)
+                {
+                    error = "Failed to launch Finder trash operation.";
+                    return false;
+                }
+
+                var err = proc.StandardError.ReadToEnd();
+                proc.WaitForExit();
+                if (proc.ExitCode != 0 || File.Exists(path) || Directory.Exists(path))
+                {
+                    error = string.IsNullOrWhiteSpace(err) ? $"Finder trash exited with code {proc.ExitCode}." : err.Trim();
+                    return false;
+                }
+
+                error = string.Empty;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
         private string _setsidExecutable = null;
     }
 

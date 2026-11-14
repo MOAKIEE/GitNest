@@ -37,6 +37,7 @@ namespace SourceGit.Native
             bool SupportSetSid();
             string GetSetSidExecutable();
             void TerminateProcess(Process proc);
+            bool MoveToRecycleBin(string path, out string error);
         }
 
         public interface IKeychain
@@ -366,6 +367,56 @@ namespace SourceGit.Native
         public static void TerminateProcess(Process proc)
         {
             _backend.TerminateProcess(proc);
+        }
+
+        public static bool MoveToRecycleBin(string path, out string error)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                error = "Recycle path cannot be empty.";
+                return false;
+            }
+
+            string normalized;
+            try
+            {
+                normalized = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(normalized) || string.Equals(normalized, Path.GetPathRoot(normalized)?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+            {
+                error = $"Refusing to recycle root or invalid path: {path}";
+                return false;
+            }
+
+            var attrsExists = File.Exists(normalized) || Directory.Exists(normalized);
+            if (!attrsExists)
+            {
+                try
+                {
+                    // Symbolic links whose targets are missing also exist on disk as link reparse points.
+                    attrsExists = File.ResolveLinkTarget(normalized, false) != null ||
+                                  new FileInfo(normalized).LinkTarget != null ||
+                                  new DirectoryInfo(normalized).LinkTarget != null;
+                }
+                catch
+                {
+                    attrsExists = false;
+                }
+            }
+
+            if (!attrsExists)
+            {
+                error = $"Target path does not exist: {normalized}";
+                return false;
+            }
+
+            return _backend.MoveToRecycleBin(normalized, out error);
         }
 
         private static void UpdateGitVersion()

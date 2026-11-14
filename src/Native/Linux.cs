@@ -191,6 +191,43 @@ namespace SourceGit.Native
             }
         }
 
+        public bool MoveToRecycleBin(string path, out string error)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo("gio")
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardError = true,
+                };
+                psi.ArgumentList.Add("trash");
+                psi.ArgumentList.Add(path);
+                using var proc = Process.Start(psi);
+                if (proc == null)
+                {
+                    error = "Failed to invoke 'gio trash'.";
+                    return false;
+                }
+
+                var err = proc.StandardError.ReadToEnd();
+                proc.WaitForExit();
+                if (proc.ExitCode != 0 || File.Exists(path) || Directory.Exists(path))
+                {
+                    error = string.IsNullOrWhiteSpace(err) ? $"'gio trash' exited with code {proc.ExitCode}." : err.Trim();
+                    return false;
+                }
+
+                error = string.Empty;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
         public OS.IKeychain GetSecretTool()
         {
             var toolPath = FindExecutable("secret-tool");

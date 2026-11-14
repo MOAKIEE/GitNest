@@ -857,7 +857,7 @@ namespace SourceGit.Commands
 
             var effectiveStore = journalStore ?? Models.OperationJournalStore.Instance;
             var recent = effectiveStore.GetByRepository(commonDir, 30);
-            var matchingRecord = FindMatchingJournalRecord(recent, repoPath, kind, headSha, markerOid, markerLastWriteUtc);
+            var matchingRecord = FindMatchingJournalRecord(recent, repoPath, kind, headSha, markerOid, markerLastWriteUtc, conflictedPaths.Count > 0);
 
             var origin = Models.ConflictOwnershipOrigin.ExternalOrUnknown;
             var originLabel = "外部操作进行中";
@@ -1885,7 +1885,8 @@ namespace SourceGit.Commands
             Models.GitInProgressKind kind,
             string headSha,
             string markerTargetSha,
-            DateTime? markerLastWriteUtc)
+            DateTime? markerLastWriteUtc,
+            bool hasUnmergedConflicts)
         {
             if (recent == null || recent.Count == 0 || string.IsNullOrEmpty(headSha))
                 return null;
@@ -1894,6 +1895,7 @@ namespace SourceGit.Commands
             {
                 Models.GitInProgressKind.Merge => Models.GitOperationKind.Merge,
                 Models.GitInProgressKind.Revert => Models.GitOperationKind.Revert,
+                Models.GitInProgressKind.None when hasUnmergedConflicts => Models.GitOperationKind.Stash,
                 _ => null,
             };
 
@@ -1952,6 +1954,9 @@ namespace SourceGit.Commands
 
         private static string BuildGitNestRetainedHeadline(Models.GitInProgressKind kind, Models.GitOperationRecord rec)
         {
+            if (rec.Kind == Models.GitOperationKind.Stash)
+                return $"暂存恢复（STASH）冲突/挂起现场，保存项仍保留（操作：{rec.Title}）";
+
             var kindText = kind == Models.GitInProgressKind.Revert ? "撤销提交（REVERT）" : "合并（MERGE）";
             return $"保留中的 {kindText} 冲突/挂起现场（操作：{rec.Title}）";
         }

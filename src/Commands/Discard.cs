@@ -1,6 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
+﻿using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace SourceGit.Commands
@@ -8,87 +7,86 @@ namespace SourceGit.Commands
     public static class Discard
     {
         /// <summary>
-        ///     Discard all local changes (unstaged & staged)
+        /// Safely restores local changes according to separated baselines and stores tracked baselines
+        /// in the 30-day local recovery store before modifying the repository. Never runs destructive `git clean -fdx`
+        /// or permanent `File.Delete` on untracked items.
         /// </summary>
         public static async Task AllAsync(string repo, bool includeModified, bool includeUntracked, bool includeIgnored, Models.ICommandLog log)
         {
-            if (includeUntracked)
-            {
-                // Untracked paths that contains `.git` file (detached submodule) must be removed manually.
-                var changes = await new QueryLocalChanges(repo).GetResultAsync().ConfigureAwait(false);
-                try
-                {
-                    foreach (var c in changes)
-                    {
-                        if (c.WorkTree == Models.ChangeState.Untracked ||
-                            c.WorkTree == Models.ChangeState.Added ||
-                            c.Index == Models.ChangeState.Added ||
-                            c.Index == Models.ChangeState.Renamed)
-                        {
-                            var fullPath = Path.Combine(repo, c.Path);
-                            if (Directory.Exists(fullPath))
-                                Directory.Delete(fullPath, true);
-                        }
-                    }
-                }
-                catch (Exception e)
-                {
-                    Models.Notification.Send(repo, $"Failed to discard changes. Reason: {e.Message}", true);
-                }
-
-                if (includeIgnored)
-                    await new Clean(repo, Models.CleanMode.UntrackedAndIgnoredFiles).Use(log).ExecAsync().ConfigureAwait(false);
-                else
-                    await new Clean(repo, Models.CleanMode.OnlyUntrackedFiles).Use(log).ExecAsync().ConfigureAwait(false);
-            }
-            else if (includeIgnored)
-            {
-                await new Clean(repo, Models.CleanMode.OnlyIgnoredFiles).Use(log).ExecAsync().ConfigureAwait(false);
-            }
+            var changes = await new QueryLocalChanges(repo).GetResultAsync().ConfigureAwait(false);
 
             if (includeModified)
-                await new Reset(repo, "", "--hard").Use(log).ExecAsync().ConfigureAwait(false);
+            {
+                var tracked = changes.Where(c => c.Index != Models.ChangeState.Untracked && c.WorkTree != Models.ChangeState.Untracked).ToList();
+                if (tracked.Count > 0)
+                {
+                    var res = await DiscardBackupService.ExecuteDiscardAsync(
+                        repo,
+                        tracked,
+                        Models.DiscardBaselineKind.RestoreToHead,
+                        outerLog: log).ConfigureAwait(false);
+
+                    if (!res.Success)
+                        Models.Notification.Send(repo, res.Summary, true);
+                }
+            }
+
+            if (includeUntracked)
+            {
+                var untracked = changes.Where(c => c.Index == Models.ChangeState.Untracked || c.WorkTree == Models.ChangeState.Untracked).ToList();
+                if (untracked.Count > 0)
+                {
+                    var res = await DiscardBackupService.ExecuteDiscardAsync(
+                        repo,
+                        untracked,
+                        Models.DiscardBaselineKind.MoveUntrackedToRecycleBin,
+                        outerLog: log).ConfigureAwait(false);
+
+                    if (!res.Success)
+                        Models.Notification.Send(repo, res.Summary, true);
+                }
+            }
+
+            if (includeIgnored)
+            {
+                log?.AppendLine("[Discard] 按 GitNest 安全策略，不支持在批量丢弃中默认清理所有被忽略文件（git clean -fdx）。");
+            }
         }
 
         /// <summary>
-        ///     Discard selected changes (only unstaged).
+        /// Discard selected changes cleanly: tracked unstaged edits restore to index after saving to the 30-day
+        /// recovery store; untracked entries move only via the OS Recycle Bin.
         /// </summary>
-        /// <param name="repo"></param>
-        /// <param name="changes"></param>
-        /// <param name="log"></param>
         public static async Task ChangesAsync(string repo, List<Models.Change> changes, Models.ICommandLog log)
         {
-            var restores = new List<string>();
+            if (changes == null || changes.Count == 0)
+                return;
 
-            try
+            var untracked = changes.Where(c => c.WorkTree == Models.ChangeState.Untracked || c.Index == Models.ChangeState.Untracked).ToList();
+            var tracked = changes.Where(c => c.WorkTree != Models.ChangeState.Untracked && c.Index != Models.ChangeState.Untracked).ToList();
+
+            if (tracked.Count > 0)
             {
-                foreach (var c in changes)
-                {
-                    if (c.WorkTree == Models.ChangeState.Untracked || c.WorkTree == Models.ChangeState.Added)
-                    {
-                        var fullPath = Path.Combine(repo, c.Path);
-                        if (Directory.Exists(fullPath))
-                            Directory.Delete(fullPath, true);
-                        else
-                            File.Delete(fullPath);
-                    }
-                    else
-                    {
-                        restores.Add(c.Path);
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Models.Notification.Send(repo, $"Failed to discard changes. Reason: {e.Message}", true);
+                var res = await DiscardBackupService.ExecuteDiscardAsync(
+                    repo,
+                    tracked,
+                    Models.DiscardBaselineKind.RestoreWorktreeToIndex,
+                    outerLog: log).ConfigureAwait(false);
+
+                if (!res.Success)
+                    Models.Notification.Send(repo, res.Summary, true);
             }
 
-            if (restores.Count > 0)
+            if (untracked.Count > 0)
             {
-                var pathSpecFile = Path.GetTempFileName();
-                await File.WriteAllLinesAsync(pathSpecFile, restores).ConfigureAwait(false);
-                await new Restore(repo, pathSpecFile).Use(log).ExecAsync().ConfigureAwait(false);
-                File.Delete(pathSpecFile);
+                var res = await DiscardBackupService.ExecuteDiscardAsync(
+                    repo,
+                    untracked,
+                    Models.DiscardBaselineKind.MoveUntrackedToRecycleBin,
+                    outerLog: log).ConfigureAwait(false);
+
+                if (!res.Success)
+                    Models.Notification.Send(repo, res.Summary, true);
             }
         }
     }

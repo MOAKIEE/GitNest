@@ -84,24 +84,7 @@ namespace SourceGit.Commands
             var tempFile = Path.GetTempFileName();
             try
             {
-                var seen = new HashSet<string>(
-                    OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
-                using var ms = new MemoryStream();
-                foreach (var path in paths)
-                {
-                    if (string.IsNullOrWhiteSpace(path))
-                        continue;
-
-                    var normalized = path.Replace('\\', '/');
-                    if (!seen.Add(normalized))
-                        continue;
-
-                    var bytes = Utf8NoBom.GetBytes(normalized);
-                    ms.Write(bytes, 0, bytes.Length);
-                    ms.WriteByte(0);
-                }
-
-                await File.WriteAllBytesAsync(tempFile, ms.ToArray(), cancellationToken).ConfigureAwait(false);
+                await File.WriteAllBytesAsync(tempFile, BuildNulPathspecBytes(paths), cancellationToken).ConfigureAwait(false);
                 return tempFile;
             }
             catch
@@ -109,6 +92,28 @@ namespace SourceGit.Commands
                 TryDeleteTempFile(tempFile);
                 throw;
             }
+        }
+
+        public static byte[] BuildNulPathspecBytes(IEnumerable<string> paths)
+        {
+            var seen = new HashSet<string>(
+                OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+            using var ms = new MemoryStream();
+            foreach (var path in paths)
+            {
+                if (string.IsNullOrWhiteSpace(path))
+                    continue;
+
+                var normalized = path.Replace('\\', '/');
+                if (!seen.Add(normalized))
+                    continue;
+
+                var bytes = Utf8NoBom.GetBytes(normalized);
+                ms.Write(bytes, 0, bytes.Length);
+                ms.WriteByte(0);
+            }
+
+            return ms.ToArray();
         }
 
         public static async Task<string> WriteUtf8TempFileAsync(

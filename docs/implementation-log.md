@@ -255,3 +255,11 @@
 - 补全双语词条（`zh=1447 en=1447 diff=0`）、新增 `tests/GitNest.UIProbe/MergeRevertProbe.cs`（`-MergeRevert`）及 `Popup.Cleanup()` 取消后台预检 + 探针回收站非阻塞清理机制（同时消除 `-CommitSync` 收尾弹窗句柄卡死问题）。
 - 末次代码改动后验证：`.\build\scripts\build-gitnest.ps1 -Publish`（`0` 警告 `0` 错误，产出 `artifacts/windows-x64/GitNest.exe`）、`.\build\scripts\test-gitnest.ps1`（**233 / 233** 通过）、`.\build\scripts\probe-gitnest.ps1 -MergeRevert`（**11 / 11** 通过，`TEMP_LEFTOVERS=0`）、`.\build\scripts\probe-gitnest.ps1 -CommitSync`（**11 / 11** 通过，`TEMP_LEFTOVERS=0`）并完成 `artifacts/probes/phase-3.4/` 5 张截图视觉复核；详情见 [phase-3.4.md](verification/phase-3.4.md)。
 - 批次 3.4（3.4a / 3.4b）全部完成；接续进入批次 3.5（stash、丢弃前备份、文件回收与忽略规则）。
+
+## 2026-11-14 · 批次 3.5a：Stash 事务与冲突保留、丢弃双基线、30 天本地恢复库、回收站安全删除与忽略规则引擎
+
+- 前一批提交：`13fc5ee5`（批次 3.4b：定向合并 / 单提交 revert 原生弹窗、只读冲突状态面板与探针截图验收）。
+- 在 `src/Native/OS.cs` / `Windows.cs` / `MacOS.cs` / `Linux.cs` 增补系统回收站接口（Windows 经 `SHFileOperationW` `FOF_ALLOWUNDO | FOF_NOERRORUI` 并二次核验磁盘已移出，失败严禁降级永久删除）；新增 `src/Models/WorkingCopySafetyModels.cs`、`src/Models/DiscardBackupStore.cs` 并在 `App.JsonCodeGen.cs` / `OperationSafetyModels.cs` / `Models/Stash.cs` 完成源分支解析、30 天本地恢复库原子索引与二进制载荷校验及 `SwitchBranch` 日志类型扩展。
+- 新增 `src/Commands/StashWorkflowService.cs`、`DiscardBackupService.cs`、`IgnoreRuleService.cs`，强化 `Command.cs`（stdin/NUL 通道）、`CommandArgumentHelper.cs`、`Stash.cs`、`QueryStashes.cs`、`Restore.cs`、`Discard.cs` 与 `MergeRevertService.cs`：实现 unborn HEAD/冲突态 stash 拦截、基于 `stash^1..stash`/`^2`/`^3` 的未跟踪与忽略文件碰撞阻断、SHA 绑定应用及冲突保留（`PendingVerification`「恢复未完成，保存项仍保留」）、分支切换拒绝静默丢弃并安全 `StashAndReapply`、丢弃双基线（`RestoreWorktreeToIndex` 与 `RestoreToHead`）前置 30 天备份与失败中止、后续修改防静默覆盖检查及 30 天到期清理、特殊字符转义与主仓/worktree `info/exclude` / `.gitignore` 去重和已跟踪文件安全预警。
+- 新增 `tests/GitNest.IntegrationTests/StashDiscardIgnoreTests.cs` 并接入 `Program.cs`；清理 `DiscardBackupService.cs` 冗余辅助包装后，重新执行 `.\build\scripts\build-gitnest.ps1` 构建（`0` 警告 `0` 错误）与 `.\build\scripts\test-gitnest.ps1`（**274 / 274** 项真实 Git 与 Windows 回收站/文件锁集成检查通过；详情见 [phase-3.5.md](verification/phase-3.5.md)）。
+- 按用户“做完先暂停”要求于 3.5a 本地提交后暂停；下一批次（3.5b）将构建 SourceGit 原生风格的 Stash/Discard/恢复库管理/AddToIgnore 对话框及工作区右键基线入口，补全双语词条与 `-StashDiscardIgnore` UI 探针截图验收。

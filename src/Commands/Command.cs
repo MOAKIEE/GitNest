@@ -266,6 +266,17 @@ namespace SourceGit.Commands
             CancellationToken cancellationToken,
             params string[] args)
         {
+            return await RunGitDirectWithInputAsync(workingDirectory, timeoutDuration, null, cancellationToken, args)
+                .ConfigureAwait(false);
+        }
+
+        internal static async Task<Result> RunGitDirectWithInputAsync(
+            string workingDirectory,
+            TimeSpan? timeoutDuration,
+            byte[] standardInputBytes,
+            CancellationToken cancellationToken,
+            params string[] args)
+        {
             var gitExecutable = Native.OS.GitExecutable;
             if (string.IsNullOrWhiteSpace(gitExecutable) || !File.Exists(gitExecutable))
                 return Result.Failed("Git executable not found.");
@@ -283,6 +294,7 @@ namespace SourceGit.Commands
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
+                RedirectStandardInput = standardInputBytes != null,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 StandardOutputEncoding = Encoding.UTF8,
@@ -309,6 +321,14 @@ namespace SourceGit.Commands
             {
                 proc.Start();
                 started = true;
+
+                if (standardInputBytes != null)
+                {
+                    await proc.StandardInput.BaseStream.WriteAsync(standardInputBytes, effectiveToken).ConfigureAwait(false);
+                    await proc.StandardInput.BaseStream.FlushAsync(effectiveToken).ConfigureAwait(false);
+                    proc.StandardInput.Close();
+                }
+
                 var stdOut = proc.StandardOutput.ReadToEndAsync(effectiveToken);
                 var stdErr = proc.StandardError.ReadToEndAsync(effectiveToken);
                 await Task.WhenAll(stdOut, stdErr, proc.WaitForExitAsync(effectiveToken)).ConfigureAwait(false);

@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
-using System.Text;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SourceGit.Commands
@@ -14,90 +16,119 @@ namespace SourceGit.Commands
 
         public async Task<bool> PushAsync(string message, bool includeUntracked = true, bool keepIndex = false)
         {
-            var builder = new StringBuilder();
-            builder.Append("stash push ");
+            var args = new List<string> { "stash", "push" };
             if (includeUntracked)
-                builder.Append("--include-untracked ");
+                args.Add("--include-untracked");
             if (keepIndex)
-                builder.Append("--keep-index ");
+                args.Add("--keep-index");
             if (!string.IsNullOrEmpty(message))
-                builder.Append("-m ").Append(message.Quoted());
+            {
+                args.Add("-m");
+                args.Add(SanitizeMessage(message));
+            }
 
-            Args = builder.ToString();
-            return await ExecAsync().ConfigureAwait(false);
+            return await ExecDirectAsync(args, null).ConfigureAwait(false);
         }
 
         public async Task<bool> PushAsync(string message, List<Models.Change> changes, bool keepIndex)
         {
-            var builder = new StringBuilder();
-            builder.Append("stash push --include-untracked ");
+            var args = new List<string> { "--literal-pathspecs", "stash", "push", "--include-untracked" };
             if (keepIndex)
-                builder.Append("--keep-index ");
+                args.Add("--keep-index");
             if (!string.IsNullOrEmpty(message))
-                builder.Append("-m ").Append(message.Quoted()).Append(' ');
+            {
+                args.Add("-m");
+                args.Add(SanitizeMessage(message));
+            }
 
-            builder.Append("-- ");
-            foreach (var c in changes)
-                builder.Append(c.Path.Quoted()).Append(' ');
-
-            Args = builder.ToString();
-            return await ExecAsync().ConfigureAwait(false);
+            args.Add("--pathspec-from-file=-");
+            args.Add("--pathspec-file-nul");
+            var stdin = CommandArgumentHelper.BuildNulPathspecBytes(changes.Select(c => c.Path));
+            return await ExecDirectAsync(args, stdin).ConfigureAwait(false);
         }
 
         public async Task<bool> PushAsync(string message, string pathspecFromFile, bool keepIndex)
         {
-            var builder = new StringBuilder();
-            builder.Append("stash push --include-untracked --pathspec-from-file=").Append(pathspecFromFile.Quoted()).Append(" ");
+            var args = new List<string> { "--literal-pathspecs", "stash", "push", "--include-untracked", $"--pathspec-from-file={pathspecFromFile}" };
             if (keepIndex)
-                builder.Append("--keep-index ");
+                args.Add("--keep-index");
             if (!string.IsNullOrEmpty(message))
-                builder.Append("-m ").Append(message.Quoted());
+            {
+                args.Add("-m");
+                args.Add(SanitizeMessage(message));
+            }
 
-            Args = builder.ToString();
-            return await ExecAsync().ConfigureAwait(false);
+            return await ExecDirectAsync(args, null).ConfigureAwait(false);
         }
 
         public async Task<bool> PushOnlyStagedAsync(string message, bool keepIndex)
         {
-            var builder = new StringBuilder();
-            builder.Append("stash push --staged ");
+            var args = new List<string> { "stash", "push", "--staged" };
             if (keepIndex)
-                builder.Append("--keep-index ");
+                args.Add("--keep-index");
             if (!string.IsNullOrEmpty(message))
-                builder.Append("-m ").Append(message.Quoted());
-            Args = builder.ToString();
-            return await ExecAsync().ConfigureAwait(false);
+            {
+                args.Add("-m");
+                args.Add(SanitizeMessage(message));
+            }
+
+            return await ExecDirectAsync(args, null).ConfigureAwait(false);
         }
 
         public async Task<bool> ApplyAsync(string name, bool restoreIndex)
         {
-            var opts = restoreIndex ? "--index" : string.Empty;
-            Args = $"stash apply -q {opts} {name.Quoted()}";
-            return await ExecAsync().ConfigureAwait(false);
+            var safeName = CommandArgumentHelper.ValidateNonOptionToken(name, nameof(name));
+            var args = new List<string> { "stash", "apply", "-q" };
+            if (restoreIndex)
+                args.Add("--index");
+            args.Add(safeName);
+
+            return await ExecDirectAsync(args, null).ConfigureAwait(false);
         }
 
         public async Task<bool> CheckoutBranchAsync(string name, string branch)
         {
-            Args = $"stash branch {branch.Quoted()} {name.Quoted()}";
-            return await ExecAsync().ConfigureAwait(false);
+            var safeName = CommandArgumentHelper.ValidateNonOptionToken(name, nameof(name));
+            var safeBranch = CommandArgumentHelper.ValidateNonOptionToken(branch, nameof(branch));
+            return await ExecDirectAsync(["stash", "branch", safeBranch, safeName], null).ConfigureAwait(false);
         }
 
         public async Task<bool> PopAsync(string name)
         {
-            Args = $"stash pop -q --index {name.Quoted()}";
-            return await ExecAsync().ConfigureAwait(false);
+            var safeName = CommandArgumentHelper.ValidateNonOptionToken(name, nameof(name));
+            return await ExecDirectAsync(["stash", "pop", "-q", "--index", safeName], null).ConfigureAwait(false);
         }
 
         public async Task<bool> DropAsync(string name)
         {
-            Args = $"stash drop -q {name.Quoted()}";
-            return await ExecAsync().ConfigureAwait(false);
+            var safeName = CommandArgumentHelper.ValidateNonOptionToken(name, nameof(name));
+            return await ExecDirectAsync(["stash", "drop", "-q", safeName], null).ConfigureAwait(false);
         }
 
         public async Task<bool> ClearAsync()
         {
-            Args = "stash clear";
-            return await ExecAsync().ConfigureAwait(false);
+            return await ExecDirectAsync(["stash", "clear"], null).ConfigureAwait(false);
         }
+
+        private async Task<bool> ExecDirectAsync(IReadOnlyList<string> args, byte[] stdinBytes)
+        {
+            Log?.AppendLine($"$ git {string.Join(" ", args.Select(CommandArgumentHelper.Quote))}");
+            var res = await RunGitDirectWithInputAsync(
+                WorkingDirectory,
+                TimeSpan.FromSeconds(30),
+                stdinBytes,
+                CancellationToken.None,
+                [.. args]).ConfigureAwait(false);
+
+            if (!string.IsNullOrWhiteSpace(res.StdOut))
+                Log?.AppendLine(res.StdOut.TrimEnd());
+            if (!string.IsNullOrWhiteSpace(res.StdErr))
+                Log?.AppendLine(res.StdErr.TrimEnd());
+
+            return res.IsSuccess;
+        }
+
+        private static string SanitizeMessage(string raw) =>
+            (raw ?? string.Empty).Replace("\0", string.Empty).Replace('\r', ' ').Replace('\n', ' ');
     }
 }
