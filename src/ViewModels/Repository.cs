@@ -530,6 +530,23 @@ namespace SourceGit.ViewModels
                 page.Popup = popup;
         }
 
+        public void DismissPopup()
+        {
+            var page = GetOwnerPage();
+            if (page != null)
+                page.CancelPopup();
+        }
+
+        public void ReplacePopup(Popup popup)
+        {
+            var page = GetOwnerPage();
+            if (page == null)
+                return;
+
+            page.CancelPopup();
+            page.Popup = popup;
+        }
+
         public async Task ShowAndStartPopupAsync(Popup popup)
         {
             var page = GetOwnerPage();
@@ -943,9 +960,53 @@ namespace SourceGit.ViewModels
             RefreshSubmodules();
         }
 
+        public bool LastFetchFailed
+        {
+            get => _lastFetchFailed;
+            private set => SetProperty(ref _lastFetchFailed, value);
+        }
+
+        public string LastFetchError
+        {
+            get => _lastFetchError;
+            private set => SetProperty(ref _lastFetchError, value);
+        }
+
+        public string LastFetchDisplayTime =>
+            _currentTaskStatus?.LastFetchAt is { } taskFetchTime
+                ? taskFetchTime.ToString("yyyy-MM-dd HH:mm:ss")
+                : (_lastFetchTime != DateTime.MinValue ? _lastFetchTime.ToString("yyyy-MM-dd HH:mm:ss") : string.Empty);
+
         public void MarkFetched()
         {
             _lastFetchTime = DateTime.Now;
+            LastFetchFailed = false;
+            LastFetchError = string.Empty;
+            OnPropertyChanged(nameof(LastFetchDisplayTime));
+            OnPropertyChanged(nameof(StatusSummary));
+            OnPropertyChanged(nameof(StatusSummaryDetail));
+        }
+
+        public void MarkFetchResult(Models.FetchExecutionResult result)
+        {
+            if (result == null)
+                return;
+
+            if (result.Succeeded)
+            {
+                _lastFetchTime = result.FetchedAtUtc?.LocalDateTime ?? DateTime.Now;
+                LastFetchFailed = false;
+                LastFetchError = string.Empty;
+            }
+            else if (result.Outcome != Models.FetchOutcomeKind.Canceled)
+            {
+                LastFetchFailed = true;
+                LastFetchError = result.Summary;
+            }
+
+            OnPropertyChanged(nameof(LastFetchDisplayTime));
+            OnPropertyChanged(nameof(StatusSummary));
+            OnPropertyChanged(nameof(StatusSummaryDetail));
         }
 
         public void NavigateToCommit(string sha, bool isDelayMode = false)
@@ -1989,10 +2050,8 @@ namespace SourceGit.ViewModels
                 IsAutoFetching = true;
                 log = CreateLog("Auto-Fetch");
 
-                foreach (var remote in remotes)
-                    await new Commands.Fetch(FullPath, remote).Use(log).ExecAsync();
-
-                _lastFetchTime = DateTime.Now;
+                var fetchResult = await Commands.GitSyncService.FetchAsync(FullPath, remotes, log: log);
+                MarkFetchResult(fetchResult);
             }
             catch
             {
@@ -2036,6 +2095,8 @@ namespace SourceGit.ViewModels
         private bool _isAutoFetching = false;
         private Timer _autoFetchTimer = null;
         private DateTime _lastFetchTime = DateTime.MinValue;
+        private bool _lastFetchFailed = false;
+        private string _lastFetchError = string.Empty;
 
         private Models.BisectState _bisectState = Models.BisectState.None;
         private bool _isBisectCommandRunning = false;

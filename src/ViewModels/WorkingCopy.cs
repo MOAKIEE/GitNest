@@ -6,7 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace SourceGit.ViewModels
 {
-    public class WorkingCopy : ObservableObject
+    public partial class WorkingCopy : ObservableObject
     {
         public Repository Repository
         {
@@ -364,14 +364,30 @@ namespace SourceGit.ViewModels
 
             UpdateInProgressState();
             UpdateDetail();
+            UpdatePartialStagingFlag();
+            _ = RefreshStagedSnapshotAsync();
         }
 
-        public async Task StageChangesAsync(List<Models.Change> changes, Models.Change next)
+        public async Task StageChangesAsync(List<Models.Change> changes, Models.Change next, bool skipPartialStageConfirm = false)
         {
             var canStaged = await GetCanStageChangesAsync(changes);
             var count = canStaged.Count;
             if (count == 0)
                 return;
+
+            if (!skipPartialStageConfirm)
+            {
+                var partialPaths = FindPartiallyStagedSelectionPaths(canStaged);
+                if (partialPaths.Count > 0)
+                {
+                    var preview = partialPaths.Count <= 3
+                        ? string.Join(", ", partialPaths)
+                        : $"{string.Join(", ", partialPaths.GetRange(0, 3))} (+{partialPaths.Count - 3})";
+                    var confirm = await App.AskConfirmAsync(App.Text("WorkingCopy.PartialFullStageConfirm", preview));
+                    if (!confirm)
+                        return;
+                }
+            }
 
             IsStaging = true;
             _selectedUnstaged = new(next != null ? new List<Models.Change> { next } : null);
@@ -379,16 +395,20 @@ namespace SourceGit.ViewModels
             using var lockWatcher = _repo.LockWatcher();
 
             var log = _repo.CreateLog("Stage");
-            var pathSpecFile = Path.GetTempFileName();
-            await using (var writer = new StreamWriter(pathSpecFile))
-            {
-                foreach (var c in canStaged)
-                    await writer.WriteLineAsync(c.Path);
-            }
-
-            await new Commands.Add(_repo.FullPath, pathSpecFile).Use(log).ExecAsync();
-            File.Delete(pathSpecFile);
+            var paths = canStaged.ConvertAll(c => c.Path);
+            var (ok, lockStatus, diag) = await Commands.GitSyncService.StagePathsAsync(_repo.FullPath, paths, log, force: false);
             log.Complete();
+
+            if (!ok)
+            {
+                var msg = lockStatus.IsLocked ? lockStatus.Summary : (string.IsNullOrWhiteSpace(diag) ? "暂存失败。" : diag);
+                SetCommitAlert(msg);
+                _repo.SendNotification(msg, true);
+            }
+            else
+            {
+                await RefreshStagedSnapshotAsync();
+            }
 
             _repo.MarkWorkingCopyDirtyManually();
             IsStaging = false;
@@ -406,28 +426,32 @@ namespace SourceGit.ViewModels
             using var lockWatcher = _repo.LockWatcher();
 
             var log = _repo.CreateLog("Unstage");
-            if (_useAmend)
+            var paths = new List<string>();
+            foreach (var c in changes)
             {
-                log.AppendLine("$ git update-index --index-info ");
-                await new Commands.UpdateIndexInfo(_repo.FullPath, changes).ExecAsync();
+                paths.Add(c.Path);
+                if (c.Index == Models.ChangeState.Renamed && !string.IsNullOrEmpty(c.OriginalPath))
+                    paths.Add(c.OriginalPath);
+            }
+
+            var (ok, lockStatus, diag) = await Commands.GitSyncService.UnstagePathsAsync(
+                _repo.FullPath,
+                paths,
+                useAmend: _useAmend,
+                amendChanges: _useAmend ? changes : null,
+                log: log);
+            log.Complete();
+
+            if (!ok)
+            {
+                var msg = lockStatus.IsLocked ? lockStatus.Summary : (string.IsNullOrWhiteSpace(diag) ? "取消暂存失败。" : diag);
+                SetCommitAlert(msg);
+                _repo.SendNotification(msg, true);
             }
             else
             {
-                var pathSpecFile = Path.GetTempFileName();
-                await using (var writer = new StreamWriter(pathSpecFile))
-                {
-                    foreach (var c in changes)
-                    {
-                        await writer.WriteLineAsync(c.Path);
-                        if (c.Index == Models.ChangeState.Renamed)
-                            await writer.WriteLineAsync(c.OriginalPath);
-                    }
-                }
-
-                await new Commands.Reset(_repo.FullPath, pathSpecFile).Use(log).ExecAsync();
-                File.Delete(pathSpecFile);
+                await RefreshStagedSnapshotAsync();
             }
-            log.Complete();
 
             _repo.MarkWorkingCopyDirtyManually();
             IsUnstaging = false;
@@ -652,6 +676,24 @@ namespace SourceGit.ViewModels
                 return;
             }
 
+            DismissCommitAlert();
+            DismissTwoStepBanner();
+
+            var baselineSnapshot = _displayedSnapshot ?? await Commands.QueryStagedSnapshot.CaptureAsync(_repo.FullPath);
+
+            var identity = await new Commands.Config(_repo.FullPath).ReadCommitIdentityAsync();
+            if (!identity.IsComplete)
+            {
+                IdentityAuthorName = identity.Name;
+                IdentityAuthorEmail = identity.Email;
+                _pendingIdentityCommit = true;
+                _pendingIdentityAutoStage = autoStage;
+                _pendingIdentityAutoPush = autoPush;
+                ShowIdentityPrompt = true;
+                NotifyInlineNoticeVisibility();
+                return;
+            }
+
             if (_repo.CurrentBranch is { IsDetachedHead: true })
             {
                 var msg = App.Text("WorkingCopy.ConfirmCommitWithDetachedHead");
@@ -668,6 +710,7 @@ namespace SourceGit.ViewModels
                     return;
             }
 
+            var allowEmpty = false;
             if (!_useAmend)
             {
                 if ((!autoStage && _staged.Count == 0) || (autoStage && _cached.Count == 0))
@@ -677,9 +720,18 @@ namespace SourceGit.ViewModels
                         return;
 
                     if (rs == Models.ConfirmEmptyCommitResult.StageAllAndCommit)
+                    {
                         autoStage = true;
+                    }
                     else if (rs == Models.ConfirmEmptyCommitResult.StageSelectedAndCommit)
-                        await StageChangesAsync(_selectedUnstaged.Changes, null);
+                    {
+                        await StageChangesAsync(_selectedUnstaged.Changes, null, skipPartialStageConfirm: true);
+                        baselineSnapshot = await Commands.QueryStagedSnapshot.CaptureAsync(_repo.FullPath);
+                    }
+                    else if (rs == Models.ConfirmEmptyCommitResult.CreateEmptyCommit)
+                    {
+                        allowEmpty = true;
+                    }
                 }
             }
 
@@ -687,38 +739,107 @@ namespace SourceGit.ViewModels
             IsCommitting = true;
             _repo.UIStates.AddRecentCommitMessage(_commitMessage);
 
-            if (autoStage && _unstaged.Count > 0)
-                await StageChangesAsync(_unstaged, null);
-
-            var log = _repo.CreateLog("Commit");
-            var succ = await new Commands.Commit(_repo.FullPath, _commitMessage, EnableSignOff, NoVerifyOnCommit, _useAmend, _resetAuthor)
-                    .Use(log)
-                    .RunAsync();
-
-            log.Complete();
-
-            if (succ)
+            try
             {
+                if (autoStage && _unstaged.Count > 0)
+                {
+                    await StageChangesAsync(_unstaged, null, skipPartialStageConfirm: false);
+                    baselineSnapshot = await Commands.QueryStagedSnapshot.CaptureAsync(_repo.FullPath);
+                }
+
+                var log = _repo.CreateLog("Commit");
+                var commitResult = await Commands.GitSyncService.CommitAsync(
+                    _repo.FullPath,
+                    new Models.CommitExecutionOptions
+                    {
+                        Message = _commitMessage,
+                        SignOff = EnableSignOff,
+                        NoVerify = NoVerifyOnCommit,
+                        Amend = _useAmend,
+                        ResetAuthor = _resetAuthor,
+                        AllowEmpty = allowEmpty,
+                        CheckIdentity = true,
+                        ExpectedSnapshot = baselineSnapshot,
+                    },
+                    log);
+                log.Complete();
+
+                if (!commitResult.Succeeded)
+                {
+                    if (commitResult.FailureKind == Models.CommitFailureKind.MissingCommitIdentity)
+                    {
+                        IdentityAuthorName = commitResult.Identity?.Name ?? string.Empty;
+                        IdentityAuthorEmail = commitResult.Identity?.Email ?? string.Empty;
+                        _pendingIdentityCommit = true;
+                        _pendingIdentityAutoStage = autoStage;
+                        _pendingIdentityAutoPush = autoPush;
+                        ShowIdentityPrompt = true;
+                        NotifyInlineNoticeVisibility();
+                    }
+                    else if (commitResult.FailureKind == Models.CommitFailureKind.StagedSnapshotChanged)
+                    {
+                        _displayedSnapshot = commitResult.CurrentSnapshot;
+                        SetCommitAlert(App.Text("WorkingCopy.SnapshotStaleBanner"));
+                        _repo.MarkWorkingCopyDirtyManually();
+                    }
+                    else
+                    {
+                        SetCommitAlert(commitResult.Summary);
+                    }
+
+                    return;
+                }
+
                 UseAmend = false;
                 CommitMessage = string.Empty;
+                _displayedSnapshot = commitResult.CurrentSnapshot;
 
                 if (autoPush && _repo.Remotes.Count > 0)
                 {
-                    Models.Branch pushBranch = null;
-                    if (_repo.CurrentBranch == null)
+                    var pushOpts = TryResolveUpstreamPushOptions();
+                    if (pushOpts != null)
                     {
-                        var currentBranchName = await new Commands.QueryCurrentBranch(_repo.FullPath).GetResultAsync();
-                        pushBranch = new Models.Branch() { Name = currentBranchName };
+                        var pushLog = _repo.CreateLog("Push");
+                        var session = new Models.CommitAndPushSession
+                        {
+                            RepoPath = _repo.FullPath,
+                            CommitResult = commitResult,
+                            PushAttempted = false,
+                            PendingPushOptions = pushOpts,
+                        };
+
+                        var afterPush = await Commands.GitSyncService.RetryPushSessionAsync(session, pushOpts, pushLog);
+                        pushLog.Complete();
+                        ApplyTwoStepSessionState(afterPush);
+
+                        if (afterPush.IsFullySucceeded)
+                            _repo.SendNotification(afterPush.PushResult.Summary);
+                        else
+                            _repo.SendNotification(afterPush.Summary, true);
                     }
-
-                    if (_repo.CanCreatePopup())
-                        await _repo.ShowAndStartPopupAsync(new Push(_repo, pushBranch));
+                    else
+                    {
+                        ApplyTwoStepSessionState(new Models.CommitAndPushSession
+                        {
+                            RepoPath = _repo.FullPath,
+                            CommitResult = commitResult,
+                            PushAttempted = false,
+                        });
+                        OpenPushForPendingSession();
+                    }
                 }
-            }
+                else
+                {
+                    _repo.SendNotification(commitResult.Summary);
+                }
 
-            _repo.MarkBranchesDirtyManually();
-            _repo.RefreshSubmodules(); // Committing will not change submodule's HEAD (stage already changes it), So we need refresh submodules here manually.
-            IsCommitting = false;
+                _repo.MarkBranchesDirtyManually();
+                _repo.RefreshSubmodules();
+            }
+            finally
+            {
+                IsCommitting = false;
+            }
         }
 
         private List<Models.Change> GetVisibleChanges(List<Models.Change> changes)

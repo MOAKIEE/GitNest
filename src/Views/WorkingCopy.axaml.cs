@@ -289,6 +289,54 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
+        private void OnDismissCommitAlert(object _, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.WorkingCopy vm)
+                vm.DismissCommitAlert();
+
+            e.Handled = true;
+        }
+
+        private async void OnSaveLocalIdentity(object _, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.WorkingCopy vm)
+                await vm.SaveLocalIdentityAndContinueAsync();
+
+            e.Handled = true;
+        }
+
+        private void OnCancelIdentityPrompt(object _, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.WorkingCopy vm)
+                vm.CancelIdentityPrompt();
+
+            e.Handled = true;
+        }
+
+        private async void OnRetryPushOnly(object _, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.WorkingCopy vm)
+                await vm.RetryLastPushOnlyAsync();
+
+            e.Handled = true;
+        }
+
+        private void OnOpenPushForPendingSession(object _, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.WorkingCopy vm)
+                vm.OpenPushForPendingSession();
+
+            e.Handled = true;
+        }
+
+        private void OnDismissTwoStepBanner(object _, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.WorkingCopy vm)
+                vm.DismissTwoStepBanner();
+
+            e.Handled = true;
+        }
+
         private ContextMenu CreateContextMenuForUnstagedChanges(ViewModels.Repository repo, ViewModels.WorkingCopy vm, ViewModels.ChangeSelection selection)
         {
             var changes = selection.Changes;

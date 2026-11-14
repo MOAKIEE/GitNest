@@ -84,42 +84,84 @@ namespace SourceGit.ViewModels
 
             if (FetchAllRemotes)
             {
-                foreach (var remote in _repo.Remotes)
-                {
-                    await new Commands.Fetch(_repo.FullPath, remote, notags, force)
-                        .WithCancellation(token)
-                        .Use(log)
-                        .ExecAsync();
+                var targets = _repo.Remotes;
+                var res = await Commands.GitSyncService.FetchAsync(_repo.FullPath, targets, notags, force, log, token);
+                log.Complete();
+                _repo.MarkFetchResult(res);
 
-                    if (token.IsCancellationRequested)
-                        break;
+                if (!res.Succeeded)
+                {
+                    if (res.Outcome != Models.FetchOutcomeKind.Canceled)
+                    {
+                        HasFetchFeedbackBanner = true;
+                        FetchFeedbackMessage = res.Summary;
+                    }
+
+                    _cancellation = null;
+                    return false;
                 }
             }
             else
             {
-                await new Commands.Fetch(_repo.FullPath, SelectedRemote, notags, force)
-                    .WithCancellation(token)
-                    .Use(log)
-                    .ExecAsync();
-            }
+                var res = await Commands.GitSyncService.FetchAsync(_repo.FullPath, [SelectedRemote], notags, force, log, token);
+                log.Complete();
+                _repo.MarkFetchResult(res);
 
-            log.Complete();
+                if (!res.Succeeded)
+                {
+                    if (res.Outcome != Models.FetchOutcomeKind.Canceled)
+                    {
+                        HasFetchFeedbackBanner = true;
+                        FetchFeedbackMessage = res.Summary;
+                    }
+
+                    _cancellation = null;
+                    return false;
+                }
+            }
 
             if (navigateToUpstreamHEAD && !token.IsCancellationRequested)
             {
                 var upstream = _repo.CurrentBranch?.Upstream;
-                if (!string.IsNullOrEmpty(upstream))
+                if (!string.IsNullOrEmpty(upstream) && upstream.Length > 13)
                 {
                     var upstreamHead = await new Commands.QueryRevisionByRefName(_repo.FullPath, upstream.Substring(13)).GetResultAsync();
                     _repo.NavigateToCommit(upstreamHead, true);
                 }
             }
 
-            if (!token.IsCancellationRequested)
-                _repo.MarkFetched();
+            HasFetchFeedbackBanner = false;
+            FetchFeedbackMessage = string.Empty;
+            OnPropertyChanged(nameof(LastFetchStatusText));
 
             _cancellation = null;
             return true;
+        }
+
+        public string LastFetchStatusText
+        {
+            get
+            {
+                var last = _repo.LastFetchDisplayTime;
+                var text = string.IsNullOrEmpty(last)
+                    ? App.Text("Fetch.NeverFetched")
+                    : last;
+                if (_repo.LastFetchFailed && !string.IsNullOrEmpty(_repo.LastFetchError))
+                    return $"{text} · {_repo.LastFetchError}";
+                return text;
+            }
+        }
+
+        public bool HasFetchFeedbackBanner
+        {
+            get => _hasFetchFeedbackBanner;
+            private set => SetProperty(ref _hasFetchFeedbackBanner, value);
+        }
+
+        public string FetchFeedbackMessage
+        {
+            get => _fetchFeedbackMessage;
+            private set => SetProperty(ref _fetchFeedbackMessage, value);
         }
 
         public override void Terminate()
@@ -130,6 +172,8 @@ namespace SourceGit.ViewModels
 
         private readonly Repository _repo = null;
         private bool _fetchAllRemotes = false;
+        private bool _hasFetchFeedbackBanner = false;
+        private string _fetchFeedbackMessage = string.Empty;
         private CancellationTokenSource _cancellation = null;
     }
 }

@@ -243,6 +243,7 @@
         <RowDefinition Height="*" MinHeight="100"/>
         <RowDefinition Height="4"/>
         <RowDefinition Height="128" MinHeight="100"/>
+        <RowDefinition Height="Auto"/>
         <RowDefinition Height="40"/>
       </Grid.RowDefinitions>
 
@@ -281,8 +282,144 @@
                               ShowAdvancedOptions="True"
                               CommitMessage="{Binding CommitMessage, Mode=TwoWay}"/>
 
+      <!-- Inline Snapshot / Partial-Staging / Identity / Two-Step Status Panels -->
+      <StackPanel Grid.Row="3"
+                  Orientation="Vertical"
+                  Spacing="6"
+                  Margin="0,6,0,2"
+                  IsVisible="{Binding HasInlineNoticeArea, Mode=OneWay}">
+        <!-- Partial-Staging Hint -->
+        <Border Padding="8,5"
+                CornerRadius="4"
+                BorderThickness="1"
+                Background="{DynamicResource Brush.Window}"
+                BorderBrush="{DynamicResource Brush.Border2}"
+                IsVisible="{Binding HasPartialStagedFiles, Mode=OneWay}">
+          <Grid ColumnDefinitions="Auto,*">
+            <Path Grid.Column="0" Width="13" Height="13" Margin="0,1,6,0" VerticalAlignment="Top"
+                  Fill="{DynamicResource Brush.Accent}"
+                  Data="{StaticResource Icons.Info}"/>
+            <TextBlock Grid.Column="1"
+                       FontSize="12"
+                       Text="{DynamicResource Text.WorkingCopy.PartialCommitHint}"
+                       Foreground="{DynamicResource Brush.FG2}"
+                       TextWrapping="Wrap"/>
+          </Grid>
+        </Border>
+
+        <!-- Commit Alert Banner (Snapshot changed, hook rejected, lock conflict) -->
+        <Border Padding="8,6"
+                CornerRadius="4"
+                BorderThickness="1"
+                Background="{DynamicResource Brush.Window}"
+                BorderBrush="{DynamicResource Brush.Conflict}"
+                IsVisible="{Binding HasCommitAlert, Mode=OneWay}">
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <Path Grid.Column="0" Width="14" Height="14" Margin="0,2,8,0" VerticalAlignment="Top"
+                  Fill="{DynamicResource Brush.Conflict}"
+                  Data="{StaticResource Icons.Error}"/>
+            <TextBlock Grid.Column="1"
+                       FontSize="12"
+                       Text="{Binding CommitAlertMessage, Mode=OneWay}"
+                       TextWrapping="Wrap"/>
+            <Button Grid.Column="2"
+                    Classes="flat"
+                    Height="24"
+                    Margin="8,0,0,0"
+                    Padding="8,0"
+                    VerticalAlignment="Top"
+                    Content="{DynamicResource Text.WorkingCopy.DismissBanner}"
+                    Click="OnDismissCommitAlert"/>
+          </Grid>
+        </Border>
+
+        <!-- Local Commit Identity Setup -->
+        <Border Padding="10,8"
+                CornerRadius="4"
+                BorderThickness="1"
+                Background="{DynamicResource Brush.Window}"
+                BorderBrush="{DynamicResource Brush.Accent}"
+                IsVisible="{Binding ShowIdentityPrompt, Mode=OneWay}">
+          <StackPanel Orientation="Vertical" Spacing="6">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Width="13" Height="13" Fill="{DynamicResource Brush.Accent}" Data="{StaticResource Icons.User}"/>
+              <TextBlock Classes="bold" FontSize="12" Text="{DynamicResource Text.WorkingCopy.CommitIdentityTitle}"/>
+            </StackPanel>
+            <TextBlock FontSize="12"
+                       Foreground="{DynamicResource Brush.FG2}"
+                       Text="{DynamicResource Text.WorkingCopy.CommitIdentityHint}"
+                       TextWrapping="Wrap"/>
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+              <TextBox Grid.Row="0" Grid.Column="0"
+                       Height="26" Margin="0,0,6,0"
+                       Watermark="{DynamicResource Text.WorkingCopy.IdentityName}"
+                       Text="{Binding IdentityAuthorName, Mode=TwoWay}"/>
+              <TextBox Grid.Row="0" Grid.Column="1"
+                       Height="26"
+                       Watermark="{DynamicResource Text.WorkingCopy.IdentityEmail}"
+                       Text="{Binding IdentityAuthorEmail, Mode=TwoWay}"/>
+              <WrapPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,6,0,0">
+                <Button Classes="flat primary"
+                        Height="26" Padding="10,0" Margin="0,0,6,0"
+                        Content="{DynamicResource Text.WorkingCopy.SaveIdentityAndContinue}"
+                        IsEnabled="{Binding !IsSavingIdentity}"
+                        Click="OnSaveLocalIdentity"/>
+                <Button Classes="flat"
+                        Height="26" Padding="10,0"
+                        Content="{DynamicResource Text.Cancel}"
+                        Click="OnCancelIdentityPrompt"/>
+              </WrapPanel>
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Two-Step Commit & Push Status / Retry Push Only -->
+        <Border Padding="10,8"
+                CornerRadius="4"
+                BorderThickness="1"
+                Background="{DynamicResource Brush.Window}"
+                BorderBrush="{DynamicResource Brush.Border2}"
+                IsVisible="{Binding HasTwoStepStatus, Mode=OneWay}">
+          <StackPanel Orientation="Vertical" Spacing="5">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Width="13" Height="13" Fill="{DynamicResource Brush.Accent}" Data="{StaticResource Icons.CheckCircled}"/>
+              <TextBlock FontSize="12" FontWeight="SemiBold" Text="{Binding TwoStepCommitText, Mode=OneWay}" TextWrapping="Wrap"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Width="13" Height="13"
+                    Fill="{DynamicResource Brush.Accent}"
+                    Data="{StaticResource Icons.CheckCircled}"
+                    IsVisible="{Binding TwoStepPushSucceeded, Mode=OneWay}"/>
+              <Path Width="13" Height="13"
+                    Fill="{DynamicResource Brush.Conflict}"
+                    Data="{StaticResource Icons.Error}"
+                    IsVisible="{Binding !TwoStepPushSucceeded, Mode=OneWay}"/>
+              <TextBlock FontSize="12" Text="{Binding TwoStepPushText, Mode=OneWay}" TextWrapping="Wrap"/>
+            </StackPanel>
+            <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
+              <Button Classes="flat primary"
+                      Height="26" Padding="10,0" Margin="0,0,6,0"
+                      Content="{DynamicResource Text.WorkingCopy.RetryPushOnly}"
+                      IsVisible="{Binding CanRetryPushOnly, Mode=OneWay}"
+                      IsEnabled="{Binding !IsCommitting}"
+                      Click="OnRetryPushOnly"/>
+              <Button Classes="flat"
+                      Height="26" Padding="10,0" Margin="0,0,6,0"
+                      Content="{DynamicResource Text.WorkingCopy.OpenPushPopup}"
+                      IsVisible="{Binding !TwoStepPushSucceeded, Mode=OneWay}"
+                      IsEnabled="{Binding !IsCommitting}"
+                      Click="OnOpenPushForPendingSession"/>
+              <Button Classes="flat"
+                      Height="26" Padding="10,0"
+                      Content="{DynamicResource Text.WorkingCopy.DismissBanner}"
+                      Click="OnDismissTwoStepBanner"/>
+            </WrapPanel>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
       <!-- Commit Options -->
-      <Grid Grid.Row="3" VerticalAlignment="Center" ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto">
+      <Grid Grid.Row="4" VerticalAlignment="Center" ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto">
         <CheckBox Grid.Column="0"
                   Height="24"
                   Margin="1,0,0,0"

@@ -182,3 +182,12 @@
 - 新增 `src/Models/StagedSnapshot.cs`、`src/Models/RepositoryWriteGuard.cs`、`src/Models/CommitSyncModels.cs` 与 `src/Commands/CommandArgumentHelper.cs`、`src/Commands/QueryStagedSnapshot.cs`、`src/Commands/GitSyncService.cs`。
 - 改进 `src/Commands/Add.cs`、`src/Commands/Reset.cs`、`src/Commands/Commit.cs`、`src/Commands/Pull.cs`、`src/Commands/Push.cs`、`src/Commands/UpdateIndexInfo.cs`，支持顶层 `--literal-pathspecs` + `\0` 分隔路径规范、提交默认取消隐式 `--allow-empty`、`-c pull.rebase=false pull --ff-only` 显式快进策略，以及单分支显式 refspec 普通推送。
 - 新增真实 Git 集成测试 `tests/GitNest.IntegrationTests/CommitSyncTests.cs` 并接入 `Program.cs`，Release 构建 0 警告 0 错误，集成测试 **155** 项全通过；详细过程见 [phase-2.5.md](verification/phase-2.5.md)。
+
+## 2026-11-14 · 批次 2.5b：原生风格提交与同步 UI 接入及探针验收
+
+- 在 `WorkingCopy`、`WorkingCopy.CommitSync.cs`、`Fetch`、`Pull`、`Push` 及 `Repository.TaskOverview.cs` 完成快照守护、并发安全提示、部分暂存保护、本地提交身份内联补全、仅快进拉取（分叉可转入明确合并流程）、单分支显式 refspec 推送与两步“提交并推送”仅重试推送交互，整体保留 SourceGit 原生窗口与卡片样式。
+- `en_US.axaml` 与 `zh_CN.axaml` 新增 36 组本地化词条，XML 键名校验 `en=1286 zh=1286 diff=0`。
+- 新增 `tests/GitNest.UIProbe/CommitSyncProbe.cs`（`probe-gitnest.ps1 -CommitSync`），完成 11 项 UI 探针检查及 7 张浅色/深色/窄窗截图核对（过程与截图清单见 [phase-2.5.md](verification/phase-2.5.md)）。
+- 末次代码修改后全量验证：`.\build\scripts\build-gitnest.ps1 -Publish`（0 警告 0 错误，输出 `artifacts/windows-x64/GitNest.exe`）、`.\build\scripts\test-gitnest.ps1`（155/155 通过）、`.\build\scripts\probe-gitnest.ps1 -CommitSync`（11/11 通过）。
+
+阶段二（批次 2.1～2.5）全部完成；接续进入阶段三（批次 3.1：写操作串行化、确认快照、操作记录与恢复基础）。

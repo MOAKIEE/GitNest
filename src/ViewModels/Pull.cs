@@ -23,7 +23,10 @@ namespace SourceGit.ViewModels
             set
             {
                 if (SetProperty(ref _selectedRemote, value))
+                {
+                    ResetFeedbackBanner();
                     PostRemoteSelected();
+                }
             }
         }
 
@@ -37,24 +40,11 @@ namespace SourceGit.ViewModels
         public Models.Branch SelectedBranch
         {
             get => _selectedBranch;
-            set => SetProperty(ref _selectedBranch, value, true);
-        }
-
-        public bool HasLocalChanges
-        {
-            get => _repo.LocalChangesCount > 0;
-        }
-
-        public Models.DealWithLocalChanges DealWithLocalChanges
-        {
-            get;
-            set;
-        }
-
-        public bool UseRebase
-        {
-            get => _repo.UIStates.PreferRebaseInsteadOfMerge;
-            set => _repo.UIStates.PreferRebaseInsteadOfMerge = value;
+            set
+            {
+                if (SetProperty(ref _selectedBranch, value, true))
+                    ResetFeedbackBanner();
+            }
         }
 
         public Pull(Repository repo, Models.Branch specifiedRemoteBranch)
@@ -62,10 +52,6 @@ namespace SourceGit.ViewModels
             _repo = repo;
             Current = repo.CurrentBranch;
             CanTerminate = true;
-
-            DealWithLocalChanges = Preferences.Instance.UseStashAndReapplyByDefault ?
-                Models.DealWithLocalChanges.StashAndReapply :
-                Models.DealWithLocalChanges.DoNothing;
 
             if (specifiedRemoteBranch != null)
             {
@@ -122,66 +108,142 @@ namespace SourceGit.ViewModels
             _cancellation = new CancellationTokenSource();
             var token = _cancellation.Token;
 
-            var changes = await new Commands.CountLocalChanges(_repo.FullPath, false).GetResultAsync();
-            var needPopStash = false;
-            if (changes > 0)
-            {
-                if (DealWithLocalChanges == Models.DealWithLocalChanges.DoNothing)
-                {
-                    // Do nothing, just let the pull command fail and show the error to user
-                }
-                else if (DealWithLocalChanges == Models.DealWithLocalChanges.StashAndReapply)
-                {
-                    var succ = await new Commands.Stash(_repo.FullPath).Use(log).PushAsync("PULL_AUTO_STASH", false);
-                    if (!succ)
-                    {
-                        log.Complete();
-                        _repo.MarkWorkingCopyDirtyManually();
-                        _cancellation = null;
-                        return false;
-                    }
+            HasFeedbackBanner = false;
+            IsDiverged = false;
+            DivergedCountsText = string.Empty;
+            FeedbackSummary = string.Empty;
+            BlockingPathsText = string.Empty;
 
-                    needPopStash = true;
-                }
-                else
-                {
-                    await Commands.Discard.AllAsync(_repo.FullPath, true, false, false, log);
-                }
+            if (Current == null || _selectedRemote == null || _selectedBranch == null)
+            {
+                HasFeedbackBanner = true;
+                FeedbackSummary = "请选择有效的远端和目标分支。";
+                log.Complete();
+                _cancellation = null;
+                return false;
             }
 
-            bool rs = false;
-            if (!token.IsCancellationRequested)
-            {
-                var target = _selectedBranch;
-                if (!string.IsNullOrEmpty(Current.Upstream) && target.FullName.Equals(Current.Upstream, StringComparison.Ordinal))
-                    target = null;
-
-                rs = await new Commands.Pull(
-                    _repo.FullPath,
-                    _selectedRemote,
-                    target,
-                    UseRebase).WithCancellation(token).Use(log).ExecAsync();
-
-                if (rs)
-                {
-                    await _repo.AutoUpdateSubmodulesAsync(log);
-
-                    if (needPopStash)
-                        await new Commands.Stash(_repo.FullPath).Use(log).PopAsync("stash@{0}");
-                }
-            }
+            var res = await Commands.GitSyncService.PullFastForwardAsync(
+                _repo.FullPath,
+                _selectedRemote,
+                _selectedBranch.Name,
+                log,
+                token);
 
             log.Complete();
+            _cancellation = null;
 
-            if (_repo.SelectedViewIndex == 0)
+            if (res.Succeeded)
             {
-                var head = await new Commands.QueryRevisionByRefName(_repo.FullPath, "HEAD").GetResultAsync();
-                _repo.NavigateToCommit(head, true);
+                _repo.MarkFetched();
+                if (_repo.SelectedViewIndex == 0 && !string.IsNullOrEmpty(res.AfterHead))
+                    _repo.NavigateToCommit(res.AfterHead, true);
+
+                _repo.SendNotification(res.Summary);
+                return true;
             }
 
-            _cancellation = null;
-            return rs;
+            if (res.Outcome == Models.PullOutcomeKind.Canceled)
+                return false;
+
+            HasFeedbackBanner = true;
+            if (res.Outcome == Models.PullOutcomeKind.Diverged)
+            {
+                IsDiverged = true;
+                DivergedCountsText = App.Text("Pull.DivergedCounts", res.LocalAheadCount, res.RemoteBehindCount);
+                FeedbackSummary = App.Text("Pull.DivergedBanner");
+            }
+            else if (res.Outcome == Models.PullOutcomeKind.LocalChangesConflict)
+            {
+                IsDiverged = false;
+                FeedbackSummary = App.Text("Pull.LocalConflictBanner");
+                BlockingPathsText = res.BlockingPaths.Count > 0
+                    ? string.Join(Environment.NewLine, res.BlockingPaths)
+                    : res.DiagnosticDetail;
+            }
+            else
+            {
+                IsDiverged = false;
+                FeedbackSummary = res.Summary;
+            }
+
+            return false;
         }
+
+        public bool HasFeedbackBanner
+        {
+            get => _hasFeedbackBanner;
+            private set => SetProperty(ref _hasFeedbackBanner, value);
+        }
+
+        public bool IsDiverged
+        {
+            get => _isDiverged;
+            private set => SetProperty(ref _isDiverged, value);
+        }
+
+        public string DivergedCountsText
+        {
+            get => _divergedCountsText;
+            private set => SetProperty(ref _divergedCountsText, value);
+        }
+
+        public string FeedbackSummary
+        {
+            get => _feedbackSummary;
+            private set => SetProperty(ref _feedbackSummary, value);
+        }
+
+        public string BlockingPathsText
+        {
+            get => _blockingPathsText;
+            private set => SetProperty(ref _blockingPathsText, value);
+        }
+
+        public bool HasBlockingPaths => !string.IsNullOrWhiteSpace(_blockingPathsText);
+
+        public void OpenMergeFlow()
+        {
+            if (Current == null)
+                return;
+
+            var sourceBranch = _selectedBranch;
+            if (sourceBranch == null && _selectedRemote != null)
+            {
+                sourceBranch = _repo.Branches.Find(b =>
+                    !b.IsLocal &&
+                    b.Remote == _selectedRemote.Name &&
+                    b.Name == Current.Name);
+            }
+
+            if (sourceBranch == null)
+            {
+                _repo.DismissPopup();
+                return;
+            }
+
+            _repo.ReplacePopup(new Merge(_repo, sourceBranch, Current.Name, forceFastForward: false));
+        }
+
+        public void CloseForExternalTool()
+        {
+            _repo.DismissPopup();
+        }
+
+        private void ResetFeedbackBanner()
+        {
+            HasFeedbackBanner = false;
+            IsDiverged = false;
+            DivergedCountsText = string.Empty;
+            FeedbackSummary = string.Empty;
+            BlockingPathsText = string.Empty;
+        }
+
+        private bool _hasFeedbackBanner = false;
+        private bool _isDiverged = false;
+        private string _divergedCountsText = string.Empty;
+        private string _feedbackSummary = string.Empty;
+        private string _blockingPathsText = string.Empty;
 
         public override void Terminate()
         {

@@ -19,7 +19,7 @@
                  Text="{DynamicResource Text.Pull.Title}"/>
     </StackPanel>
 
-    <Grid Margin="0,16,0,0" RowDefinitions="32,32,32,Auto,32" ColumnDefinitions="140,*">
+    <Grid Margin="0,16,0,0" RowDefinitions="32,32,32,Auto" ColumnDefinitions="140,*">
       <TextBlock Grid.Row="0" Grid.Column="0"
                  HorizontalAlignment="Right" VerticalAlignment="Center"
                  Margin="0,0,8,0"
@@ -61,22 +61,62 @@
         <TextBlock Text="{Binding Current.Name}"/>
       </StackPanel>
 
-      <Border Grid.Row="3" Grid.Column="0"
-              Height="32"
-              VerticalAlignment="Top"
-              IsVisible="{Binding HasLocalChanges, Mode=OneWay}">
-        <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center"
-                   Margin="0,0,8,0"
-                   Text="{DynamicResource Text.Pull.LocalChanges}"/>
-      </Border>
-      <v:DealWithLocalChangesMethod Grid.Row="3" Grid.Column="1"
-                                    Method="{Binding DealWithLocalChanges, Mode=TwoWay}"
-                                    IsVisible="{Binding HasLocalChanges, Mode=OneWay}"/>
-
-      <CheckBox Grid.Row="4" Grid.Column="1"
-                Content="{DynamicResource Text.Pull.UseRebase}"
-                IsChecked="{Binding UseRebase, Mode=TwoWay}"
-                ToolTip.Tip="--rebase"/>
+      <TextBlock Grid.Row="3" Grid.Column="0"
+                 HorizontalAlignment="Right" VerticalAlignment="Top"
+                 Margin="0,6,8,0"
+                 Text="{DynamicResource Text.Pull.Strategy}"/>
+      <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Vertical" Margin="0,6,0,0" Spacing="4">
+        <TextBlock FontWeight="SemiBold"
+                   Text="{DynamicResource Text.Pull.StrategyFastForwardOnly}"
+                   TextWrapping="Wrap"/>
+        <TextBlock Text="{DynamicResource Text.Pull.LocalChangesProtectTip}"
+                   Foreground="{DynamicResource Brush.FG2}"
+                   TextWrapping="Wrap"
+                   FontSize="12"/>
+      </StackPanel>
     </Grid>
+
+    <Border Margin="0,12,0,0"
+            Padding="12,10"
+            CornerRadius="4"
+            BorderThickness="1"
+            Background="{DynamicResource Brush.Contents}"
+            BorderBrush="{DynamicResource Brush.Conflict}"
+            IsVisible="{Binding HasFeedbackBanner, Mode=OneWay}">
+      <StackPanel Orientation="Vertical" Spacing="8">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Path Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,0,0"
+                Fill="{DynamicResource Brush.Conflict}"
+                Data="{StaticResource Icons.Error}"/>
+          <StackPanel Orientation="Vertical" Spacing="2">
+            <TextBlock Text="{Binding FeedbackSummary, Mode=OneWay}"
+                       TextWrapping="Wrap"
+                       FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding DivergedCountsText, Mode=OneWay}"
+                       Foreground="{DynamicResource Brush.FG2}"
+                       IsVisible="{Binding IsDiverged, Mode=OneWay}"/>
+            <TextBlock Text="{Binding BlockingPathsText, Mode=OneWay}"
+                       Foreground="{DynamicResource Brush.FG2}"
+                       TextWrapping="Wrap"
+                       IsVisible="{Binding BlockingPathsText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+          </StackPanel>
+        </StackPanel>
+
+        <WrapPanel Orientation="Horizontal"
+                   IsVisible="{Binding IsDiverged, Mode=OneWay}">
+          <Button Classes="flat primary"
+                  Height="28"
+                  Margin="0,0,8,0"
+                  Padding="12,0"
+                  Content="{DynamicResource Text.Pull.OpenMerge}"
+                  Click="OnOpenMergeFlow"/>
+          <Button Classes="flat"
+                  Height="28"
+                  Padding="12,0"
+                  Content="{DynamicResource Text.Pull.LeaveExternal}"
+                  Click="OnCloseForExternalTool"/>
+        </WrapPanel>
+      </StackPanel>
+    </Border>
   </StackPanel>
 </UserControl>

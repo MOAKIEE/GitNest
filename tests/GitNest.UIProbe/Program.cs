@@ -53,6 +53,10 @@ internal static partial class Program
             {
                 RunConfig();
             }
+            else if (args.Contains("--commit-sync"))
+            {
+                RunCommitSync();
+            }
             else
             {
                 RunOverview();
@@ -241,5 +245,6 @@ internal static partial class Program
 
     static partial void RunComparison();
     static partial void RunConfig();
+    static partial void RunCommitSync();
 
 }

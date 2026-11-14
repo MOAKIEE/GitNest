@@ -873,7 +873,7 @@
   <x:String x:Key="Text.Pull.Into" xml:space="preserve">本地分支 ：</x:String>
   <x:String x:Key="Text.Pull.LocalChanges" xml:space="preserve">未提交更改 ：</x:String>
   <x:String x:Key="Text.Pull.Remote" xml:space="preserve">远程 ：</x:String>
-  <x:String x:Key="Text.Pull.Title" xml:space="preserve">拉回（拉取并合并）</x:String>
+  <x:String x:Key="Text.Pull.Title" xml:space="preserve">拉取（仅快进更新）</x:String>
   <x:String x:Key="Text.Pull.UseRebase" xml:space="preserve">使用变基方式合并分支</x:String>
   <x:String x:Key="Text.Push" xml:space="preserve">推送到远端</x:String>
   <x:String x:Key="Text.Push.CheckSubmodules" xml:space="preserve">确保子模块变更已推送</x:String>
@@ -1277,4 +1277,40 @@
   <x:String x:Key="Text.TaskCompare.MultipleMergeBases" xml:space="preserve">双方存在多个共同祖先。请选择“两端差异”，或在外部工具中检查历史。</x:String>
   <x:String x:Key="Text.TaskCompare.ReadFailed" xml:space="preserve">无法读取累计差异，请检查工作树目录和 Git 状态后刷新。</x:String>
   <x:String x:Key="Text.TaskCompare.CachedTarget" xml:space="preserve">目标来自本地远程跟踪缓存；“获取更新”后可重新比较。</x:String>
+
+  <x:String x:Key="Text.Fetch.LastFetchedTime" xml:space="preserve">上次获取 ：</x:String>
+  <x:String x:Key="Text.Fetch.NeverFetched" xml:space="preserve">尚未获取（远端状态与落后计数未知，不记为 0）</x:String>
+
+  <x:String x:Key="Text.Pull.Strategy" xml:space="preserve">拉取策略 ：</x:String>
+  <x:String x:Key="Text.Pull.StrategyFastForwardOnly" xml:space="preserve">仅快进更新（--ff-only，不静默变基）</x:String>
+  <x:String x:Key="Text.Pull.LocalChangesProtectTip" xml:space="preserve">工作区未提交修改会被完整保留，绝不在拉取时自动丢弃。</x:String>
+  <x:String x:Key="Text.Pull.DivergedBanner" xml:space="preserve">本地与远端都有新提交（分支已分叉），默认仅接受快进拉取。</x:String>
+  <x:String x:Key="Text.Pull.DivergedCounts" xml:space="preserve">本地领先 {0} 个提交 · 远端领先 {1} 个提交</x:String>
+  <x:String x:Key="Text.Pull.OpenMerge" xml:space="preserve">进入明确合并流程</x:String>
+  <x:String x:Key="Text.Pull.LeaveExternal" xml:space="preserve">交给外部工具处理</x:String>
+  <x:String x:Key="Text.Pull.LocalConflictBanner" xml:space="preserve">工作区未提交修改会被本次快进覆盖，已安全中止：</x:String>
+
+  <x:String x:Key="Text.Push.RefspecPreview" xml:space="preserve">推送引用 ：</x:String>
+  <x:String x:Key="Text.Push.SingleBranchOnlyNote" xml:space="preserve">仅按明确单分支推送，不隐式推送其他分支或标签。</x:String>
+  <x:String x:Key="Text.Push.NoUpstreamHint" xml:space="preserve">当前分支未设置上游，请明确选择目标远端、目标分支并确认跟踪关系。</x:String>
+  <x:String x:Key="Text.Push.NoForceHint" xml:space="preserve">普通推送拒绝覆盖远端新提交；若远端已更新，请先拉取/合并。</x:String>
+  <x:String x:Key="Text.Push.ConfirmOverwriteExistingRemote" xml:space="preserve">当前分支尚未绑定上游，但远端已存在 {0}/{1}；请明确确认目标分支无误后再推送。</x:String>
+  <x:String x:Key="Text.Push.ConfirmExistingRemoteTarget" xml:space="preserve">已确认推送到远端现有分支 {0}/{1}</x:String>
+
+  <x:String x:Key="Text.WorkingCopy.PartialStageBadge" xml:space="preserve">部分暂存</x:String>
+  <x:String x:Key="Text.WorkingCopy.PartialCommitHint" xml:space="preserve">存在部分暂存文件：普通提交仅写入已暂存快照，工作区其余修改完整保留在磁盘。</x:String>
+  <x:String x:Key="Text.WorkingCopy.PartialFullStageConfirm" xml:space="preserve">以下文件当前存在部分暂存（{0}），继续整文件暂存将把工作区整个文件覆盖写入暂存区，是否继续？</x:String>
+  <x:String x:Key="Text.WorkingCopy.SnapshotStaleBanner" xml:space="preserve">暂存区快照或当前分支已在外部发生变化，已中止本次提交，请核对暂存区后重试。</x:String>
+  <x:String x:Key="Text.WorkingCopy.CommitIdentityTitle" xml:space="preserve">补全当前仓库提交身份</x:String>
+  <x:String x:Key="Text.WorkingCopy.CommitIdentityHint" xml:space="preserve">缺少有效 user.name 或 user.email；此处仅写入当前仓库局部配置，不改动全局配置或远端登录。</x:String>
+  <x:String x:Key="Text.WorkingCopy.IdentityName" xml:space="preserve">提交者姓名 (user.name)</x:String>
+  <x:String x:Key="Text.WorkingCopy.IdentityEmail" xml:space="preserve">提交者邮箱 (user.email)</x:String>
+  <x:String x:Key="Text.WorkingCopy.SaveIdentityAndContinue" xml:space="preserve">保存局部身份</x:String>
+  <x:String x:Key="Text.WorkingCopy.TwoStepTitle" xml:space="preserve">两步提交与推送状态</x:String>
+  <x:String x:Key="Text.WorkingCopy.StepCommitSucceeded" xml:space="preserve">第 1 步 · 本地提交成功（{0}）</x:String>
+  <x:String x:Key="Text.WorkingCopy.StepPushSucceeded" xml:space="preserve">第 2 步 · 单分支推送成功（{0}）</x:String>
+  <x:String x:Key="Text.WorkingCopy.StepPushFailed" xml:space="preserve">第 2 步 · 推送失败（本地提交 {0} 已保留）：</x:String>
+  <x:String x:Key="Text.WorkingCopy.RetryPushOnly" xml:space="preserve">仅重试推送</x:String>
+  <x:String x:Key="Text.WorkingCopy.OpenPushPopup" xml:space="preserve">调整推送目标...</x:String>
+  <x:String x:Key="Text.WorkingCopy.DismissBanner" xml:space="preserve">关闭</x:String>
 </ResourceDictionary>

@@ -21,8 +21,21 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public string StatusSummaryDetail => Worktree.DescribeChanges(_currentTaskStatus) + "\n" +
-            (_currentTaskStatus?.LastFetchAt is { } time ? App.Text("Worktree.Status.FetchTime", time.ToString("yyyy-MM-dd HH:mm:ss")) : App.Text("Worktree.Status.FetchUnknown"));
+        public string StatusSummaryDetail
+        {
+            get
+            {
+                var baseDetail = Worktree.DescribeChanges(_currentTaskStatus) + "\n" +
+                    (_currentTaskStatus?.LastFetchAt is { } time
+                        ? App.Text("Worktree.Status.FetchTime", time.ToString("yyyy-MM-dd HH:mm:ss"))
+                        : App.Text("Worktree.Status.FetchUnknown"));
+
+                if (_lastFetchFailed && !string.IsNullOrWhiteSpace(_lastFetchError))
+                    return baseDetail + "\n" + _lastFetchError;
+
+                return baseDetail;
+            }
+        }
 
         public void ShowChanges() => SelectedViewIndex = 1;
 

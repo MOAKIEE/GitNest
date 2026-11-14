@@ -61,9 +61,11 @@ namespace SourceGit.ViewModels
             {
                 if (SetProperty(ref _selectedRemoteBranch, value, true))
                 {
-                    IsSetTrackOptionVisible = !string.IsNullOrEmpty(_selectedRemote.URL)
+                    IsSetTrackOptionVisible = !string.IsNullOrEmpty(_selectedRemote?.URL)
                         && value != null
-                        && (value.Head == null || _selectedLocalBranch.Upstream != value.FullName);
+                        && (value.Head == null || _selectedLocalBranch?.Upstream != value.FullName);
+                    ResetPushFeedbackAndConfirmation();
+                    NotifyPushPreviewChanged();
                 }
             }
         }
@@ -90,18 +92,6 @@ namespace SourceGit.ViewModels
             get;
             set;
         } = true;
-
-        public bool PushAllTags
-        {
-            get => _repo.UIStates.PushAllTags;
-            set => _repo.UIStates.PushAllTags = value;
-        }
-
-        public bool ForcePush
-        {
-            get;
-            set;
-        }
 
         public bool NoVerify
         {
@@ -164,11 +154,67 @@ namespace SourceGit.ViewModels
 
         public override bool CanStartDirectly()
         {
-            return !string.IsNullOrEmpty(_selectedRemoteBranch?.Head);
+            return !string.IsNullOrEmpty(_selectedLocalBranch?.Upstream) &&
+                   !string.IsNullOrEmpty(_selectedRemoteBranch?.Head);
+        }
+
+        public string RefspecPreview =>
+            $"refs/heads/{_selectedLocalBranch?.Name ?? "--"}:refs/heads/{_selectedRemoteBranch?.Name ?? "--"} ({_selectedRemote?.Name ?? "--"})";
+
+        public bool ShowNoUpstreamHint =>
+            _selectedLocalBranch != null && string.IsNullOrEmpty(_selectedLocalBranch.Upstream);
+
+        public bool ConfirmExistingRemoteRequired
+        {
+            get => _confirmExistingRemoteRequired;
+            private set => SetProperty(ref _confirmExistingRemoteRequired, value);
+        }
+
+        public string ConfirmExistingRemotePrompt
+        {
+            get => _confirmExistingRemotePrompt;
+            private set => SetProperty(ref _confirmExistingRemotePrompt, value);
+        }
+
+        public string ConfirmExistingRemoteCheckboxText =>
+            App.Text("Push.ConfirmExistingRemoteTarget", _selectedRemote?.Name ?? string.Empty, _selectedRemoteBranch?.Name ?? string.Empty);
+
+        public bool ConfirmOverwriteExistingRemoteBranchWithoutUpstream
+        {
+            get => _confirmOverwriteExistingRemoteBranchWithoutUpstream;
+            set => SetProperty(ref _confirmOverwriteExistingRemoteBranchWithoutUpstream, value);
+        }
+
+        public bool HasPushErrorBanner
+        {
+            get => _hasPushErrorBanner;
+            private set => SetProperty(ref _hasPushErrorBanner, value);
+        }
+
+        public string PushErrorSummary
+        {
+            get => _pushErrorSummary;
+            private set => SetProperty(ref _pushErrorSummary, value);
+        }
+
+        public Action<Models.PushExecutionResult> PushFinishedCallback
+        {
+            get;
+            set;
         }
 
         public override async Task<bool> Sure()
         {
+            HasPushErrorBanner = false;
+            PushErrorSummary = string.Empty;
+
+            if (_selectedLocalBranch == null || _selectedRemote == null || _selectedRemoteBranch == null)
+            {
+                HasPushErrorBanner = true;
+                PushErrorSummary = "请选择有效的本地分支、远端和目标分支。";
+                return false;
+            }
+
             using var lockWatcher = _repo.LockWatcher();
             ProgressDescription = $"Push {_selectedLocalBranch.Name} -> {_selectedRemoteBranch.FriendlyName} ...";
 
@@ -178,21 +224,64 @@ namespace SourceGit.ViewModels
             _cancellation = new CancellationTokenSource();
             var token = _cancellation.Token;
 
-            var succ = await new Commands.Push(
+            var res = await Commands.GitSyncService.PushSingleBranchAsync(
                 _repo.FullPath,
-                _selectedLocalBranch,
-                _selectedRemote,
-                _selectedRemoteBranch,
-                PushAllTags,
-                _repo.Submodules.Count > 0 && CheckSubmodules,
-                _isSetTrackOptionVisible && _tracking,
-                ForcePush,
-                NoVerify).WithCancellation(token).Use(log).ExecAsync();
+                new Models.PushExecutionOptions
+                {
+                    LocalBranch = _selectedLocalBranch.Name,
+                    Remote = _selectedRemote,
+                    RemoteBranch = _selectedRemoteBranch.Name,
+                    CheckSubmodules = _repo.Submodules.Count > 0 && CheckSubmodules,
+                    SetUpstream = _isSetTrackOptionVisible && _tracking,
+                    NoVerify = NoVerify,
+                    ConfirmOverwriteExistingRemoteBranchWithoutUpstream = ConfirmOverwriteExistingRemoteBranchWithoutUpstream,
+                },
+                log,
+                token);
 
             log.Complete();
-
             _cancellation = null;
-            return succ;
+
+            PushFinishedCallback?.Invoke(res);
+
+            if (res.Succeeded)
+            {
+                ConfirmExistingRemoteRequired = false;
+                ConfirmOverwriteExistingRemoteBranchWithoutUpstream = false;
+                _repo.SendNotification(res.Summary);
+                return true;
+            }
+
+            if (res.Outcome == Models.PushOutcomeKind.Canceled)
+                return false;
+
+            if (res.Outcome == Models.PushOutcomeKind.RemoteBranchExistsWithoutUpstream)
+            {
+                ConfirmExistingRemoteRequired = true;
+                ConfirmExistingRemotePrompt = App.Text("Push.ConfirmOverwriteExistingRemote", _selectedRemote.Name, _selectedRemoteBranch.Name);
+                OnPropertyChanged(nameof(ConfirmExistingRemoteCheckboxText));
+                return false;
+            }
+
+            HasPushErrorBanner = true;
+            PushErrorSummary = res.Summary;
+            return false;
+        }
+
+        private void ResetPushFeedbackAndConfirmation()
+        {
+            ConfirmExistingRemoteRequired = false;
+            ConfirmExistingRemotePrompt = string.Empty;
+            ConfirmOverwriteExistingRemoteBranchWithoutUpstream = false;
+            HasPushErrorBanner = false;
+            PushErrorSummary = string.Empty;
+        }
+
+        private void NotifyPushPreviewChanged()
+        {
+            OnPropertyChanged(nameof(RefspecPreview));
+            OnPropertyChanged(nameof(ShowNoUpstreamHint));
+            OnPropertyChanged(nameof(ConfirmExistingRemoteCheckboxText));
         }
 
         public override void Terminate()
@@ -362,6 +451,11 @@ namespace SourceGit.ViewModels
         private Models.Branch _selectedRemoteBranch = null;
         private bool _isSetTrackOptionVisible = false;
         private bool _tracking = false;
+        private bool _confirmExistingRemoteRequired = false;
+        private string _confirmExistingRemotePrompt = string.Empty;
+        private bool _confirmOverwriteExistingRemoteBranchWithoutUpstream = false;
+        private bool _hasPushErrorBanner = false;
+        private string _pushErrorSummary = string.Empty;
         private CancellationTokenSource _cancellation = null;
     }
 }

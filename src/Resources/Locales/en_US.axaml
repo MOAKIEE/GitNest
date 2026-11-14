@@ -869,7 +869,7 @@
   <x:String x:Key="Text.Pull.Into" xml:space="preserve">Into:</x:String>
   <x:String x:Key="Text.Pull.LocalChanges" xml:space="preserve">Local Changes:</x:String>
   <x:String x:Key="Text.Pull.Remote" xml:space="preserve">Remote:</x:String>
-  <x:String x:Key="Text.Pull.Title" xml:space="preserve">Pull (Fetch &amp; Merge)</x:String>
+  <x:String x:Key="Text.Pull.Title" xml:space="preserve">Pull (Fast-Forward Only)</x:String>
   <x:String x:Key="Text.Pull.UseRebase" xml:space="preserve">Use rebase instead of merge</x:String>
   <x:String x:Key="Text.Push" xml:space="preserve">Push</x:String>
   <x:String x:Key="Text.Push.CheckSubmodules" xml:space="preserve">Make sure submodules have been pushed</x:String>
@@ -1273,4 +1273,40 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.TaskCompare.MultipleMergeBases" xml:space="preserve">These histories have multiple merge bases. Select the two-tip mode or inspect the history in an external tool.</x:String>
   <x:String x:Key="Text.TaskCompare.ReadFailed" xml:space="preserve">Could not read task changes. Check the worktree and Git state, then refresh.</x:String>
   <x:String x:Key="Text.TaskCompare.CachedTarget" xml:space="preserve">The target is a local remote-tracking cache. Fetch updates before comparing again.</x:String>
+
+  <x:String x:Key="Text.Fetch.LastFetchedTime" xml:space="preserve">Last Fetch:</x:String>
+  <x:String x:Key="Text.Fetch.NeverFetched" xml:space="preserve">Not fetched yet (remote differences unknown)</x:String>
+
+  <x:String x:Key="Text.Pull.Strategy" xml:space="preserve">Pull Policy:</x:String>
+  <x:String x:Key="Text.Pull.StrategyFastForwardOnly" xml:space="preserve">Fast-forward only (--ff-only, never silent rebase)</x:String>
+  <x:String x:Key="Text.Pull.LocalChangesProtectTip" xml:space="preserve">Uncommitted local modifications will be preserved and never discarded automatically.</x:String>
+  <x:String x:Key="Text.Pull.DivergedBanner" xml:space="preserve">Local and remote branches have both moved forward. Fast-forward pull stopped without rewriting local commits.</x:String>
+  <x:String x:Key="Text.Pull.DivergedCounts" xml:space="preserve">Local ahead {0} · Remote ahead {1}</x:String>
+  <x:String x:Key="Text.Pull.OpenMerge" xml:space="preserve">OPEN MERGE FLOW</x:String>
+  <x:String x:Key="Text.Pull.LeaveExternal" xml:space="preserve">HANDLE IN EXTERNAL TOOL</x:String>
+  <x:String x:Key="Text.Pull.LocalConflictBanner" xml:space="preserve">Fast-forward pull stopped so uncommitted local edits are not overwritten:</x:String>
+
+  <x:String x:Key="Text.Push.RefspecPreview" xml:space="preserve">Refspec:</x:String>
+  <x:String x:Key="Text.Push.SingleBranchOnlyNote" xml:space="preserve">Single-branch explicit push (tags and other local branches are never pushed implicitly).</x:String>
+  <x:String x:Key="Text.Push.NoUpstreamHint" xml:space="preserve">This branch has no upstream configured yet. Pick target remote and branch explicitly.</x:String>
+  <x:String x:Key="Text.Push.NoForceHint" xml:space="preserve">Normal push refuses non-fast-forward updates; pull or merge first if remote moved ahead.</x:String>
+  <x:String x:Key="Text.Push.ConfirmOverwriteExistingRemote" xml:space="preserve">Remote branch '{0}/{1}' already exists even though this branch has no upstream. Confirm explicitly before pushing.</x:String>
+  <x:String x:Key="Text.Push.ConfirmExistingRemoteTarget" xml:space="preserve">Confirm pushing to existing remote branch {0}/{1}</x:String>
+
+  <x:String x:Key="Text.WorkingCopy.PartialStageBadge" xml:space="preserve">PARTIAL</x:String>
+  <x:String x:Key="Text.WorkingCopy.PartialCommitHint" xml:space="preserve">Some files are partially staged: ordinary commit records only the staged snapshot and preserves remaining edits on disk.</x:String>
+  <x:String x:Key="Text.WorkingCopy.PartialFullStageConfirm" xml:space="preserve">The following file(s) already contain partial staged changes ({0}). Staging from Unstaged will replace their staged split with the full working tree content. Continue?</x:String>
+  <x:String x:Key="Text.WorkingCopy.SnapshotStaleBanner" xml:space="preserve">Staged snapshot or current branch changed externally before commit. Please review and commit again.</x:String>
+  <x:String x:Key="Text.WorkingCopy.CommitIdentityTitle" xml:space="preserve">Configure Repository Commit Identity</x:String>
+  <x:String x:Key="Text.WorkingCopy.CommitIdentityHint" xml:space="preserve">user.name or user.email is missing. Saving writes repository-local config only without modifying global config or remote credentials.</x:String>
+  <x:String x:Key="Text.WorkingCopy.IdentityName" xml:space="preserve">Author Name (user.name)</x:String>
+  <x:String x:Key="Text.WorkingCopy.IdentityEmail" xml:space="preserve">Author Email (user.email)</x:String>
+  <x:String x:Key="Text.WorkingCopy.SaveIdentityAndContinue" xml:space="preserve">SAVE LOCAL IDENTITY</x:String>
+  <x:String x:Key="Text.WorkingCopy.TwoStepTitle" xml:space="preserve">Commit &amp; Push Two-Step Status</x:String>
+  <x:String x:Key="Text.WorkingCopy.StepCommitSucceeded" xml:space="preserve">Step 1 · Local commit succeeded ({0})</x:String>
+  <x:String x:Key="Text.WorkingCopy.StepPushSucceeded" xml:space="preserve">Step 2 · Single-branch push succeeded ({0})</x:String>
+  <x:String x:Key="Text.WorkingCopy.StepPushFailed" xml:space="preserve">Step 2 · Push failed (local commit {0} is preserved):</x:String>
+  <x:String x:Key="Text.WorkingCopy.RetryPushOnly" xml:space="preserve">RETRY PUSH ONLY</x:String>
+  <x:String x:Key="Text.WorkingCopy.OpenPushPopup" xml:space="preserve">PUSH OPTIONS...</x:String>
+  <x:String x:Key="Text.WorkingCopy.DismissBanner" xml:space="preserve">Dismiss</x:String>
 </ResourceDictionary>
