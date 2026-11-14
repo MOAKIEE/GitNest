@@ -93,6 +93,8 @@
   <x:String x:Key="Text.BranchCM.CreatePRForUpstream" xml:space="preserve">Create PR for upstream ${0}$...</x:String>
   <x:String x:Key="Text.BranchCM.CustomAction" xml:space="preserve">Custom Action</x:String>
   <x:String x:Key="Text.BranchCM.Delete" xml:space="preserve">Delete ${0}$...</x:String>
+  <x:String x:Key="Text.BranchCM.DeleteLocal" xml:space="preserve">Delete local branch ${0}$...</x:String>
+  <x:String x:Key="Text.BranchCM.DeleteRemote" xml:space="preserve">Delete remote branch ${0}$...</x:String>
   <x:String x:Key="Text.BranchCM.DeleteMultiBranches" xml:space="preserve">Delete selected {0} branches...</x:String>
   <x:String x:Key="Text.BranchCM.EditDescription" xml:space="preserve">Edit description for ${0}$...</x:String>
   <x:String x:Key="Text.BranchCM.FastForward" xml:space="preserve">Fast-Forward to ${0}$</x:String>
@@ -469,8 +471,42 @@
   <x:String x:Key="Text.DeleteBranch.Force" xml:space="preserve">Force delete even if it contains unmerged commit(s)</x:String>
   <x:String x:Key="Text.DeleteBranch.IsRemoteTip" xml:space="preserve">You are about to delete a remote branch!!!</x:String>
   <x:String x:Key="Text.DeleteBranch.WithTrackingRemote" xml:space="preserve">Also delete remote branch ${0}$</x:String>
+  <x:String x:Key="Text.DeleteBranch.TitleLocal" xml:space="preserve">Delete Local Branch</x:String>
+  <x:String x:Key="Text.DeleteBranch.TitleRemote" xml:space="preserve">Delete Remote Branch</x:String>
+  <x:String x:Key="Text.DeleteBranch.CommitSafetyHint" xml:space="preserve">Deleting a branch removes only the branch pointer and will not delete commits already merged into other branches. A local backup ref (30-day retention) is created first.</x:String>
+  <x:String x:Key="Text.DeleteBranch.LoadingPreflight" xml:space="preserve">Inspecting branch state, linked worktrees, and remote status...</x:String>
+  <x:String x:Key="Text.DeleteBranch.CurrentBlocked" xml:space="preserve">Cannot delete the currently checked-out branch '{0}'. Switch to another branch first.</x:String>
+  <x:String x:Key="Text.DeleteBranch.WorktreeBlocked" xml:space="preserve">Branch '{0}' is currently checked out by linked worktree '{1}'. Remove that worktree first or check below to clean it before deleting the branch.</x:String>
+  <x:String x:Key="Text.DeleteBranch.DeleteAttachedWorktreeOrder" xml:space="preserve">Remove linked worktree first, then delete local branch</x:String>
+  <x:String x:Key="Text.DeleteBranch.ForceWorktree" xml:space="preserve">Allow force removal (--force) because worktree has changes or is locked</x:String>
+  <x:String x:Key="Text.DeleteBranch.WorktreeRemovedNote" xml:space="preserve">Linked worktree '{0}' has been removed.</x:String>
+  <x:String x:Key="Text.DeleteBranch.WithTrackingRemoteActual" xml:space="preserve">Also delete configured upstream remote branch ${0}$</x:String>
+  <x:String x:Key="Text.DeleteBranch.DifferentUpstreamNameTag" xml:space="preserve">Different upstream name</x:String>
+  <x:String x:Key="Text.DeleteBranch.AffectedTargetsTitle" xml:space="preserve">Independent targets to be deleted:</x:String>
+  <x:String x:Key="Text.DeleteBranch.TargetLocalLabel" xml:space="preserve">1. Local branch:</x:String>
+  <x:String x:Key="Text.DeleteBranch.TargetRemoteLabel" xml:space="preserve">2. Remote branch:</x:String>
+  <x:String x:Key="Text.DeleteBranch.RemoteUrlLabel" xml:space="preserve">Remote URL:</x:String>
+  <x:String x:Key="Text.DeleteBranch.RemoteTipLabel" xml:space="preserve">Server tip:</x:String>
+  <x:String x:Key="Text.DeleteBranch.ProbingRemote" xml:space="preserve">Querying live remote branch tip...</x:String>
+  <x:String x:Key="Text.DeleteBranch.RemoteAbsentOnServer" xml:space="preserve">Branch no longer exists on server (only local tracking cache remains)</x:String>
+  <x:String x:Key="Text.DeleteBranch.RefreshRemoteBtn" xml:space="preserve">Refresh Remote</x:String>
+  <x:String x:Key="Text.DeleteBranch.RemoteLeaseSafetyTip" xml:space="preserve">Deletion enforces explicit --force-with-lease against this server commit. If another collaborator pushes new commits, deletion is rejected and local same-name branches stay intact.</x:String>
+  <x:String x:Key="Text.DeleteBranch.CachePruneConfirmNote" xml:space="preserve">Server '{0}' no longer has this branch. Confirm to remove only the stale local tracking cache without claiming server deletion.</x:String>
+  <x:String x:Key="Text.DeleteBranch.UnmergedPreviewHeader" xml:space="preserve">{0} unmerged commit(s) vs HEAD ({1} changed file(s)) — regular delete (-d) will verify merge status:</x:String>
+  <x:String x:Key="Text.DeleteBranch.ForceRequiredHeader" xml:space="preserve">Regular delete blocked: '{0}' has {1} unmerged commit(s) ({2} changed file(s)).</x:String>
+  <x:String x:Key="Text.DeleteBranch.ForceRequiredHint" xml:space="preserve">To delete this unmerged branch anyway, click 'Force Delete Anyway (-D)' below. A recoverable local backup ref is still created first.</x:String>
+  <x:String x:Key="Text.DeleteBranch.BtnDeleteLocal" xml:space="preserve">Delete Local Branch</x:String>
+  <x:String x:Key="Text.DeleteBranch.BtnDeleteLocalAndRemote" xml:space="preserve">Delete Local &amp; Remote</x:String>
+  <x:String x:Key="Text.DeleteBranch.BtnDeleteRemote" xml:space="preserve">Delete Remote Branch</x:String>
+  <x:String x:Key="Text.DeleteBranch.BtnForceDelete" xml:space="preserve">Force Delete Anyway</x:String>
+  <x:String x:Key="Text.DeleteBranch.BtnPruneCacheOnly" xml:space="preserve">Prune Local Cache Only</x:String>
+  <x:String x:Key="Text.DeleteBranch.RestoreLocalBtn" xml:space="preserve">Restore Local Branch from Backup</x:String>
+  <x:String x:Key="Text.DeleteBranch.RestoringTargetLabel" xml:space="preserve">Restore branch name:</x:String>
   <x:String x:Key="Text.DeleteMultiBranch" xml:space="preserve">Delete Multiple Branches</x:String>
   <x:String x:Key="Text.DeleteMultiBranch.Tip" xml:space="preserve">You are trying to delete multiple branches at one time. Be sure to double-check before taking action!</x:String>
+  <x:String x:Key="Text.DeleteMultiBranch.ResultHeader" xml:space="preserve">Batch branch deletion results:</x:String>
+  <x:String x:Key="Text.DeleteMultiBranch.BtnDeleteLocal" xml:space="preserve">Delete Selected Local</x:String>
+  <x:String x:Key="Text.DeleteMultiBranch.BtnDeleteRemote" xml:space="preserve">Delete Selected Remote</x:String>
   <x:String x:Key="Text.DeleteMultiTags" xml:space="preserve">Delete Multiple Tags</x:String>
   <x:String x:Key="Text.DeleteMultiTags.DeleteFromRemotes" xml:space="preserve">Delete them from remotes</x:String>
   <x:String x:Key="Text.DeleteMultiTags.Tip" xml:space="preserve">You are trying to delete multiple tags at one time. Be sure to double-check before taking action!</x:String>

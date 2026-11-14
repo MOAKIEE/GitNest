@@ -4,9 +4,11 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:m="using:SourceGit.Models"
              xmlns:vm="using:SourceGit.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             xmlns:v="using:SourceGit.Views"
+             mc:Ignorable="d" d:DesignWidth="620" d:DesignHeight="450"
              x:Class="SourceGit.Views.DeleteMultipleBranches"
-             x:DataType="vm:DeleteMultipleBranches">
+             x:DataType="vm:DeleteMultipleBranches"
+             MaxWidth="620">
   <StackPanel Orientation="Vertical" Margin="8,0">
     <StackPanel Orientation="Horizontal">
       <Path Width="16" Height="16"
@@ -18,73 +20,124 @@
                  Text="{DynamicResource Text.DeleteMultiBranch}"/>
     </StackPanel>
 
-    <TextBlock Margin="4,16,0,0"
-               Text="{DynamicResource Text.DeleteMultiBranch.Tip}"
-               TextWrapping="Wrap"
-               Foreground="{DynamicResource Brush.FG2}"
-               FontStyle="Italic" />
+    <StackPanel Orientation="Vertical"
+                Spacing="8"
+                Margin="0,12,0,0"
+                IsVisible="{Binding ShowConfigurationForm, Mode=OneWay}">
+      <TextBlock Margin="4,0,0,0"
+                 Text="{DynamicResource Text.DeleteMultiBranch.Tip}"
+                 TextWrapping="Wrap"
+                 Foreground="{DynamicResource Brush.FG2}"
+                 FontStyle="Italic" />
 
-    <Border Margin="4,8,0,0"
-            Background="{DynamicResource Brush.Contents}"
-            BorderThickness="1"
-            BorderBrush="{DynamicResource Brush.Border1}"
-            CornerRadius="4"
-            Padding="4">
-      <ListBox MaxHeight="200"
-               BorderThickness="0"
-               Background="Transparent"
-               ItemsSource="{Binding Targets}"
-               SelectionMode="Single"
-               ScrollViewer.HorizontalScrollBarVisibility="Auto"
-               ScrollViewer.VerticalScrollBarVisibility="Auto">
-        <ListBox.Styles>
-          <Style Selector="ListBoxItem">
-            <Setter Property="Margin" Value="0"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="Height" Value="26"/>
-            <Setter Property="CornerRadius" Value="4"/>
+      <Border Margin="4,0,0,0"
+              Background="{DynamicResource Brush.Contents}"
+              BorderThickness="1"
+              BorderBrush="{DynamicResource Brush.Border1}"
+              CornerRadius="4"
+              Padding="4">
+        <ListBox MaxHeight="200"
+                 BorderThickness="0"
+                 Background="Transparent"
+                 ItemsSource="{Binding Targets}"
+                 SelectionMode="Single"
+                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto">
+          <ListBox.Styles>
+            <Style Selector="ListBoxItem">
+              <Setter Property="Margin" Value="0"/>
+              <Setter Property="Padding" Value="0"/>
+              <Setter Property="Height" Value="26"/>
+              <Setter Property="CornerRadius" Value="4"/>
 
-            <Setter Property="FocusAdorner">
-              <FocusAdornerTemplate>
-                <Border/>
-              </FocusAdornerTemplate>
-            </Setter>
-          </Style>
-        </ListBox.Styles>
+              <Setter Property="FocusAdorner">
+                <FocusAdornerTemplate>
+                  <Border/>
+                </FocusAdornerTemplate>
+              </Setter>
+            </Style>
+          </ListBox.Styles>
 
-        <ListBox.ItemsPanel>
-          <ItemsPanelTemplate>
-            <VirtualizingStackPanel Orientation="Vertical"/>
-          </ItemsPanelTemplate>
-        </ListBox.ItemsPanel>
+          <ListBox.ItemsPanel>
+            <ItemsPanelTemplate>
+              <VirtualizingStackPanel Orientation="Vertical"/>
+            </ItemsPanelTemplate>
+          </ListBox.ItemsPanel>
 
-        <ListBox.ItemTemplate>
-          <DataTemplate DataType="m:Branch">
-            <Grid Height="26" ColumnDefinitions="22,*,Auto">
-              <Path Grid.Column="0" Width="10" Height="10" Margin="4,0,8,0" Data="{StaticResource Icons.Branch}" />
-              <TextBlock Grid.Column="1" Text="{Binding FriendlyName}" />
-              <Border Grid.Column="2"
-                      Height="18"
-                      Margin="8,0"
-                      Padding="8,0"
-                      VerticalAlignment="Center"
-                      CornerRadius="9"
-                      Background="{DynamicResource Brush.Badge}"
-                      IsVisible="{Binding IsTrackStatusVisible}">
-                <TextBlock Foreground="{DynamicResource Brush.BadgeFG}"
-                           FontFamily="{DynamicResource Fonts.Monospace}"
-                           FontSize="10"
-                           Text="{Binding TrackStatusDescription, Mode=OneWay}"/>
-              </Border>
-            </Grid>
-          </DataTemplate>
-        </ListBox.ItemTemplate>
-      </ListBox>
-    </Border>
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="m:Branch">
+              <Grid Height="26" ColumnDefinitions="22,*,Auto">
+                <Path Grid.Column="0" Width="10" Height="10" Margin="4,0,8,0" Data="{StaticResource Icons.Branch}" />
+                <TextBlock Grid.Column="1" Text="{Binding FriendlyName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <Border Grid.Column="2"
+                        Height="18"
+                        Margin="8,0"
+                        Padding="8,0"
+                        VerticalAlignment="Center"
+                        CornerRadius="9"
+                        Background="{DynamicResource Brush.Badge}"
+                        IsVisible="{Binding IsTrackStatusVisible}">
+                  <TextBlock Foreground="{DynamicResource Brush.BadgeFG}"
+                             FontFamily="{DynamicResource Fonts.Monospace}"
+                             FontSize="10"
+                             VerticalAlignment="Center"
+                             Text="{Binding TrackStatusDescription, Mode=OneWay}"/>
+                </Border>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Border>
 
-    <CheckBox Margin="4,0,0,0"
-              Content="{DynamicResource Text.DeleteBranch.Force}"
-              IsChecked="{Binding Force, Mode=TwoWay}"
-              ToolTip.Tip="--force"/>
+      <CheckBox Margin="4,0,0,0"
+                Content="{DynamicResource Text.DeleteBranch.Force}"
+                IsChecked="{Binding Force, Mode=TwoWay}"
+                IsVisible="{Binding IsLocal, Mode=OneWay}"
+                ToolTip.Tip="--force"/>
+    </StackPanel>
+
+    <!-- Batch Partial/Error Results View -->
+    <StackPanel Orientation="Vertical"
+                Spacing="8"
+                Margin="0,12,0,0"
+                IsVisible="{Binding HasResultView, Mode=OneWay}">
+      <Border Padding="10,8"
+              CornerRadius="4"
+              Background="#1EFF8C00"
+              BorderThickness="1"
+              BorderBrush="#55FF8C00">
+        <Grid ColumnDefinitions="Auto,*">
+          <Path Grid.Column="0" Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,8,0" Data="{StaticResource Icons.Error}" Fill="DarkOrange"/>
+          <TextBlock Grid.Column="1" Classes="bold" TextWrapping="Wrap" Text="{Binding ResultSummary, Mode=OneWay}"/>
+        </Grid>
+      </Border>
+
+      <Border Padding="8"
+              CornerRadius="4"
+              Background="{DynamicResource Brush.Contents}"
+              BorderThickness="1"
+              BorderBrush="{DynamicResource Brush.Border1}">
+        <ScrollViewer MaxHeight="220" VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding ResultItems}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="vm:BatchBranchDeleteResultItem">
+                <Grid ColumnDefinitions="Auto,*" Margin="0,3">
+                  <Path Grid.Column="0"
+                        Width="14" Height="14"
+                        Margin="0,2,8,0"
+                        VerticalAlignment="Top"
+                        Data="{Binding IconKey, Converter={x:Static v:DeleteBranch.StepIconConverter}}"
+                        Fill="{Binding IconBrush}"/>
+                  <StackPanel Grid.Column="1" Spacing="2">
+                    <TextBlock Classes="bold" FontSize="12" Text="{Binding BranchName}"/>
+                    <TextBlock FontSize="11" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap" Text="{Binding Summary}"/>
+                  </StackPanel>
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Border>
+    </StackPanel>
   </StackPanel>
 </UserControl>

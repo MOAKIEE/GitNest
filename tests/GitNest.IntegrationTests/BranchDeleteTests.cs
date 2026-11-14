@@ -325,7 +325,7 @@ internal static partial class Program
             "main",
             new BranchDeleteOptions { Preflight = brokenPreflight },
             journal);
-        var brokenCacheStillThere = (await GitAsync(realGit, "-C", clone1, "show-ref", "--verify", "refs/remotes/broken/main")).Trim();
+        var brokenCacheStillThere = (await GitAsync(realGit, "-C", clone1, "rev-parse", "--verify", "refs/remotes/broken/main")).Trim();
         var rawJournalAfterBroken = File.ReadAllText(journalFile, Encoding.UTF8);
         Check(!brokenDel.Succeeded &&
               brokenDel.BlockedByProtection &&

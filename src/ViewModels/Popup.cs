@@ -29,6 +29,22 @@ namespace SourceGit.ViewModels
             set => SetProperty(ref _progressDescription, value);
         }
 
+        public virtual string ConfirmButtonText => App.Text("Sure");
+
+        public virtual string CancelButtonText => App.Text("Cancel");
+
+        public virtual bool ShowConfirmButton => true;
+
+        public virtual bool CanConfirm => true;
+
+        protected void NotifyPopupButtonsChanged()
+        {
+            OnPropertyChanged(nameof(ConfirmButtonText));
+            OnPropertyChanged(nameof(CancelButtonText));
+            OnPropertyChanged(nameof(ShowConfirmButton));
+            OnPropertyChanged(nameof(CanConfirm));
+        }
+
         [UnconditionalSuppressMessage("AssemblyLoadTrimming", "IL2026:RequiresUnreferencedCode")]
         public bool Check()
         {

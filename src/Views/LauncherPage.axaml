@@ -113,20 +113,22 @@
                                 HotKey="Enter"
                                 Focusable="False"/>
                         <Button Classes="flat primary"
-                                Width="100" Height="28"
-                                Padding="0"
+                                MinWidth="100" Height="28"
+                                Padding="14,0"
                                 HorizontalContentAlignment="Center"
                                 VerticalContentAlignment="Center"
-                                Content="{DynamicResource Text.Sure}"
+                                Content="{Binding ConfirmButtonText, Mode=OneWay}"
+                                IsVisible="{Binding ShowConfirmButton, Mode=OneWay}"
+                                IsEnabled="{Binding CanConfirm, Mode=OneWay}"
                                 Click="OnPopupSure"
                                 ToolTip.Tip="Enter"/>
                         <Button Classes="flat"
-                                Width="100" Height="28"
+                                MinWidth="100" Height="28"
                                 Margin="8,0,0,0"
-                                Padding="0"
+                                Padding="14,0"
                                 HorizontalContentAlignment="Center"
                                 VerticalContentAlignment="Center"
-                                Content="{DynamicResource Text.Cancel}"
+                                Content="{Binding CancelButtonText, Mode=OneWay}"
                                 Click="OnPopupCancel"
                                 ToolTip.Tip="ESC"/>
                       </StackPanel>

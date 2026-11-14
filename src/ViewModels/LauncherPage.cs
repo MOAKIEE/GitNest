@@ -82,7 +82,7 @@ namespace SourceGit.ViewModels
         {
             if (_popup is { InProgress: false } dump)
             {
-                if (!dump.Check())
+                if (!dump.ShowConfirmButton || !dump.CanConfirm || !dump.Check())
                     return;
 
                 dump.InProgress = true;

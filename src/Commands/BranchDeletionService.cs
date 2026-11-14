@@ -1080,7 +1080,7 @@ namespace SourceGit.Commands
             }
 
             var succeededCount = outcomes.Count(o => o.Succeeded);
-            var skippedCount = outcomes.Count(o => !o.Succeeded && o.BlockedByProtection);
+            var skippedCount = outcomes.Count(o => !o.Succeeded && (o.BlockedByProtection || o.RequiresForceLocalConfirmation || o.RequiresRemoteCachePruneConfirmation));
             var failedCount = outcomes.Count - succeededCount - skippedCount;
             var summary = $"批量删除完成：成功 {succeededCount} 项，受保护/需确认跳过 {skippedCount} 项，失败 {failedCount} 项。";
 

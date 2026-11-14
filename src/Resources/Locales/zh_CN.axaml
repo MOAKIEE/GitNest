@@ -97,6 +97,8 @@
   <x:String x:Key="Text.BranchCM.CreatePRForUpstream" xml:space="preserve">为上游分支 ${0}$ 创建合并请求...</x:String>
   <x:String x:Key="Text.BranchCM.CustomAction" xml:space="preserve">自定义操作</x:String>
   <x:String x:Key="Text.BranchCM.Delete" xml:space="preserve">删除 ${0}$...</x:String>
+  <x:String x:Key="Text.BranchCM.DeleteLocal" xml:space="preserve">删除本地分支 ${0}$...</x:String>
+  <x:String x:Key="Text.BranchCM.DeleteRemote" xml:space="preserve">删除远程分支 ${0}$...</x:String>
   <x:String x:Key="Text.BranchCM.DeleteMultiBranches" xml:space="preserve">删除选中的 {0} 个分支...</x:String>
   <x:String x:Key="Text.BranchCM.EditDescription" xml:space="preserve">编辑 ${0}$ 的描述...</x:String>
   <x:String x:Key="Text.BranchCM.FastForward" xml:space="preserve">快进(fast-forward) 到 ${0}$</x:String>
@@ -473,8 +475,42 @@
   <x:String x:Key="Text.DeleteBranch.Force" xml:space="preserve">强制删除，即使包含未合并的提交</x:String>
   <x:String x:Key="Text.DeleteBranch.IsRemoteTip" xml:space="preserve">您正在删除远程上的分支，请务必小心！！！</x:String>
   <x:String x:Key="Text.DeleteBranch.WithTrackingRemote" xml:space="preserve">同时删除远程分支 ${0}$</x:String>
+  <x:String x:Key="Text.DeleteBranch.TitleLocal" xml:space="preserve">删除本地分支</x:String>
+  <x:String x:Key="Text.DeleteBranch.TitleRemote" xml:space="preserve">删除远程分支</x:String>
+  <x:String x:Key="Text.DeleteBranch.CommitSafetyHint" xml:space="preserve">删除分支仅移除分支引用，不会删除已经合并到其他分支的提交；删前会自动创建保留 30 天的本地恢复引用。</x:String>
+  <x:String x:Key="Text.DeleteBranch.LoadingPreflight" xml:space="preserve">正在核查分支状态、工作树占用与关联远端...</x:String>
+  <x:String x:Key="Text.DeleteBranch.CurrentBlocked" xml:space="preserve">不能直接删除当前检出的分支 '{0}'，请先切换到其他分支。</x:String>
+  <x:String x:Key="Text.DeleteBranch.WorktreeBlocked" xml:space="preserve">分支 '{0}' 正在被工作树 '{1}' 使用，禁止直接删除；请先移除该工作树，或勾选下方“先移除关联工作树，再删除本地分支”。</x:String>
+  <x:String x:Key="Text.DeleteBranch.DeleteAttachedWorktreeOrder" xml:space="preserve">先移除关联工作树，再删除本地分支</x:String>
+  <x:String x:Key="Text.DeleteBranch.ForceWorktree" xml:space="preserve">工作树包含未提交改动或已锁定，允许强制移除工作树（--force）</x:String>
+  <x:String x:Key="Text.DeleteBranch.WorktreeRemovedNote" xml:space="preserve">关联工作树 '{0}' 已完成移除。</x:String>
+  <x:String x:Key="Text.DeleteBranch.WithTrackingRemoteActual" xml:space="preserve">同时删除关联远程分支 ${0}$</x:String>
+  <x:String x:Key="Text.DeleteBranch.DifferentUpstreamNameTag" xml:space="preserve">异名跟踪目标</x:String>
+  <x:String x:Key="Text.DeleteBranch.AffectedTargetsTitle" xml:space="preserve">本次确认将依次影响以下两个独立对象：</x:String>
+  <x:String x:Key="Text.DeleteBranch.TargetLocalLabel" xml:space="preserve">1. 本地分支：</x:String>
+  <x:String x:Key="Text.DeleteBranch.TargetRemoteLabel" xml:space="preserve">2. 关联远端：</x:String>
+  <x:String x:Key="Text.DeleteBranch.RemoteUrlLabel" xml:space="preserve">远端地址：</x:String>
+  <x:String x:Key="Text.DeleteBranch.RemoteTipLabel" xml:space="preserve">服务端提交：</x:String>
+  <x:String x:Key="Text.DeleteBranch.ProbingRemote" xml:space="preserve">正在获取远端分支最新提交...</x:String>
+  <x:String x:Key="Text.DeleteBranch.RemoteAbsentOnServer" xml:space="preserve">远端服务器上已不存在该分支（仅剩本地远程跟踪缓存）</x:String>
+  <x:String x:Key="Text.DeleteBranch.RefreshRemoteBtn" xml:space="preserve">刷新远端状态</x:String>
+  <x:String x:Key="Text.DeleteBranch.RemoteLeaseSafetyTip" xml:space="preserve">删除远端分支将按上述服务端提交施加显式 lease 约束，若期间协作者推送了新提交将拒绝覆盖并保留其提交；本地同名分支保持不变。</x:String>
+  <x:String x:Key="Text.DeleteBranch.CachePruneConfirmNote" xml:space="preserve">远端服务器 '{0}' 上已不存在该分支。确认后将仅清理本地远程跟踪缓存，不会冒充服务器删除。</x:String>
+  <x:String x:Key="Text.DeleteBranch.UnmergedPreviewHeader" xml:space="preserve">相对当前 HEAD 共有 {0} 个未合并提交（涉及 {1} 个文件），常规删除将按 Git -d 校验：</x:String>
+  <x:String x:Key="Text.DeleteBranch.ForceRequiredHeader" xml:space="preserve">常规删除已阻止：'{0}' 包含 {1} 个未合并提交（涉及 {2} 个文件）。</x:String>
+  <x:String x:Key="Text.DeleteBranch.ForceRequiredHint" xml:space="preserve">如仍需强制删除该未合并分支，请点击下方“仍然强制删除”；实际删除前仍会自动保存本地恢复引用。</x:String>
+  <x:String x:Key="Text.DeleteBranch.BtnDeleteLocal" xml:space="preserve">删除本地分支</x:String>
+  <x:String x:Key="Text.DeleteBranch.BtnDeleteLocalAndRemote" xml:space="preserve">删除本地及关联远程分支</x:String>
+  <x:String x:Key="Text.DeleteBranch.BtnDeleteRemote" xml:space="preserve">删除远程分支</x:String>
+  <x:String x:Key="Text.DeleteBranch.BtnForceDelete" xml:space="preserve">仍然强制删除</x:String>
+  <x:String x:Key="Text.DeleteBranch.BtnPruneCacheOnly" xml:space="preserve">仅清理本地跟踪缓存</x:String>
+  <x:String x:Key="Text.DeleteBranch.RestoreLocalBtn" xml:space="preserve">从备份恢复本地分支</x:String>
+  <x:String x:Key="Text.DeleteBranch.RestoringTargetLabel" xml:space="preserve">恢复分支名：</x:String>
   <x:String x:Key="Text.DeleteMultiBranch" xml:space="preserve">删除多个分支</x:String>
   <x:String x:Key="Text.DeleteMultiBranch.Tip" xml:space="preserve">您正在尝试一次性删除多个分支，请务必仔细检查后再执行操作！</x:String>
+  <x:String x:Key="Text.DeleteMultiBranch.ResultHeader" xml:space="preserve">批量删除分步结果：</x:String>
+  <x:String x:Key="Text.DeleteMultiBranch.BtnDeleteLocal" xml:space="preserve">删除所选本地分支</x:String>
+  <x:String x:Key="Text.DeleteMultiBranch.BtnDeleteRemote" xml:space="preserve">删除所选远程分支</x:String>
   <x:String x:Key="Text.DeleteMultiTags" xml:space="preserve">删除多个标签</x:String>
   <x:String x:Key="Text.DeleteMultiTags.DeleteFromRemotes" xml:space="preserve">同时在远程仓库中删除</x:String>
   <x:String x:Key="Text.DeleteMultiTags.Tip" xml:space="preserve">您正在尝试一次性删除多个标签，请务必仔细检查后再执行操作！</x:String>

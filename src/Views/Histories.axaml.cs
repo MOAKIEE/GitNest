@@ -1743,8 +1743,9 @@ namespace SourceGit.Views
             submenu.Items.Add(rename);
 
             var delete = new MenuItem();
-            delete.Header = App.Text("BranchCM.Delete", branch.Name);
+            delete.Header = App.Text("BranchCM.DeleteLocal", branch.Name);
             delete.Icon = this.CreateMenuIcon("Icons.Clear");
+            delete.IsEnabled = !branch.IsCurrent;
             delete.Click += (_, e) =>
             {
                 if (repo.CanCreatePopup())
@@ -1850,7 +1851,7 @@ namespace SourceGit.Views
             submenu.Items.Add(merge);
 
             var delete = new MenuItem();
-            delete.Header = App.Text("BranchCM.Delete", name);
+            delete.Header = App.Text("BranchCM.DeleteRemote", name);
             delete.Icon = this.CreateMenuIcon("Icons.Clear");
             delete.Click += (_, e) =>
             {

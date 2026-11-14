@@ -1006,7 +1006,7 @@ namespace SourceGit.Views
                 };
 
                 var delete = new MenuItem();
-                delete.Header = App.Text("BranchCM.Delete", branch.Name);
+                delete.Header = App.Text("BranchCM.DeleteLocal", branch.Name);
                 delete.Icon = this.CreateMenuIcon("Icons.Clear");
                 delete.Tag = "Delete/Back";
                 delete.IsEnabled = !branch.IsCurrent;
@@ -1336,7 +1336,7 @@ namespace SourceGit.Views
             };
 
             var delete = new MenuItem();
-            delete.Header = App.Text("BranchCM.Delete", name);
+            delete.Header = App.Text("BranchCM.DeleteRemote", name);
             delete.Icon = this.CreateMenuIcon("Icons.Clear");
             delete.Tag = "Delete/Back";
             delete.Click += (_, e) =>

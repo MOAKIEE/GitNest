@@ -61,6 +61,10 @@ internal static partial class Program
             {
                 RunOperationRecovery();
             }
+            else if (args.Contains("--branch-delete"))
+            {
+                RunBranchDelete();
+            }
             else
             {
                 RunOverview();
@@ -251,5 +255,6 @@ internal static partial class Program
     static partial void RunConfig();
     static partial void RunCommitSync();
     static partial void RunOperationRecovery();
+    static partial void RunBranchDelete();
 
 }

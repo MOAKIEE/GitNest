@@ -211,5 +211,14 @@
 
 - 前一批提交：`a9be9eef`（批次 3.1b：最近操作与恢复原生视图、同步日志接线、窗口激活刷新与 UI 探针验收）。
 - 新增 `src/Models/BranchDeletionModels.cs` 与 `src/Commands/BranchDeletionService.cs`，重构抽取 `BackupRefs.DeleteBackupRefAsync` 并锚定加固 `DoesBranchExistOnRemote.cs`；实现真实 Git 配置 upstream 解析（支持异名映射与多远端、无上游时不猜测）、当前分支与工作树顺序清理保护、常规 `-d` 与未合并原因明细、删前本地备份引用创建与防覆盖恢复、远程状态精确探测（隔离网络失败与“服务器已缺失”缓存清理），以及冻结确认期哈希的显式 `--force-with-lease` 远端删除与“本地已删除，远程未删除”部分失败回滚通道。
-- 新增 `tests/GitNest.IntegrationTests/BranchDeleteTests.cs` 并接入 `Program.cs`；Release 构建 `0` 警告 `0` 错误，`.\build\scripts\test-gitnest.ps1` 全量 **188 / 188** 项通过（过程与清单见 [phase-3.2.md](verification/phase-3.2.md)）。
+- 新增 `tests/GitNest.IntegrationTests/BranchDeleteTests.cs` 并接入 `Program.cs`；Release 构建 `0` 警告 `0` 错误，`.\build\scripts\test-gitnest.ps1` 初始记录为 188 项后随 `BranchDeleteTests.cs:328` 修正确认实为全量 **191 / 191** 项通过（过程与清单见 [phase-3.2.md](verification/phase-3.2.md)）。
 - 下一批次（3.2b）将更新右键分支菜单文案、增强原生 `DeleteBranch` / `DeleteMultipleBranches` 多步骤确认与部分失败就地恢复弹窗，并执行 `-BranchDelete` UI 探针与截图检查。
+
+## 2026-11-14 · 批次 3.2b：原生分支删除交互弹窗、工作树顺序清理入口、双语词条与 UI 探针验收
+
+- 前一批提交：`0288b0cd`（批次 3.2a：本地／远端分支删除安全引擎、显式 lease 与部分失败恢复）。
+- 扩展 `src/ViewModels/Popup.cs`、`src/ViewModels/LauncherPage.cs` 与 `src/Views/LauncherPage.axaml` 支持可动态切换的动作按钮标题、`CanConfirm`/`ShowConfirmButton` 快捷键拦截与 `MinWidth="100"` 自适应宽度；更新 `BranchTree.axaml.cs` 与 `Histories.axaml.cs` 为明确区分的`删除本地分支` / `删除远端分支`右键菜单并在历史视图禁用当前检出分支本地删除。
+- 重构 `src/ViewModels/DeleteBranch.cs`、`src/Views/DeleteBranch.axaml`、`.axaml.cs` 及 `src/ViewModels/DeleteMultipleBranches.cs`、`src/Views/DeleteMultipleBranches.axaml`：接入工作树占用顺序清理、真实配置 upstream 双目标确认清单、常规 `-d` -> `仍然强制删除`二次确认、分步部分失败就地恢复以及逐项批量结果展示；同时在 `DeleteMultipleBranchesAsync` 中完善需强删/清缓存跳过计数，并修复 Avalonia 横向 `StackPanel` 内文本无法折行导致的窄窗裁剪问题。
+- 同步修正 `tests/GitNest.IntegrationTests/BranchDeleteTests.cs:328` 哈希断言命令为 `rev-parse --verify`，补充 `en_US.axaml`/`zh_CN.axaml` 双语词条（`en=1361 zh=1361 diff=0`）及 `tests/GitNest.UIProbe/BranchDeleteProbe.cs`（接入 `-BranchDelete`）。
+- 末次代码改动后验证：`.\build\scripts\build-gitnest.ps1 -Publish`（`0` 警告 `0` 错误，生成 `artifacts/windows-x64/GitNest.exe`）、`.\build\scripts\test-gitnest.ps1`（**191 / 191** 通过）与 `.\build\scripts\probe-gitnest.ps1 -BranchDelete`（**13 / 13** 通过并逐张核对 `artifacts/probes/phase-3.2/` 下 4 张浅色/暗黑/窄窗截图；详情见 [phase-3.2.md](verification/phase-3.2.md)）。
+- 批次 3.2（3.2a / 3.2b）全部完成，接续进入批次 3.3（工作树检查、删除与任务清理编排）。
