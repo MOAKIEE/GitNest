@@ -101,7 +101,7 @@
   <x:String x:Key="Text.BranchCM.FetchInto" xml:space="preserve">Fetch ${0}$ into ${1}$</x:String>
   <x:String x:Key="Text.BranchCM.Finish" xml:space="preserve">Git Flow - Finish ${0}$...</x:String>
   <x:String x:Key="Text.BranchCM.InteractiveRebase.Manually" xml:space="preserve">Interactively Rebase ${0}$ on ${1}$</x:String>
-  <x:String x:Key="Text.BranchCM.Merge" xml:space="preserve">Merge ${0}$ into ${1}$...</x:String>
+  <x:String x:Key="Text.BranchCM.Merge" xml:space="preserve">Merge changes from [${0}$] into [${1}$]...</x:String>
   <x:String x:Key="Text.BranchCM.MergeMultiBranches" xml:space="preserve">Merge selected {0} branches into current...</x:String>
   <x:String x:Key="Text.BranchCM.Pull" xml:space="preserve">Pull ${0}$...</x:String>
   <x:String x:Key="Text.BranchCM.PullInto" xml:space="preserve">Pull ${0}$ into ${1}$...</x:String>
@@ -204,7 +204,7 @@
   <x:String x:Key="Text.CommitCM.PushRevision" xml:space="preserve">Push ${0}$ to ${1}$...</x:String>
   <x:String x:Key="Text.CommitCM.Rebase" xml:space="preserve">Rebase ${0}$ on ${1}$...</x:String>
   <x:String x:Key="Text.CommitCM.Reset" xml:space="preserve">Reset ${0}$ to ${1}$...</x:String>
-  <x:String x:Key="Text.CommitCM.Revert" xml:space="preserve">Revert Commit...</x:String>
+  <x:String x:Key="Text.CommitCM.Revert" xml:space="preserve">Revert This Commit (Keep History)...</x:String>
   <x:String x:Key="Text.CommitCM.SaveAsPatch" xml:space="preserve">Save as Patch...</x:String>
   <x:String x:Key="Text.CommitDetail.Changes" xml:space="preserve">CHANGES</x:String>
   <x:String x:Key="Text.CommitDetail.Changes.Count" xml:space="preserve">changed file(s)</x:String>
@@ -758,14 +758,43 @@
   <x:String x:Key="Text.Launcher.Pages" xml:space="preserve">Tabs</x:String>
   <x:String x:Key="Text.Launcher.Workspaces" xml:space="preserve">Workspaces</x:String>
   <x:String x:Key="Text.Merge" xml:space="preserve">Merge Branch</x:String>
+  <x:String x:Key="Text.Merge.DirectionSummary" xml:space="preserve">Merge changes from [{0}] into [{1}]</x:String>
   <x:String x:Key="Text.Merge.Edit" xml:space="preserve">Customize merge message</x:String>
-  <x:String x:Key="Text.Merge.Into" xml:space="preserve">Into:</x:String>
+  <x:String x:Key="Text.Merge.Into" xml:space="preserve">Target:</x:String>
   <x:String x:Key="Text.Merge.Mode" xml:space="preserve">Merge Option:</x:String>
+  <x:String x:Key="Text.Merge.Mode.Default.Title" xml:space="preserve">Default</x:String>
+  <x:String x:Key="Text.Merge.Mode.Default.Desc" xml:space="preserve">Fast-forward if linear, or create a merge commit when diverged</x:String>
+  <x:String x:Key="Text.Merge.Mode.FastForwardOnly.Title" xml:space="preserve">Fast-Forward Only (--ff-only)</x:String>
+  <x:String x:Key="Text.Merge.Mode.FastForwardOnly.Desc" xml:space="preserve">Advance target only when fast-forward is possible; fail otherwise</x:String>
+  <x:String x:Key="Text.Merge.Mode.NoFastForward.Title" xml:space="preserve">Always Create Merge Commit (--no-ff)</x:String>
+  <x:String x:Key="Text.Merge.Mode.NoFastForward.Desc" xml:space="preserve">Always create a two-parent merge commit even if fast-forwardable</x:String>
+  <x:String x:Key="Text.Merge.Mode.Squash.Title" xml:space="preserve">Squash Changes (--squash)</x:String>
+  <x:String x:Key="Text.Merge.Mode.Squash.Desc" xml:space="preserve">Stage squashed source changes onto target without committing</x:String>
+  <x:String x:Key="Text.Merge.Mode.DontCommit.Title" xml:space="preserve">Merge Without Commit (--no-commit)</x:String>
+  <x:String x:Key="Text.Merge.Mode.DontCommit.Desc" xml:space="preserve">Merge and pause with staged merge state before creating a commit</x:String>
   <x:String x:Key="Text.Merge.Source" xml:space="preserve">Source:</x:String>
+  <x:String x:Key="Text.Merge.SourceKind.LocalBranch" xml:space="preserve">Local Branch</x:String>
+  <x:String x:Key="Text.Merge.SourceKind.RemoteSnapshot" xml:space="preserve">Fetched Remote Snapshot</x:String>
+  <x:String x:Key="Text.Merge.SourceKind.Tag" xml:space="preserve">Tag Snapshot</x:String>
+  <x:String x:Key="Text.Merge.SourceKind.Commit" xml:space="preserve">Commit</x:String>
+  <x:String x:Key="Text.Merge.SourceSha" xml:space="preserve">Source Tip:</x:String>
+  <x:String x:Key="Text.Merge.TargetSha" xml:space="preserve">Target Tip:</x:String>
+  <x:String x:Key="Text.Merge.PreflightLoading" xml:space="preserve">Checking target branch state, incoming commits, and merge conflicts...</x:String>
+  <x:String x:Key="Text.Merge.RefreshSnapshot" xml:space="preserve">Refresh Snapshot</x:String>
+  <x:String x:Key="Text.Merge.IncomingSummary" xml:space="preserve">Incoming Commits &amp; Files into Target</x:String>
+  <x:String x:Key="Text.Merge.IncomingCounts" xml:space="preserve">{0} commit(s) · {1} changed file(s)</x:String>
+  <x:String x:Key="Text.Merge.NoIncomingChanges" xml:space="preserve">No unmerged changes from source remain outside the target branch.</x:String>
+  <x:String x:Key="Text.Merge.StayLocalHint" xml:space="preserve">Repository stays on local target branch [{0}] after merge; pushing remains a manual action.</x:String>
+  <x:String x:Key="Text.Merge.ConflictPreviewFiles" xml:space="preserve">Predicted Conflicted Files ({0})</x:String>
+  <x:String x:Key="Text.Merge.Relation.FastForward" xml:space="preserve">Fast-forward ready: target can move directly to source commit</x:String>
+  <x:String x:Key="Text.Merge.Relation.Diverged" xml:space="preserve">Diverged: default merge will create a new merge commit</x:String>
+  <x:String x:Key="Text.Merge.Relation.UpToDate" xml:space="preserve">Target already contains source commit; nothing to merge</x:String>
+  <x:String x:Key="Text.Merge.Relation.Unrelated" xml:space="preserve">Unrelated commit histories cannot be merged directly</x:String>
   <x:String x:Key="Text.Merge.Test" xml:space="preserve">Testing for merge...</x:String>
   <x:String x:Key="Text.Merge.Test.NoConflicts" xml:space="preserve">Merge can be done without conflicts</x:String>
   <x:String x:Key="Text.Merge.Test.UnknownError" xml:space="preserve">Unknown error occurs while testing for merge</x:String>
   <x:String x:Key="Text.Merge.Test.WillCauseConflicts" xml:space="preserve">Merge will cause conflicts</x:String>
+  <x:String x:Key="Text.Merge.CloseResult" xml:space="preserve">Close</x:String>
   <x:String x:Key="Text.MergeConflictEditor.AcceptBoth.MineFirst" xml:space="preserve">First Mine, then Theirs</x:String>
   <x:String x:Key="Text.MergeConflictEditor.AcceptBoth.TheirsFirst" xml:space="preserve">First Theirs, then Mine</x:String>
   <x:String x:Key="Text.MergeConflictEditor.UseBoth" xml:space="preserve">USE BOTH</x:String>
@@ -1041,7 +1070,8 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.Repository.OpenWithExternalTools" xml:space="preserve">Open in External Tools</x:String>
   <x:String x:Key="Text.Repository.Remotes" xml:space="preserve">REMOTES</x:String>
   <x:String x:Key="Text.Repository.Remotes.Add" xml:space="preserve">Add Remote</x:String>
-  <x:String x:Key="Text.Repository.Resolve" xml:space="preserve">RESOLVE</x:String>
+  <x:String x:Key="Text.Repository.RefreshStatus" xml:space="preserve">REFRESH STATUS</x:String>
+  <x:String x:Key="Text.Repository.Resolve" xml:space="preserve">VIEW CONFLICTS</x:String>
   <x:String x:Key="Text.Repository.Search" xml:space="preserve">SEARCH COMMITS</x:String>
   <x:String x:Key="Text.Repository.Search.ByAuthor" xml:space="preserve">Author</x:String>
   <x:String x:Key="Text.Repository.Search.ByContent" xml:space="preserve">Content</x:String>
@@ -1082,9 +1112,18 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.ResetWithoutCheckout.MoveTo" xml:space="preserve">Move To:</x:String>
   <x:String x:Key="Text.ResetWithoutCheckout.Target" xml:space="preserve">Branch:</x:String>
   <x:String x:Key="Text.RevealFile" xml:space="preserve">Reveal in File Explorer</x:String>
-  <x:String x:Key="Text.Revert" xml:space="preserve">Revert Commit</x:String>
+  <x:String x:Key="Text.Revert" xml:space="preserve">Revert This Commit (Keep History)</x:String>
+  <x:String x:Key="Text.Revert.AffectedFiles" xml:space="preserve">Affected Files ({0})</x:String>
+  <x:String x:Key="Text.Revert.BranchLabel" xml:space="preserve">Current Branch:</x:String>
+  <x:String x:Key="Text.Revert.CloseResult" xml:space="preserve">Close</x:String>
   <x:String x:Key="Text.Revert.Commit" xml:space="preserve">Commit:</x:String>
-  <x:String x:Key="Text.Revert.CommitChanges" xml:space="preserve">Commit revert changes</x:String>
+  <x:String x:Key="Text.Revert.CommitChanges" xml:space="preserve">Create reverse commit and preserve history</x:String>
+  <x:String x:Key="Text.Revert.HistoryHint" xml:space="preserve">Appends a new reverse commit on the current branch while keeping existing history intact; push stays manual.</x:String>
+  <x:String x:Key="Text.Revert.MergeCommitBlock" xml:space="preserve">Selected commit is a merge commit with multiple parents. GitNest v1 only reverts single normal commits directly without guessing -m 1 mainline; use external Git tools for merge commits.</x:String>
+  <x:String x:Key="Text.Revert.NoAffectedFiles" xml:space="preserve">No changed files detected in this commit.</x:String>
+  <x:String x:Key="Text.Revert.ParentLabel" xml:space="preserve">Parent Commit:</x:String>
+  <x:String x:Key="Text.Revert.PreflightLoading" xml:space="preserve">Inspecting working tree, commit type, and affected files...</x:String>
+  <x:String x:Key="Text.Revert.RefreshSnapshot" xml:space="preserve">Refresh Preflight</x:String>
   <x:String x:Key="Text.Running" xml:space="preserve">Running. Please wait...</x:String>
   <x:String x:Key="Text.Save" xml:space="preserve">SAVE</x:String>
   <x:String x:Key="Text.SaveAs" xml:space="preserve">Save As...</x:String>
@@ -1204,7 +1243,7 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.TagCM.CustomAction" xml:space="preserve">Custom Action</x:String>
   <x:String x:Key="Text.TagCM.Delete" xml:space="preserve">Delete ${0}$...</x:String>
   <x:String x:Key="Text.TagCM.DeleteMultiple" xml:space="preserve">Delete selected {0} tags...</x:String>
-  <x:String x:Key="Text.TagCM.Merge" xml:space="preserve">Merge ${0}$ into ${1}$...</x:String>
+  <x:String x:Key="Text.TagCM.Merge" xml:space="preserve">Merge changes from [${0}$] into [${1}$]...</x:String>
   <x:String x:Key="Text.TagCM.Push" xml:space="preserve">Push ${0}$...</x:String>
   <x:String x:Key="Text.Terminate" xml:space="preserve">TERMINATE</x:String>
   <x:String x:Key="Text.TrustRepository" xml:space="preserve">Untrusted Repository</x:String>
@@ -1264,6 +1303,13 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.WorkingCopy.Conflicts.Resolved" xml:space="preserve">FILE CONFLICTS ARE RESOLVED</x:String>
   <x:String x:Key="Text.WorkingCopy.Conflicts.UseMine" xml:space="preserve">USE MINE</x:String>
   <x:String x:Key="Text.WorkingCopy.Conflicts.UseTheirs" xml:space="preserve">USE THEIRS</x:String>
+  <x:String x:Key="Text.WorkingCopy.Conflicts.Origin.External" xml:space="preserve">External Operation In Progress</x:String>
+  <x:String x:Key="Text.WorkingCopy.Conflicts.Origin.GitNest" xml:space="preserve">Conflict Preserved</x:String>
+  <x:String x:Key="Text.WorkingCopy.Conflicts.ReadOnlyNotice" xml:space="preserve">GitNest alerts on conflicts and lists conflicted files in read-only mode without an internal conflict editor or automatic overwrite. Resolve externally and click Refresh Status when done.</x:String>
+  <x:String x:Key="Text.WorkingCopy.Conflicts.MarkerLabel" xml:space="preserve">State Marker:</x:String>
+  <x:String x:Key="Text.WorkingCopy.Conflicts.FilesHeader" xml:space="preserve">Conflicted Files ({0})</x:String>
+  <x:String x:Key="Text.WorkingCopy.Conflicts.EmptyFiles" xml:space="preserve">No unmerged file markers remain, though Git in-progress state markers are still active. Verify outside GitNest and click Refresh Status.</x:String>
+  <x:String x:Key="Text.WorkingCopy.Conflicts.ExternalAbortDisabled" xml:space="preserve">Detected an external or externally modified in-progress operation; direct abort is hidden to avoid losing edits. Complete or abort outside and click Refresh Status.</x:String>
   <x:String x:Key="Text.WorkingCopy.DiscardAll" xml:space="preserve">DISCARD ALL</x:String>
   <x:String x:Key="Text.WorkingCopy.ExpandSidebar" xml:space="preserve">Show Sidebar</x:String>
   <x:String x:Key="Text.WorkingCopy.FilterChanges" xml:space="preserve">Filter Changes...</x:String>

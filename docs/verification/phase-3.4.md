@@ -17,3 +17,30 @@
 ### 验证命令与结果（Batch 3.4a）
 - `.\build\scripts\build-gitnest.ps1`：Release 编译通过，`0` 个警告、`0` 个错误。
 - `.\build\scripts\test-gitnest.ps1`：`tests/GitNest.IntegrationTests` 全量 **233 / 233** 项真实 Git 检查通过（含本次新增 `tests/GitNest.IntegrationTests/MergeRevertTests.cs` 27 项检查，覆盖中文/带空格路径 FF 合并与停留在目标分支未推送、跨分支分叉三方合并、显式远端分支本地快照合并、其他 worktree 检出目标拦截、脏工作区与过期确认快照拦截、`merge-tree --write-tree` 预检、GitNest 冲突自动 `--abort` 与二次干净校验、冲突后 AI 改写文件与新增未跟踪文件的防自动中止拦截、外部命令行冲突只读识别与多次刷新绝不自动中止、单提交 revert 成功与合并提交屏蔽、revert 冲突归属护卫，以及基于真实 `prepare-commit-msg` / `pre-merge-commit` 钩子和 `gpg.program` 失败桩的 `HookRejected` / `SigningFailed` 分类校验）。
+
+## Batch 3.4b — 原生定向合并 /单提交 Revert 弹窗、只读冲突状态面板与探针截图验收
+
+### 范围与 UI 实现
+- **定向合并弹窗（`src/ViewModels/Merge.cs`、`src/Views/Merge.axaml` / `.axaml.cs`）**：
+  - 保留原有 `(Branch|Commit|Tag, into)` 构造签名，新增目标本地分支下拉（`TargetBranches` / `Into`）、源与目标方向标牌、本地中文合并方式选项（`MergeModeOption`）、无副作用 `merge-tree --write-tree` 冲突预检状态与预期冲突文件清单、即将并入提交及共享 `MergeFilePreviewItem` 文件列表、非当前目标分支切换提醒，以及在结果视图保持弹窗打开以明确呈现自动 `--abort` / 外部介入阻断 / Hook 拒签 / GPG 签名失败 / 快照变更摘要与可刷新能力。
+- **单提交 Revert 弹窗（`src/ViewModels/Revert.cs`、`src/Views/Revert.axaml` / `.axaml.cs`）**：
+  - 接入 `MergeRevertService.InspectRevertAsync` / `ExecuteRevertAsync`，展示当前分支、目标提交父节点及受影响文件预览；针对多父节点合并提交（`IsMergeCommitBlock`）隐藏受影响空文件列表并隐去确认按钮（底栏退化为「关闭」），明确拦截且绝不猜测 `-m 1`；结果区同步保留自动中止/外部介入/Hook/GPG 诊断与刷新入口。
+- **工作区只读冲突状态与来源提示（`src/ViewModels/WorkingCopy.cs`、`Conflict.cs`、`Repository.cs` 与对应 `.axaml`/`.axaml.cs`）**：
+  - `WorkingCopy.UpdateInProgressState` 接入只读 `MergeRevertService.InspectRepositoryInProgressAsync`，顶部冲突横幅区分「外部操作进行中」与「冲突状态已保留」，展示精确冲突计数、显式「刷新状态」与「查看冲突」按钮，仅在确认纯 GitNest 归属时开放直接 Abort 入口（`CanAbortInProgressFromBanner`）。
+  - `Conflict` 视图重构为严格的只读冲突归属与状态面板（不透明 `Brush.Window` 背景与 `WorkingCopy.DetailContext` 空态互斥遮罩避免欢迎提示透出，`Grid` + `TextTrimming="CharacterEllipsis"` 避免长提交标题裁剪），支持从 `MERGE_HEAD`/`REVERT_HEAD`/`CHERRY_PICK_HEAD` 补查 `THEIRS` 提交并完整列出冲突文件与外部工具介入边界提示，全面移除 `UseTheirs`/`UseMine`/`MergeConflictEditor` 内置解决动作。
+  - 修复取消合并/revert 弹窗或探针收尾时后台预检未取消（`Popup.Cleanup()` 虚化并在 `Merge`/`Revert` 中断 `CancellationTokenSource`）与 Windows 回收站清理句柄对话框阻塞（`RecycleProbeDirectorySafe` + `FOF_NOERRORUI`）的问题。
+- **双语词条与探针（`src/Resources/Locales/zh_CN.axaml` / `en_US.axaml`、`tests/GitNest.UIProbe/MergeRevertProbe.cs`、`build/scripts/probe-gitnest.ps1`）**：
+  - 修正并补全定向合并、单提交 revert 及只读冲突词条（中英严格对齐：`zh=1447 en=1447 diff=0`）。
+
+### 验证命令与结果（Batch 3.4b 末次编辑后实测）
+- 双语资源与 XML 校验：`zh_CN.axaml` / `en_US.axaml` 解析无误，`zh=1447 en=1447 diff=0`。
+- `.\build\scripts\build-gitnest.ps1 -Publish`：`0` 个警告、`0` 个错误，发布产物：[GitNest.exe](file:///C:/Project/GitNest/artifacts/windows-x64/GitNest.exe)。
+- `.\build\scripts\test-gitnest.ps1`：**233 / 233** 项真实 Git 集成测试全部通过。
+- `.\build\scripts\probe-gitnest.ps1 -MergeRevert`：**11 / 11** 项 UI 探针断言全部通过（`TEMP_LEFTOVERS=0`）。
+- `.\build\scripts\probe-gitnest.ps1 -CommitSync`：**11 / 11** 项回归 UI 探针通过并零残留正常退出（`TEMP_LEFTOVERS=0`）。
+- 探针截图清单与视觉核对（已逐张直读检查）：
+  - [merge-directed-preview-light.png](file:///C:/Project/GitNest/artifacts/probes/phase-3.4/merge-directed-preview-light.png)
+  - [merge-conflict-aborted-dark-narrow.png](file:///C:/Project/GitNest/artifacts/probes/phase-3.4/merge-conflict-aborted-dark-narrow.png)
+  - [revert-normal-preview-light.png](file:///C:/Project/GitNest/artifacts/probes/phase-3.4/revert-normal-preview-light.png)
+  - [revert-merge-commit-blocked-dark-narrow.png](file:///C:/Project/GitNest/artifacts/probes/phase-3.4/revert-merge-commit-blocked-dark-narrow.png)
+  - [external-conflict-readonly-light.png](file:///C:/Project/GitNest/artifacts/probes/phase-3.4/external-conflict-readonly-light.png)

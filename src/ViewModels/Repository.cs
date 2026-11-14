@@ -101,6 +101,7 @@ namespace SourceGit.ViewModels
                     OnPropertyChanged(nameof(IsWorkingCopyVisible));
                     OnPropertyChanged(nameof(IsStashesVisible));
                     OnPropertyChanged(nameof(IsTaskComparisonVisible));
+                    OnPropertyChanged(nameof(CanViewConflictsFromBanner));
                     if (value == 3) EnsureTaskComparison();
                 }
             }
@@ -398,6 +399,28 @@ namespace SourceGit.ViewModels
         {
             get => _workingCopy?.InProgressContext;
         }
+
+        public bool HasInProgressBanner => _workingCopy is { HasInProgressBanner: true };
+
+        public bool HasInProgressOriginLabel => !string.IsNullOrWhiteSpace(InProgressOriginLabel);
+
+        public string InProgressOriginLabel => _workingCopy?.InProgressOriginLabel ?? string.Empty;
+
+        public string InProgressConflictBadgeText => _workingCopy?.InProgressConflictBadgeText ?? string.Empty;
+
+        public bool HasInProgressConflictBadge => !string.IsNullOrWhiteSpace(InProgressConflictBadgeText);
+
+        public string InProgressBannerTooltip => _workingCopy?.InProgressBannerTooltip ?? string.Empty;
+
+        public bool HasInProgressHeadlineFallback => _workingCopy is { InProgressContext: null, HasInProgressBanner: true };
+
+        public string InProgressHeadlineFallback =>
+            _workingCopy?.InProgressInspection?.Headline ?? App.Text("WorkingCopy.Conflicts");
+
+        public bool CanAbortInProgressFromBanner => _workingCopy is { CanAbortInProgressFromBanner: true };
+
+        public bool CanViewConflictsFromBanner =>
+            _workingCopy != null && (!IsWorkingCopyVisible || _workingCopy.HasUnsolvedConflicts);
 
         public bool IsSkippingOrAbortingMerge
         {
@@ -1251,6 +1274,32 @@ namespace SourceGit.ViewModels
             OnPropertyChanged(nameof(IsSkippingOrAbortingMerge));
         }
 
+        public void NotifyInProgressOwnershipChanged()
+        {
+            OnPropertyChanged(nameof(HasInProgressBanner));
+            OnPropertyChanged(nameof(HasInProgressOriginLabel));
+            OnPropertyChanged(nameof(InProgressOriginLabel));
+            OnPropertyChanged(nameof(InProgressConflictBadgeText));
+            OnPropertyChanged(nameof(HasInProgressConflictBadge));
+            OnPropertyChanged(nameof(InProgressBannerTooltip));
+            OnPropertyChanged(nameof(HasInProgressHeadlineFallback));
+            OnPropertyChanged(nameof(InProgressHeadlineFallback));
+            OnPropertyChanged(nameof(CanAbortInProgressFromBanner));
+            OnPropertyChanged(nameof(CanViewConflictsFromBanner));
+        }
+
+        public void FocusFirstConflict()
+        {
+            SelectedViewIndex = 1;
+            _workingCopy?.FocusFirstConflict();
+        }
+
+        public async Task RefreshInProgressStateAsync()
+        {
+            if (_workingCopy != null)
+                await _workingCopy.RefreshInProgressStateAsync();
+        }
+
         public async Task SkipMergeAsync()
         {
             if (_workingCopy is not { IsCommitting: false } wc)
@@ -1540,6 +1589,7 @@ namespace SourceGit.ViewModels
                     _workingCopy.SetData(changes);
                     LocalChangesCount = changes.Count;
                     OnPropertyChanged(nameof(InProgressContext));
+                    NotifyInProgressOwnershipChanged();
                     GetOwnerPage()?.ChangeDirtyState(Models.DirtyState.HasLocalChanges, changes.Count == 0);
                 });
             }, token);

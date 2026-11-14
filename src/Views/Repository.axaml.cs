@@ -112,7 +112,15 @@ namespace SourceGit.Views
         private void OnResolveInProgress(object sender, RoutedEventArgs e)
         {
             if (DataContext is ViewModels.Repository repo)
-                repo.SelectedViewIndex = 1;
+                repo.FocusFirstConflict();
+
+            e.Handled = true;
+        }
+
+        private async void OnRefreshInProgress(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.Repository repo)
+                await repo.RefreshInProgressStateAsync();
 
             e.Handled = true;
         }

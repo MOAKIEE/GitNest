@@ -6,163 +6,410 @@
              xmlns:vm="using:SourceGit.ViewModels"
              xmlns:v="using:SourceGit.Views"
              xmlns:c="using:SourceGit.Converters"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             mc:Ignorable="d" d:DesignWidth="580" d:DesignHeight="480"
+             MaxWidth="620"
              x:Class="SourceGit.Views.Merge"
              x:DataType="vm:Merge">
-  <StackPanel Orientation="Vertical" Margin="8,0">
-    <StackPanel Orientation="Horizontal">
-      <Path Width="16" Height="16"
+  <StackPanel Orientation="Vertical" Margin="8,0,0,0" Spacing="10">
+    <!-- Popup Header -->
+    <Grid ColumnDefinitions="Auto,*,Auto">
+      <Path Grid.Column="0"
+            Width="16" Height="16"
+            VerticalAlignment="Center"
             Data="{StaticResource Icons.Merge}"/>
-
-      <TextBlock FontSize="18"
-                 Margin="8,0,0,0"
+      <TextBlock Grid.Column="1"
+                 Margin="10,0,0,0"
+                 FontSize="18"
                  Classes="bold"
+                 VerticalAlignment="Center"
                  Text="{DynamicResource Text.Merge}"/>
-    </StackPanel>
-
-    <Grid Margin="0,16,0,0" RowDefinitions="32,32,32,Auto,Auto" ColumnDefinitions="130,*">
-      <TextBlock Grid.Row="0" Grid.Column="0"
-                 HorizontalAlignment="Right" VerticalAlignment="Center"
-                 Margin="0,0,8,0"
-                 Text="{DynamicResource Text.Merge.Source}"/>
-      <ContentControl Grid.Row="0" Grid.Column="1" Content="{Binding Source}">
-        <ContentControl.DataTemplates>
-          <DataTemplate DataType="m:Branch">
-            <StackPanel Orientation="Horizontal">
-              <Path Width="14" Height="14" Data="{StaticResource Icons.Branch}"/>
-              <TextBlock VerticalAlignment="Center" Text="{Binding FriendlyName}" Margin="8,0,0,0"/>
-            </StackPanel>
-          </DataTemplate>
-
-          <DataTemplate DataType="m:Commit">
-            <Grid ColumnDefinitions="Auto,Auto,*">
-              <Path Grid.Column="0" Width="14" Height="14" Data="{StaticResource Icons.Commit}"/>
-              <TextBlock Grid.Column="1"
-                         VerticalAlignment="Center"
-                         Text="{Binding SHA, Converter={x:Static c:StringConverters.ToShortSHA}}"
-                         Foreground="DarkOrange"
-                         Margin="8,0,0,0"
-                         FontFamily="{DynamicResource Fonts.Monospace}"/>
-              <TextBlock Grid.Column="2"
-                         VerticalAlignment="Center"
-                         Text="{Binding Subject}"
-                         Margin="4,0,0,0"
-                         TextTrimming="CharacterEllipsis"/>
-            </Grid>
-          </DataTemplate>
-
-          <DataTemplate DataType="m:Tag">
-            <StackPanel Orientation="Horizontal">
-              <Path Width="14" Height="14" Data="{StaticResource Icons.Tag}"/>
-              <TextBlock VerticalAlignment="Center" Text="{Binding Name}" Margin="8,0,0,0"/>
-            </StackPanel>
-          </DataTemplate>
-        </ContentControl.DataTemplates>
-      </ContentControl>
-
-      <TextBlock Grid.Row="1" Grid.Column="0"
-                 HorizontalAlignment="Right" VerticalAlignment="Center"
-                 Margin="0,0,8,0"
-                 Text="{DynamicResource Text.Merge.Into}"/>
-      <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Height="20" VerticalAlignment="Center">
-        <Path Margin="0,0,8,0" Width="14" Height="14" Fill="{DynamicResource Brush.FG1}" Data="{StaticResource Icons.Branch}"/>
-        <TextBlock Text="{Binding Into}"/>
-      </StackPanel>
-
-      <TextBlock Grid.Row="2" Grid.Column="0"
-                 HorizontalAlignment="Right" VerticalAlignment="Center"
-                 Margin="0,0,8,0"
-                 Text="{DynamicResource Text.Merge.Mode}"/>
-      <ComboBox Grid.Row="2" Grid.Column="1"
-                Height="28"
-                Padding="8,0"
-                VerticalAlignment="Center" HorizontalAlignment="Stretch"
-                ItemsSource="{Binding Source={x:Static m:MergeMode.Supported}}"
-                SelectedItem="{Binding Mode, Mode=TwoWay}"
-                Grid.IsSharedSizeScope="True">
-        <ComboBox.ItemTemplate>
-          <DataTemplate DataType="m:MergeMode">
-            <Grid Height="20">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" SharedSizeGroup="MergeModeNameColumn"/>
-                <ColumnDefinition Width="Auto" SharedSizeGroup="MergeModeDescriptionColumn"/>
-                <ColumnDefinition Width="Auto" SharedSizeGroup="MergeModeOptionColumn"/>
-              </Grid.ColumnDefinitions>
-
-              <TextBlock Grid.Column="0" Text="{Binding Name}"/>
-              <TextBlock Grid.Column="1" Text="{Binding Desc}" Margin="8,0" FontSize="11" Foreground="{DynamicResource Brush.FG2}"/>
-              <TextBlock Grid.Column="2" Text="{Binding Arg}" HorizontalAlignment="Right" FontSize="11" Foreground="{DynamicResource Brush.FG2}"/>
-            </Grid>
-          </DataTemplate>
-        </ComboBox.ItemTemplate>
-
-        <ComboBox.SelectionBoxItemTemplate>
-          <DataTemplate DataType="m:MergeMode">
-            <Grid ColumnDefinitions="Auto,*">
-              <TextBlock Grid.Column="0" Text="{Binding Name}" Margin="0,0,8,0"/>
-              <TextBlock Grid.Column="1" Text="{Binding Desc}" HorizontalAlignment="Right" FontSize="11" Foreground="{DynamicResource Brush.FG2}"/>
-            </Grid>
-          </DataTemplate>
-        </ComboBox.SelectionBoxItemTemplate>
-      </ComboBox>
-
-      <CheckBox Grid.Row="3" Grid.Column="1"
-                Height="32"
-                Content="{DynamicResource Text.Merge.Edit}"
-                IsChecked="{Binding Edit, Mode=TwoWay}"
-                IsVisible="{Binding CanEditMessage, Mode=OneWay}"
-                ToolTip.Tip="--edit"/>
-
-      <Grid Grid.Row="4" Grid.Column="1"
-            Height="32"
-            IsVisible="{Binding TestingState, Converter={x:Static ObjectConverters.NotEqual}, ConverterParameter={x:Static vm:MergeTestingState.Disabled}}">
-        <StackPanel Orientation="Horizontal"
-                    VerticalAlignment="Center"
-                    IsVisible="{Binding TestingState, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:MergeTestingState.Testing}}">
-          <v:LoadingIcon Width="14" Height="14"
-                         IsVisible="{Binding TestingState, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:MergeTestingState.Testing}}"/>
-
-          <TextBlock Margin="8,0,0,0"
-                     VerticalAlignment="Center"
-                     Text="{DynamicResource Text.Merge.Test}"/>
-        </StackPanel>
-
-        <StackPanel Orientation="Horizontal"
-                    VerticalAlignment="Center"
-                    IsVisible="{Binding TestingState, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:MergeTestingState.NoConflicts}}">
-          <Path Width="14" Height="14"
-                Data="{DynamicResource Icons.CheckCircled}"
-                Fill="Green"/>
-
-          <TextBlock Margin="8,0,0,0"
-                     VerticalAlignment="Center"
-                     Text="{DynamicResource Text.Merge.Test.NoConflicts}"/>
-        </StackPanel>
-
-        <StackPanel Orientation="Horizontal"
-                    VerticalAlignment="Center"
-                    IsVisible="{Binding TestingState, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:MergeTestingState.WillCauseConflicts}}">
-          <Path Width="14" Height="14"
-                Data="{DynamicResource Icons.Error}"
-                Fill="Goldenrod"/>
-
-          <TextBlock Margin="8,0,0,0"
-                     VerticalAlignment="Center"
-                     Text="{DynamicResource Text.Merge.Test.WillCauseConflicts}"/>
-        </StackPanel>
-
-        <StackPanel Orientation="Horizontal"
-                    VerticalAlignment="Center"
-                    IsVisible="{Binding TestingState, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:MergeTestingState.UnknownError}}">
-          <Path Width="14" Height="14"
-                Data="{DynamicResource Icons.Error}"
-                Fill="Goldenrod"/>
-
-          <TextBlock Margin="8,0,0,0"
-                     VerticalAlignment="Center"
-                     Text="{DynamicResource Text.Merge.Test.UnknownError}"/>
-        </StackPanel>
-      </Grid>
+      <Button Grid.Column="2"
+              Classes="flat"
+              Height="24"
+              Padding="10,0"
+              FontSize="11"
+              VerticalAlignment="Center"
+              IsEnabled="{Binding !IsLoadingPreflight, Mode=OneWay}"
+              Content="{DynamicResource Text.Merge.RefreshSnapshot}"
+              Click="OnRefreshSnapshot"/>
     </Grid>
+
+    <!-- Scrollable Content -->
+    <ScrollViewer MaxHeight="450" VerticalScrollBarVisibility="Auto">
+      <StackPanel Orientation="Vertical" Spacing="10" Margin="0,0,4,0">
+        <!-- Main Preflight & Options View -->
+        <StackPanel Orientation="Vertical"
+                    Spacing="10"
+                    IsVisible="{Binding ShowEditorContent, Mode=OneWay}">
+          <!-- Directed Statement Banner -->
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="{DynamicResource Brush.Contents}"
+                  BorderThickness="1"
+                  BorderBrush="{DynamicResource Brush.Border1}">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Grid.Column="0"
+                         Classes="bold"
+                         FontSize="13"
+                         VerticalAlignment="Center"
+                         TextWrapping="Wrap"
+                         Text="{Binding DirectionSummary, Mode=OneWay}"/>
+              <Border Grid.Column="1"
+                      Height="20"
+                      Margin="8,0,0,0"
+                      Padding="8,0"
+                      CornerRadius="10"
+                      VerticalAlignment="Center"
+                      Background="{DynamicResource Brush.Badge}">
+                <TextBlock FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource Brush.BadgeFG}"
+                           Text="{Binding SourceKindLabel, Mode=OneWay}"/>
+              </Border>
+            </Grid>
+          </Border>
+
+          <!-- Source / Target / Mode Controls -->
+          <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="Auto,*">
+            <TextBlock Grid.Row="0" Grid.Column="0"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Center"
+                       Margin="0,0,12,0"
+                       Text="{DynamicResource Text.Merge.Source}"/>
+            <ContentControl Grid.Row="0" Grid.Column="1" Content="{Binding Source}" VerticalAlignment="Center">
+              <ContentControl.DataTemplates>
+                <DataTemplate DataType="m:Branch">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Path Width="14" Height="14" Data="{StaticResource Icons.Branch}"/>
+                    <TextBlock Text="{Binding FriendlyName}" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </DataTemplate>
+                <DataTemplate DataType="m:Commit">
+                  <Grid ColumnDefinitions="Auto,Auto,*">
+                    <Path Grid.Column="0" Width="14" Height="14" Data="{StaticResource Icons.Commit}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1"
+                               Margin="6,0,8,0"
+                               Text="{Binding SHA, Converter={x:Static c:StringConverters.ToShortSHA}}"
+                               FontFamily="{DynamicResource Fonts.Monospace}"
+                               Foreground="DarkOrange"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="{Binding Subject}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                  </Grid>
+                </DataTemplate>
+                <DataTemplate DataType="m:Tag">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Path Width="14" Height="14" Data="{StaticResource Icons.Tag}"/>
+                    <TextBlock Text="{Binding Name}" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </DataTemplate>
+              </ContentControl.DataTemplates>
+            </ContentControl>
+
+            <TextBlock Grid.Row="1" Grid.Column="0"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Center"
+                       Margin="0,8,12,0"
+                       Text="{DynamicResource Text.Merge.Into}"/>
+            <ComboBox Grid.Row="1" Grid.Column="1"
+                      Margin="0,8,0,0"
+                      HorizontalAlignment="Stretch"
+                      Height="28"
+                      ItemsSource="{Binding TargetBranches}"
+                      SelectedItem="{Binding Into, Mode=TwoWay}"/>
+
+            <TextBlock Grid.Row="2" Grid.Column="0"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Center"
+                       Margin="0,8,12,0"
+                       Text="{DynamicResource Text.Merge.Mode}"/>
+            <ComboBox Grid.Row="2" Grid.Column="1"
+                      Margin="0,8,0,0"
+                      MinHeight="30"
+                      Padding="8,4"
+                      HorizontalAlignment="Stretch"
+                      ItemsSource="{Binding ModeOptions}"
+                      SelectedItem="{Binding SelectedModeOption, Mode=TwoWay}"
+                      Grid.IsSharedSizeScope="True">
+              <ComboBox.ItemTemplate>
+                <DataTemplate DataType="vm:MergeModeOption">
+                  <Grid ColumnDefinitions="Auto,*" Margin="0,2">
+                    <TextBlock Grid.Column="0" Classes="bold" Text="{Binding Name}" Margin="0,0,10,0"/>
+                    <TextBlock Grid.Column="1" FontSize="11" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap" Text="{Binding Desc}"/>
+                  </Grid>
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+              <ComboBox.SelectionBoxItemTemplate>
+                <DataTemplate DataType="vm:MergeModeOption">
+                  <Grid ColumnDefinitions="Auto,*">
+                    <TextBlock Grid.Column="0" Classes="bold" Text="{Binding Name}" Margin="0,0,8,0"/>
+                    <TextBlock Grid.Column="1" FontSize="11" Foreground="{DynamicResource Brush.FG2}" TextTrimming="CharacterEllipsis" Text="{Binding Desc}"/>
+                  </Grid>
+                </DataTemplate>
+              </ComboBox.SelectionBoxItemTemplate>
+            </ComboBox>
+
+            <CheckBox Grid.Row="3" Grid.Column="1"
+                      Margin="0,8,0,0"
+                      IsChecked="{Binding Edit, Mode=TwoWay}"
+                      IsEnabled="{Binding CanEditMessage, Mode=OneWay}"
+                      Content="{DynamicResource Text.Merge.Edit}"/>
+          </Grid>
+
+          <!-- Preflight Loading -->
+          <StackPanel Orientation="Horizontal"
+                      Spacing="8"
+                      IsVisible="{Binding IsLoadingPreflight, Mode=OneWay}">
+            <v:LoadingIcon Width="16" Height="16"/>
+            <TextBlock FontSize="12"
+                       Foreground="{DynamicResource Brush.FG2}"
+                       VerticalAlignment="Center"
+                       Text="{DynamicResource Text.Merge.PreflightLoading}"/>
+          </StackPanel>
+
+          <!-- Commit SHA & History Relation Summary Card -->
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="{DynamicResource Brush.Contents}"
+                  BorderThickness="1"
+                  BorderBrush="{DynamicResource Brush.Border1}"
+                  IsVisible="{Binding HasPreflight, Mode=OneWay}">
+            <StackPanel Spacing="6">
+              <Grid ColumnDefinitions="Auto,*,Auto,*">
+                <TextBlock Grid.Column="0" FontSize="11" Foreground="{DynamicResource Brush.FG2}" Margin="0,0,6,0" Text="{DynamicResource Text.Merge.SourceSha}"/>
+                <TextBlock Grid.Column="1" FontSize="11" FontFamily="{DynamicResource Fonts.Monospace}" Text="{Binding SourceShortSha, Mode=OneWay}"/>
+                <TextBlock Grid.Column="2" FontSize="11" Foreground="{DynamicResource Brush.FG2}" Margin="12,0,6,0" Text="{DynamicResource Text.Merge.TargetSha}"/>
+                <TextBlock Grid.Column="3" FontSize="11" FontFamily="{DynamicResource Fonts.Monospace}" Text="{Binding TargetShortSha, Mode=OneWay}"/>
+              </Grid>
+
+              <Grid ColumnDefinitions="Auto,*">
+                <Ellipse Grid.Column="0" Width="8" Height="8" Margin="2,0,8,0" VerticalAlignment="Center" Fill="{Binding RelationBrush, Mode=OneWay}"/>
+                <TextBlock Grid.Column="1" FontSize="12" TextWrapping="Wrap" Text="{Binding RelationText, Mode=OneWay}"/>
+              </Grid>
+
+              <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding NeedsCheckoutNotice, Mode=OneWay}">
+                <Path Grid.Column="0" Width="13" Height="13" Margin="0,2,8,0" VerticalAlignment="Top" Data="{StaticResource Icons.Info}" Fill="{DynamicResource Brush.Accent}"/>
+                <TextBlock Grid.Column="1" FontSize="11" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap" Text="{Binding CheckoutTargetNoticeText, Mode=OneWay}"/>
+              </Grid>
+
+              <Grid ColumnDefinitions="Auto,*">
+                <Path Grid.Column="0" Width="13" Height="13" Margin="0,2,8,0" VerticalAlignment="Top" Data="{StaticResource Icons.Info}" Fill="{DynamicResource Brush.FG2}"/>
+                <TextBlock Grid.Column="1" FontSize="11" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap" Text="{Binding StayLocalHint, Mode=OneWay}"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <!-- Blocking Reason Card -->
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="#1EDC2626"
+                  BorderThickness="1"
+                  BorderBrush="#55DC2626"
+                  IsVisible="{Binding HasBlockingReason, Mode=OneWay}">
+            <Grid ColumnDefinitions="Auto,*">
+              <Path Grid.Column="0" Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,8,0" Data="{StaticResource Icons.Error}" Fill="OrangeRed"/>
+              <TextBlock Grid.Column="1" TextWrapping="Wrap" Text="{Binding BlockingReason, Mode=OneWay}"/>
+            </Grid>
+          </Border>
+
+          <!-- Non-mutating Conflict Prediction Card -->
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="{DynamicResource Brush.Contents}"
+                  BorderThickness="1"
+                  BorderBrush="{DynamicResource Brush.Border1}"
+                  IsVisible="{Binding HasPreflight, Mode=OneWay}">
+            <StackPanel Spacing="6">
+              <StackPanel Orientation="Horizontal"
+                          Spacing="8"
+                          IsVisible="{Binding TestingState, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:MergeTestingState.Testing}}">
+                <v:LoadingIcon Width="14" Height="14"/>
+                <TextBlock FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.Merge.Test}"/>
+              </StackPanel>
+
+              <Grid ColumnDefinitions="Auto,*"
+                    IsVisible="{Binding TestingState, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:MergeTestingState.NoConflicts}}">
+                <Path Grid.Column="0" Width="14" Height="14" Margin="0,1,8,0" Fill="ForestGreen" Data="{DynamicResource Icons.CheckCircled}"/>
+                <TextBlock Grid.Column="1" FontSize="12" TextWrapping="Wrap" Text="{DynamicResource Text.Merge.Test.NoConflicts}"/>
+              </Grid>
+
+              <StackPanel Spacing="4"
+                          IsVisible="{Binding TestingState, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:MergeTestingState.HasConflicts}}">
+                <Grid ColumnDefinitions="Auto,*">
+                  <Path Grid.Column="0" Width="14" Height="14" Margin="0,2,8,0" VerticalAlignment="Top" Fill="DarkOrange" Data="{StaticResource Icons.Error}"/>
+                  <TextBlock Grid.Column="1" Classes="bold" FontSize="12" TextWrapping="Wrap" Text="{DynamicResource Text.Merge.Test.WillCauseConflicts}"/>
+                </Grid>
+                <TextBlock Margin="22,0,0,0"
+                           FontSize="11"
+                           Foreground="{DynamicResource Brush.FG2}"
+                           TextWrapping="Wrap"
+                           IsVisible="{Binding HasConflictPredictionDetail, Mode=OneWay}"
+                           Text="{Binding ConflictPredictionDetail, Mode=OneWay}"/>
+                <TextBlock Margin="22,2,0,0"
+                           Classes="bold"
+                           FontSize="11"
+                           IsVisible="{Binding HasPredictedConflictPaths, Mode=OneWay}"
+                           Text="{Binding PredictedConflictsHeader, Mode=OneWay}"/>
+                <ItemsControl ItemsSource="{Binding PredictedConflictPaths}"
+                              Margin="22,0,0,0"
+                              IsVisible="{Binding HasPredictedConflictPaths, Mode=OneWay}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                      <TextBlock FontSize="11"
+                                 FontFamily="{DynamicResource Fonts.Monospace}"
+                                 Foreground="OrangeRed"
+                                 TextWrapping="Wrap"
+                                 Text="{Binding}"/>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+
+              <Grid ColumnDefinitions="Auto,*"
+                    IsVisible="{Binding TestingState, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:MergeTestingState.Error}}">
+                <Path Grid.Column="0" Width="14" Height="14" Margin="0,2,8,0" VerticalAlignment="Top" Fill="DarkOrange" Data="{StaticResource Icons.Error}"/>
+                <TextBlock Grid.Column="1" FontSize="12" TextWrapping="Wrap" Text="{DynamicResource Text.Merge.Test.UnknownError}"/>
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <!-- Incoming Commits & Changed Files Preview Card -->
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="{DynamicResource Brush.Contents}"
+                  BorderThickness="1"
+                  BorderBrush="{DynamicResource Brush.Border1}"
+                  IsVisible="{Binding HasPreflight, Mode=OneWay}">
+            <StackPanel Spacing="6">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Classes="bold" FontSize="12" Text="{DynamicResource Text.Merge.IncomingSummary}"/>
+                <TextBlock Grid.Column="1" FontSize="11" Foreground="{DynamicResource Brush.FG2}" Text="{Binding IncomingSummaryText, Mode=OneWay}"/>
+              </Grid>
+
+              <TextBlock FontSize="11"
+                         Foreground="{DynamicResource Brush.FG2}"
+                         TextWrapping="Wrap"
+                         IsVisible="{Binding HasNoIncomingChanges, Mode=OneWay}"
+                         Text="{DynamicResource Text.Merge.NoIncomingChanges}"/>
+
+              <ScrollViewer MaxHeight="96"
+                            VerticalScrollBarVisibility="Auto"
+                            IsVisible="{Binding HasIncomingCommits, Mode=OneWay}">
+                <ItemsControl ItemsSource="{Binding IncomingCommits}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:MergeCommitPreviewItem">
+                      <Grid ColumnDefinitions="Auto,*" Margin="0,1">
+                        <TextBlock Grid.Column="0"
+                                   FontFamily="{DynamicResource Fonts.Monospace}"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource Brush.FG2}"
+                                   Margin="0,0,8,0"
+                                   Text="{Binding ShortSha}"/>
+                        <TextBlock Grid.Column="1"
+                                   FontSize="11"
+                                   TextTrimming="CharacterEllipsis"
+                                   Text="{Binding Subject}"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+
+              <ScrollViewer MaxHeight="96"
+                            VerticalScrollBarVisibility="Auto"
+                            IsVisible="{Binding HasIncomingChanges, Mode=OneWay}">
+                <ItemsControl ItemsSource="{Binding IncomingChanges}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:MergeFilePreviewItem">
+                      <Grid ColumnDefinitions="Auto,*" Margin="0,1">
+                        <TextBlock Grid.Column="0"
+                                   Width="16"
+                                   FontFamily="{DynamicResource Fonts.Monospace}"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   Foreground="{Binding StatusBrush}"
+                                   Text="{Binding StatusCode}"/>
+                        <TextBlock Grid.Column="1"
+                                   FontFamily="{DynamicResource Fonts.Monospace}"
+                                   FontSize="11"
+                                   TextWrapping="Wrap"
+                                   Text="{Binding Path}"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <!-- Non-Auto-Close Result Card (Aborted Conflict / External Intervention / Hook / Signing / Stale Snapshot) -->
+        <StackPanel Orientation="Vertical"
+                    Spacing="10"
+                    IsVisible="{Binding HasResultView, Mode=OneWay}">
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="#1EFF8C00"
+                  BorderThickness="1"
+                  BorderBrush="#55FF8C00"
+                  IsVisible="{Binding IsResultWarning, Mode=OneWay}">
+            <Grid ColumnDefinitions="Auto,*">
+              <Path Grid.Column="0" Width="15" Height="15" VerticalAlignment="Top" Margin="0,2,8,0" Data="{StaticResource Icons.Error}" Fill="DarkOrange"/>
+              <TextBlock Grid.Column="1" Classes="bold" TextWrapping="Wrap" Text="{Binding ResultSummary, Mode=OneWay}"/>
+            </Grid>
+          </Border>
+
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="#1EDC2626"
+                  BorderThickness="1"
+                  BorderBrush="#55DC2626"
+                  IsVisible="{Binding IsResultError, Mode=OneWay}">
+            <Grid ColumnDefinitions="Auto,*">
+              <Path Grid.Column="0" Width="15" Height="15" VerticalAlignment="Top" Margin="0,2,8,0" Data="{StaticResource Icons.Error}" Fill="OrangeRed"/>
+              <TextBlock Grid.Column="1" Classes="bold" TextWrapping="Wrap" Text="{Binding ResultSummary, Mode=OneWay}"/>
+            </Grid>
+          </Border>
+
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="{DynamicResource Brush.Contents}"
+                  BorderThickness="1"
+                  BorderBrush="{DynamicResource Brush.Border1}"
+                  IsVisible="{Binding HasResultDetail, Mode=OneWay}">
+            <TextBlock FontSize="12"
+                       Foreground="{DynamicResource Brush.FG1}"
+                       TextWrapping="Wrap"
+                       Text="{Binding ResultDetail, Mode=OneWay}"/>
+          </Border>
+
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="{DynamicResource Brush.Contents}"
+                  BorderThickness="1"
+                  BorderBrush="{DynamicResource Brush.Border1}"
+                  IsVisible="{Binding HasResultLines, Mode=OneWay}">
+            <ItemsControl ItemsSource="{Binding ResultLines}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <TextBlock FontSize="11"
+                             FontFamily="{DynamicResource Fonts.Monospace}"
+                             Margin="0,1"
+                             TextWrapping="Wrap"
+                             Text="{Binding}"/>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </Border>
+
+          <Button Classes="flat primary"
+                  Height="28"
+                  Padding="12,0"
+                  HorizontalAlignment="Left"
+                  IsVisible="{Binding CanRefreshFromResult, Mode=OneWay}"
+                  Content="{DynamicResource Text.Merge.RefreshSnapshot}"
+                  Click="OnRefreshSnapshot"/>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
   </StackPanel>
 </UserControl>

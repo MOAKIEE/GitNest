@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -49,6 +50,75 @@ namespace SourceGit.ViewModels
             get => _inProgressContext;
             private set => SetProperty(ref _inProgressContext, value);
         }
+
+        public Models.RepositoryInProgressInspection InProgressInspection
+        {
+            get => _inProgressInspection;
+            private set
+            {
+                if (SetProperty(ref _inProgressInspection, value))
+                    NotifyInProgressOwnershipChanged();
+            }
+        }
+
+        public bool HasInProgressBanner => _inProgressContext != null || _hasUnsolvedConflicts;
+
+        public string InProgressOriginLabel
+        {
+            get
+            {
+                if (!HasInProgressBanner)
+                    return string.Empty;
+
+                if (_inProgressInspection == null)
+                    return App.Text("WorkingCopy.Conflicts.Origin.External");
+
+                return _inProgressInspection.Origin switch
+                {
+                    Models.ConflictOwnershipOrigin.GitNestOwnedClean or
+                    Models.ConflictOwnershipOrigin.GitNestOwnedWithExternalIntervention
+                        => App.Text("WorkingCopy.Conflicts.Origin.GitNest"),
+                    Models.ConflictOwnershipOrigin.ExternalOrUnknown
+                        => App.Text("WorkingCopy.Conflicts.Origin.External"),
+                    _ => string.Empty,
+                };
+            }
+        }
+
+        public string InProgressConflictBadgeText
+        {
+            get
+            {
+                var count = ConflictedChanges.Count;
+                if (count == 0 && _inProgressInspection is { ConflictedPaths.Count: > 0 })
+                    count = _inProgressInspection.ConflictedPaths.Count;
+
+                return count > 0 ? App.Text("WorkingCopy.Conflicts.FilesHeader", count) : string.Empty;
+            }
+        }
+
+        public string InProgressBannerTooltip
+        {
+            get
+            {
+                if (!HasInProgressBanner)
+                    return string.Empty;
+
+                if (_inProgressInspection == null)
+                    return App.Text("WorkingCopy.Conflicts.ReadOnlyNotice");
+
+                return string.IsNullOrWhiteSpace(_inProgressInspection.Detail)
+                    ? _inProgressInspection.Headline
+                    : $"{_inProgressInspection.Headline}\n{_inProgressInspection.Detail}";
+            }
+        }
+
+        public bool CanAbortInProgressFromBanner =>
+            _inProgressContext != null &&
+            _inProgressInspection is { CanOfferSafeAbort: true };
+
+        public List<Models.Change> ConflictedChanges =>
+            _cached.FindAll(static x => x.IsConflicted);
 
         public bool IsStaging
         {
@@ -627,10 +697,32 @@ namespace SourceGit.ViewModels
             }
         }
 
+        public void FocusFirstConflict()
+        {
+            var conflict = _cached.Find(static x => x.IsConflicted);
+            if (conflict == null)
+                return;
+
+            SelectedUnstaged = new ChangeSelection(new List<Models.Change> { conflict });
+            SetDetail(conflict, true);
+        }
+
+        public async Task RefreshInProgressStateAsync()
+        {
+            _repo.MarkWorkingCopyDirtyManually();
+            await RefreshInProgressInspectionAsync();
+        }
+
         public async Task AbortMergeAsync()
         {
             if (_inProgressContext != null)
             {
+                if (!CanAbortInProgressFromBanner)
+                {
+                    _repo.SendNotification(App.Text("WorkingCopy.Conflicts.ExternalAbortDisabled"), true);
+                    return;
+                }
+
                 using var lockWatcher = _repo.LockWatcher();
                 IsCommitting = true;
 
@@ -936,6 +1028,8 @@ namespace SourceGit.ViewModels
             else
                 InProgressContext = null;
 
+            UpdateInProgressOwnershipInspection();
+
             if (_inProgressContext == null)
             {
                 if (Directory.Exists(Path.Combine(_repo.GitDir, "rebase-apply")))
@@ -1102,8 +1196,62 @@ namespace SourceGit.ViewModels
         private string _filter = string.Empty;
         private string _commitMessage = string.Empty;
 
+        private void UpdateInProgressOwnershipInspection()
+        {
+            if (_inProgressContext == null && !_hasUnsolvedConflicts)
+            {
+                Interlocked.Increment(ref _inProgressInspectionVersion);
+                if (_inProgressInspection != null)
+                    InProgressInspection = null;
+                else
+                    NotifyInProgressOwnershipChanged();
+                return;
+            }
+
+            NotifyInProgressOwnershipChanged();
+            _ = RefreshInProgressInspectionAsync();
+        }
+
+        private async Task RefreshInProgressInspectionAsync()
+        {
+            var version = Interlocked.Increment(ref _inProgressInspectionVersion);
+            try
+            {
+                var inspection = await Commands.MergeRevertService
+                    .InspectRepositoryInProgressAsync(_repo.FullPath);
+
+                if (version != _inProgressInspectionVersion)
+                    return;
+
+                InProgressInspection = inspection;
+                NotifyInProgressOwnershipChanged();
+            }
+            catch
+            {
+                if (version == _inProgressInspectionVersion)
+                    NotifyInProgressOwnershipChanged();
+            }
+        }
+
+        private void NotifyInProgressOwnershipChanged()
+        {
+            OnPropertyChanged(nameof(HasInProgressBanner));
+            OnPropertyChanged(nameof(InProgressOriginLabel));
+            OnPropertyChanged(nameof(InProgressConflictBadgeText));
+            OnPropertyChanged(nameof(InProgressBannerTooltip));
+            OnPropertyChanged(nameof(CanAbortInProgressFromBanner));
+            OnPropertyChanged(nameof(ConflictedChanges));
+
+            if (_detailContext is Conflict conflictVm)
+                conflictVm.SyncState(_inProgressInspection, ConflictedChanges);
+
+            _repo.NotifyInProgressOwnershipChanged();
+        }
+
         private bool _hasUnsolvedConflicts = false;
         private InProgressContext _inProgressContext = null;
+        private Models.RepositoryInProgressInspection _inProgressInspection = null;
+        private int _inProgressInspectionVersion;
         private string _autoLoadedCommitMessage = null;
     }
 }

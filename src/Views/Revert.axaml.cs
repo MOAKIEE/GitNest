@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 
 namespace SourceGit.Views
 {
@@ -7,6 +8,14 @@ namespace SourceGit.Views
         public Revert()
         {
             InitializeComponent();
+        }
+
+        private async void OnRefreshSnapshot(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.Revert vm)
+                await vm.RefreshPreflightAsync();
+
+            e.Handled = true;
         }
     }
 }

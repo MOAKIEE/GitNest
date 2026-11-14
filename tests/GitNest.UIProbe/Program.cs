@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -69,6 +70,10 @@ internal static partial class Program
             {
                 RunWorktreeDelete();
             }
+            else if (args.Contains("--merge-revert"))
+            {
+                RunMergeRevert();
+            }
             else
             {
                 RunOverview();
@@ -96,11 +101,7 @@ internal static partial class Program
                 if (!temporaryRoot.StartsWith(expectedPrefix, StringComparison.OrdinalIgnoreCase) ||
                     !Guid.TryParseExact(temporaryRoot[expectedPrefix.Length..], "N", out _))
                     throw new InvalidOperationException("Refusing to recycle a directory outside the probe fixture.");
-                foreach (var file in Directory.EnumerateFiles(_root, "*", SearchOption.AllDirectories))
-                    File.SetAttributes(file, FileAttributes.Normal);
-                Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(_root,
-                    Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
-                    Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                RecycleProbeDirectorySafe(_root);
             }
         }
     }
@@ -202,11 +203,109 @@ internal static partial class Program
         var launcher = _launcher;
         _window = null;
         _launcher = null;
-        window?.Close();
         if (launcher != null)
+        {
             foreach (var page in launcher.Pages)
-                if (page.Data is VM.Repository open) open.Close();
+            {
+                page.Popup?.Cleanup();
+                page.Popup = null;
+                if (page.Data is VM.Repository open)
+                    open.Close();
+            }
+        }
+        window?.Close();
+        Dispatcher.UIThread.RunJobs();
     }
+
+    private static void RecycleProbeDirectorySafe(string rootPath)
+    {
+        var enumOptions = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            AttributesToSkip = FileAttributes.None,
+            IgnoreInaccessible = true,
+        };
+
+        for (var attempt = 0; attempt < 8; attempt++)
+        {
+            foreach (var file in Directory.EnumerateFiles(rootPath, "*", enumOptions))
+            {
+                try
+                {
+                    if ((File.GetAttributes(file) & FileAttributes.ReadOnly) != 0)
+                        File.SetAttributes(file, FileAttributes.Normal);
+                }
+                catch
+                {
+                }
+            }
+
+            if (OperatingSystem.IsWindows())
+            {
+                var rc = TrySendToRecycleBinSilent(rootPath);
+                if (rc == 0 && !Directory.Exists(rootPath))
+                    return;
+            }
+            else
+            {
+                Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(
+                    rootPath,
+                    Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
+                    Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
+                return;
+            }
+
+            Thread.Sleep(150);
+            Dispatcher.UIThread.RunJobs();
+        }
+    }
+
+    private static int TrySendToRecycleBinSilent(string path)
+    {
+        const uint FO_DELETE = 0x0003;
+        const ushort FOF_SILENT = 0x0004;
+        const ushort FOF_NOCONFIRMATION = 0x0010;
+        const ushort FOF_ALLOWUNDO = 0x0040;
+        const ushort FOF_NOERRORUI = 0x0400;
+
+        var pFrom = Marshal.StringToHGlobalUni(path + "\0");
+        try
+        {
+            var op = new SHFILEOPSTRUCTW
+            {
+                hwnd = IntPtr.Zero,
+                wFunc = FO_DELETE,
+                pFrom = pFrom,
+                pTo = IntPtr.Zero,
+                fFlags = FOF_SILENT | FOF_NOCONFIRMATION | FOF_ALLOWUNDO | FOF_NOERRORUI,
+                fAnyOperationsAborted = false,
+                hNameMappings = IntPtr.Zero,
+                lpszProgressTitle = IntPtr.Zero,
+            };
+            return SHFileOperationW(ref op);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(pFrom);
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct SHFILEOPSTRUCTW
+    {
+        public IntPtr hwnd;
+        public uint wFunc;
+        public IntPtr pFrom;
+        public IntPtr pTo;
+        public ushort fFlags;
+        [MarshalAs(UnmanagedType.Bool)]
+        public bool fAnyOperationsAborted;
+        public IntPtr hNameMappings;
+        public IntPtr lpszProgressTitle;
+    }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+    private static extern int SHFileOperationW(ref SHFILEOPSTRUCTW lpFileOp);
 
     private static void Check(bool condition, string message)
     {
@@ -261,5 +360,6 @@ internal static partial class Program
     static partial void RunOperationRecovery();
     static partial void RunBranchDelete();
     static partial void RunWorktreeDelete();
+    static partial void RunMergeRevert();
 
 }

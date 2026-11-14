@@ -240,10 +240,10 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
-        private async void OnOpenExternalMergeToolAllConflicts(object _, RoutedEventArgs e)
+        private void OnOpenExternalMergeToolAllConflicts(object _, RoutedEventArgs e)
         {
             if (DataContext is ViewModels.WorkingCopy vm)
-                await vm.UseExternalMergeToolAsync(null);
+                vm.FocusFirstConflict();
 
             e.Handled = true;
         }
@@ -337,6 +337,19 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
+        private MenuItem CreateConflictRefreshMenuItem(ViewModels.WorkingCopy vm)
+        {
+            var refresh = new MenuItem();
+            refresh.Header = App.Text("Repository.RefreshStatus");
+            refresh.Icon = this.CreateMenuIcon("Icons.Loading");
+            refresh.Click += async (_, e) =>
+            {
+                await vm.RefreshInProgressStateAsync();
+                e.Handled = true;
+            };
+            return refresh;
+        }
+
         private ContextMenu CreateContextMenuForUnstagedChanges(ViewModels.Repository repo, ViewModels.WorkingCopy vm, ViewModels.ChangeSelection selection)
         {
             var changes = selection.Changes;
@@ -384,74 +397,17 @@ namespace SourceGit.Views
 
                 if (change.IsConflicted)
                 {
-                    var useTheirs = new MenuItem();
-                    useTheirs.Icon = this.CreateMenuIcon("Icons.Incoming");
-                    useTheirs.Click += async (_, e) =>
+                    var viewConflict = new MenuItem();
+                    viewConflict.Header = App.Text("Repository.Resolve");
+                    viewConflict.Icon = this.CreateMenuIcon("Icons.Conflict");
+                    viewConflict.Click += (_, e) =>
                     {
-                        await vm.UseTheirsAsync(changes);
+                        vm.FocusFirstConflict();
                         e.Handled = true;
                     };
 
-                    var useMine = new MenuItem();
-                    useMine.Icon = this.CreateMenuIcon("Icons.Local");
-                    useMine.Click += async (_, e) =>
-                    {
-                        await vm.UseMineAsync(changes);
-                        e.Handled = true;
-                    };
-
-                    switch (vm.InProgressContext)
-                    {
-                        case ViewModels.CherryPickInProgress cherryPick:
-                            useTheirs.Header = App.Text("FileCM.ResolveUsing", cherryPick.HeadName);
-                            useMine.Header = App.Text("FileCM.ResolveUsing", repo.CurrentBranch.Name);
-                            break;
-                        case ViewModels.RebaseInProgress rebase:
-                            useTheirs.Header = App.Text("FileCM.ResolveUsing", rebase.HeadName);
-                            useMine.Header = App.Text("FileCM.ResolveUsing", rebase.BaseName);
-                            break;
-                        case ViewModels.RevertInProgress revert:
-                            useTheirs.Header = App.Text("FileCM.ResolveUsing", $"{revert.Head.SHA.AsSpan(0, 10)} (revert)");
-                            useMine.Header = App.Text("FileCM.ResolveUsing", repo.CurrentBranch.Name);
-                            break;
-                        case ViewModels.MergeInProgress merge:
-                            useTheirs.Header = App.Text("FileCM.ResolveUsing", merge.SourceName);
-                            useMine.Header = App.Text("FileCM.ResolveUsing", repo.CurrentBranch.Name);
-                            break;
-                        default:
-                            useTheirs.Header = App.Text("FileCM.UseTheirs");
-                            useMine.Header = App.Text("FileCM.UseMine");
-                            break;
-                    }
-
-                    menu.Items.Add(useTheirs);
-                    menu.Items.Add(useMine);
-
-                    if (change.ConflictReason is Models.ConflictReason.BothAdded or Models.ConflictReason.BothModified && !Directory.Exists(path))
-                    {
-                        var mergeBuiltin = new MenuItem();
-                        mergeBuiltin.Header = App.Text("ChangeCM.Merge");
-                        mergeBuiltin.Icon = this.CreateMenuIcon("Icons.Conflict");
-                        mergeBuiltin.Click += async (_, e) =>
-                        {
-                            var head = await new Commands.QuerySingleCommit(repo.FullPath, "HEAD").GetResultAsync();
-                            this.ShowWindow(new ViewModels.MergeConflictEditor(repo, head, change.Path));
-                            e.Handled = true;
-                        };
-
-                        var mergeExternal = new MenuItem();
-                        mergeExternal.Header = App.Text("ChangeCM.MergeExternal");
-                        mergeExternal.Icon = this.CreateMenuIcon("Icons.OpenWith");
-                        mergeExternal.Click += async (_, e) =>
-                        {
-                            await vm.UseExternalMergeToolAsync(change);
-                            e.Handled = true;
-                        };
-
-                        menu.Items.Add(mergeBuiltin);
-                        menu.Items.Add(mergeExternal);
-                    }
-
+                    menu.Items.Add(viewConflict);
+                    menu.Items.Add(CreateConflictRefreshMenuItem(vm));
                     menu.Items.Add(new MenuItem() { Header = "-" });
                 }
                 else
@@ -802,48 +758,7 @@ namespace SourceGit.Views
                         return null;
                     }
 
-                    var useTheirs = new MenuItem();
-                    useTheirs.Icon = this.CreateMenuIcon("Icons.Incoming");
-                    useTheirs.Click += async (_, e) =>
-                    {
-                        await vm.UseTheirsAsync(changes);
-                        e.Handled = true;
-                    };
-
-                    var useMine = new MenuItem();
-                    useMine.Icon = this.CreateMenuIcon("Icons.Local");
-                    useMine.Click += async (_, e) =>
-                    {
-                        await vm.UseMineAsync(changes);
-                        e.Handled = true;
-                    };
-
-                    switch (vm.InProgressContext)
-                    {
-                        case ViewModels.CherryPickInProgress cherryPick:
-                            useTheirs.Header = App.Text("FileCM.ResolveUsing", cherryPick.HeadName);
-                            useMine.Header = App.Text("FileCM.ResolveUsing", repo.CurrentBranch.Name);
-                            break;
-                        case ViewModels.RebaseInProgress rebase:
-                            useTheirs.Header = App.Text("FileCM.ResolveUsing", rebase.HeadName);
-                            useMine.Header = App.Text("FileCM.ResolveUsing", rebase.BaseName);
-                            break;
-                        case ViewModels.RevertInProgress revert:
-                            useTheirs.Header = App.Text("FileCM.ResolveUsing", $"{revert.Head.SHA.AsSpan(0, 10)} (revert)");
-                            useMine.Header = App.Text("FileCM.ResolveUsing", repo.CurrentBranch.Name);
-                            break;
-                        case ViewModels.MergeInProgress merge:
-                            useTheirs.Header = App.Text("FileCM.ResolveUsing", merge.SourceName);
-                            useMine.Header = App.Text("FileCM.ResolveUsing", repo.CurrentBranch.Name);
-                            break;
-                        default:
-                            useTheirs.Header = App.Text("FileCM.UseTheirs");
-                            useMine.Header = App.Text("FileCM.UseMine");
-                            break;
-                    }
-
-                    menu.Items.Add(useTheirs);
-                    menu.Items.Add(useMine);
+                    menu.Items.Add(CreateConflictRefreshMenuItem(vm));
                     return menu;
                 }
 

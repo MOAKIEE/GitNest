@@ -246,3 +246,12 @@
 - 实现「将【来源】的改动合并到【目标】」预检与加锁执行（含显式远端已抓取快照来源、跨分支目标切换、其他 worktree 占用拦截、`merge-tree --write-tree` 无副作用冲突预检、操作前干净态与确认快照检查、仅对 `Parents.Count <= 1` 的单提交 revert）、冲突后逐文件磁盘/暂存 SHA-256 归属与 AI 外部介入护卫（无外部介入方可自动 `--abort` 并二次校验还原；若发现任何外部介入则立即停止并保留现场）、只读外部进行中状态识别（按控制文件修改时序区分外部重跑与保留现场，打开/刷新绝不自动中止），以及非冲突场景下 `HookRejected` / `SigningFailed` 错误分类。
 - 新增 `tests/GitNest.IntegrationTests/MergeRevertTests.cs` 并接入 `Program.cs`；末次代码改动后 `.\build\scripts\build-gitnest.ps1` 构建 `0` 警告 `0` 错误，`.\build\scripts\test-gitnest.ps1` 全量 **233 / 233** 项真实 Git 检查通过（过程与清单见 [phase-3.4.md](verification/phase-3.4.md)）。
 - 下一批次（3.4b）将在 SourceGit 原生样式中更新 `Merge`、`Revert` 与只读 `Conflict` 进行中状态界面，补全中英词条、`GitNest.UIProbe` 探针与截图验收。
+
+## 2026-11-14 · 批次 3.4b：定向合并 /单提交 Revert 原生弹窗、只读冲突状态面板与探针截图验收
+
+- 前一批提交：`0213d125`（批次 3.4a：定向合并引擎、单提交 revert、冲突归属守卫与失败分类）。
+- 重构 `src/ViewModels/Merge.cs` 与 `src/Views/Merge.axaml`/`.axaml.cs`、`src/ViewModels/Revert.cs` 与 `src/Views/Revert.axaml`/`.axaml.cs`，按 SourceGit 原生样式落地来源/目标方向提示、预期冲突无副作用预检、拟并入提交与文件列表、合并提交 revert 明确拦截卡片与非自动关闭诊断结果视图。
+- 改造 `WorkingCopy`（`.cs`/`.axaml`/`.axaml.cs`）、`Repository`（`.cs`/`.axaml`/`.axaml.cs`）与 `Conflict`（`.cs`/`.axaml`/`.axaml.cs`）为严格只读冲突归属与状态面板：区分「外部操作进行中」与 GitNest 保留态、门控直接中止按钮、屏蔽内部解决编辑器并移除 `UseMine`/`UseTheirs`，同时从 `MERGE_HEAD`/`REVERT_HEAD`/`CHERRY_PICK_HEAD` 兜底解析 `THEIRS` 提交；同步修复 `Conflict` 面板透明穿透、`Grid` 单行省略号与 `MergeCommitBlock` 空列表/禁用按钮干扰。
+- 补全双语词条（`zh=1447 en=1447 diff=0`）、新增 `tests/GitNest.UIProbe/MergeRevertProbe.cs`（`-MergeRevert`）及 `Popup.Cleanup()` 取消后台预检 + 探针回收站非阻塞清理机制（同时消除 `-CommitSync` 收尾弹窗句柄卡死问题）。
+- 末次代码改动后验证：`.\build\scripts\build-gitnest.ps1 -Publish`（`0` 警告 `0` 错误，产出 `artifacts/windows-x64/GitNest.exe`）、`.\build\scripts\test-gitnest.ps1`（**233 / 233** 通过）、`.\build\scripts\probe-gitnest.ps1 -MergeRevert`（**11 / 11** 通过，`TEMP_LEFTOVERS=0`）、`.\build\scripts\probe-gitnest.ps1 -CommitSync`（**11 / 11** 通过，`TEMP_LEFTOVERS=0`）并完成 `artifacts/probes/phase-3.4/` 5 张截图视觉复核；详情见 [phase-3.4.md](verification/phase-3.4.md)。
+- 批次 3.4（3.4a / 3.4b）全部完成；接续进入批次 3.5（stash、丢弃前备份、文件回收与忽略规则）。

@@ -105,7 +105,7 @@
   <x:String x:Key="Text.BranchCM.FetchInto" xml:space="preserve">拉取(fetch) ${0}$ 至 ${1}$...</x:String>
   <x:String x:Key="Text.BranchCM.Finish" xml:space="preserve">GIT工作流 - 完成 ${0}$...</x:String>
   <x:String x:Key="Text.BranchCM.InteractiveRebase.Manually" xml:space="preserve">交互式变基 ${0}$ 到 ${1}$</x:String>
-  <x:String x:Key="Text.BranchCM.Merge" xml:space="preserve">合并(merge) ${0}$ 到 ${1}$...</x:String>
+  <x:String x:Key="Text.BranchCM.Merge" xml:space="preserve">将【${0}$】的改动合并到【${1}$】...</x:String>
   <x:String x:Key="Text.BranchCM.MergeMultiBranches" xml:space="preserve">合并(merge) {0} 个分支到当前分支...</x:String>
   <x:String x:Key="Text.BranchCM.Pull" xml:space="preserve">拉回(pull) ${0}$...</x:String>
   <x:String x:Key="Text.BranchCM.PullInto" xml:space="preserve">拉回(pull) ${0}$ 内容至 ${1}$...</x:String>
@@ -208,7 +208,7 @@
   <x:String x:Key="Text.CommitCM.PushRevision" xml:space="preserve">推送(push) ${0}$ 到 ${1}$...</x:String>
   <x:String x:Key="Text.CommitCM.Rebase" xml:space="preserve">变基(rebase) ${0}$ 到 ${1}$...</x:String>
   <x:String x:Key="Text.CommitCM.Reset" xml:space="preserve">重置(reset) ${0}$ 到 ${1}$...</x:String>
-  <x:String x:Key="Text.CommitCM.Revert" xml:space="preserve">回滚此提交...</x:String>
+  <x:String x:Key="Text.CommitCM.Revert" xml:space="preserve">撤销这次提交的改动（保留历史）...</x:String>
   <x:String x:Key="Text.CommitCM.SaveAsPatch" xml:space="preserve">另存为补丁...</x:String>
   <x:String x:Key="Text.CommitDetail.Changes" xml:space="preserve">变更对比</x:String>
   <x:String x:Key="Text.CommitDetail.Changes.Count" xml:space="preserve">个文件发生变更</x:String>
@@ -762,14 +762,43 @@
   <x:String x:Key="Text.Launcher.Pages" xml:space="preserve">页面列表</x:String>
   <x:String x:Key="Text.Launcher.Workspaces" xml:space="preserve">工作区列表</x:String>
   <x:String x:Key="Text.Merge" xml:space="preserve">合并分支</x:String>
+  <x:String x:Key="Text.Merge.DirectionSummary" xml:space="preserve">将【{0}】的改动合并到【{1}】</x:String>
   <x:String x:Key="Text.Merge.Edit" xml:space="preserve">编辑合并信息</x:String>
   <x:String x:Key="Text.Merge.Into" xml:space="preserve">目标分支 ：</x:String>
   <x:String x:Key="Text.Merge.Mode" xml:space="preserve">合并方式 ：</x:String>
-  <x:String x:Key="Text.Merge.Source" xml:space="preserve">合并目标 ：</x:String>
+  <x:String x:Key="Text.Merge.Mode.Default.Title" xml:space="preserve">标准策略</x:String>
+  <x:String x:Key="Text.Merge.Mode.Default.Desc" xml:space="preserve">可快进时直接前移目标分支，分叉时生成合并提交</x:String>
+  <x:String x:Key="Text.Merge.Mode.FastForwardOnly.Title" xml:space="preserve">仅快进 (--ff-only)</x:String>
+  <x:String x:Key="Text.Merge.Mode.FastForwardOnly.Desc" xml:space="preserve">仅当目标可直接快进到来源时执行，拒绝分叉合并</x:String>
+  <x:String x:Key="Text.Merge.Mode.NoFastForward.Title" xml:space="preserve">总是生成合并提交 (--no-ff)</x:String>
+  <x:String x:Key="Text.Merge.Mode.NoFastForward.Desc" xml:space="preserve">即使可快进也显式生成双父合并提交</x:String>
+  <x:String x:Key="Text.Merge.Mode.Squash.Title" xml:space="preserve">压缩暂存改动 (--squash)</x:String>
+  <x:String x:Key="Text.Merge.Mode.Squash.Desc" xml:space="preserve">将来源改动合并到目标工作区与暂存区而不自动提交</x:String>
+  <x:String x:Key="Text.Merge.Mode.DontCommit.Title" xml:space="preserve">合并后暂不提交 (--no-commit)</x:String>
+  <x:String x:Key="Text.Merge.Mode.DontCommit.Desc" xml:space="preserve">执行合并并停留在提交准备区，不立即写入提交</x:String>
+  <x:String x:Key="Text.Merge.Source" xml:space="preserve">来源 ：</x:String>
+  <x:String x:Key="Text.Merge.SourceKind.LocalBranch" xml:space="preserve">本地分支</x:String>
+  <x:String x:Key="Text.Merge.SourceKind.RemoteSnapshot" xml:space="preserve">已获取的远端分支快照</x:String>
+  <x:String x:Key="Text.Merge.SourceKind.Tag" xml:space="preserve">标签快照</x:String>
+  <x:String x:Key="Text.Merge.SourceKind.Commit" xml:space="preserve">指定提交</x:String>
+  <x:String x:Key="Text.Merge.SourceSha" xml:space="preserve">来源提交 ：</x:String>
+  <x:String x:Key="Text.Merge.TargetSha" xml:space="preserve">目标提交 ：</x:String>
+  <x:String x:Key="Text.Merge.PreflightLoading" xml:space="preserve">正在检测目标分支状态、即将合入的提交与冲突风险...</x:String>
+  <x:String x:Key="Text.Merge.RefreshSnapshot" xml:space="preserve">刷新快照</x:String>
+  <x:String x:Key="Text.Merge.IncomingSummary" xml:space="preserve">即将合入目标分支的提交与文件</x:String>
+  <x:String x:Key="Text.Merge.IncomingCounts" xml:space="preserve">{0} 个提交 · {1} 个变更文件</x:String>
+  <x:String x:Key="Text.Merge.NoIncomingChanges" xml:space="preserve">来源提交中没有尚未合入目标分支的新增改动。</x:String>
+  <x:String x:Key="Text.Merge.StayLocalHint" xml:space="preserve">合并完成后将保留在目标本地分支【{0}】，不会自动推送到远端。</x:String>
+  <x:String x:Key="Text.Merge.ConflictPreviewFiles" xml:space="preserve">预检发现可能产生冲突的文件（{0}）</x:String>
+  <x:String x:Key="Text.Merge.Relation.FastForward" xml:space="preserve">可快进：目标分支可直接前移到来源提交</x:String>
+  <x:String x:Key="Text.Merge.Relation.Diverged" xml:space="preserve">已分叉：常规合并将生成一条新的合并提交</x:String>
+  <x:String x:Key="Text.Merge.Relation.UpToDate" xml:space="preserve">目标分支已包含来源提交，无需再次合并</x:String>
+  <x:String x:Key="Text.Merge.Relation.Unrelated" xml:space="preserve">两侧不存在共同祖先，禁止直接常规合并</x:String>
   <x:String x:Key="Text.Merge.Test" xml:space="preserve">检测合并冲突中...</x:String>
   <x:String x:Key="Text.Merge.Test.NoConflicts" xml:space="preserve">合并操作不会产生冲突</x:String>
   <x:String x:Key="Text.Merge.Test.UnknownError" xml:space="preserve">检测合并冲突时出现未知错误</x:String>
   <x:String x:Key="Text.Merge.Test.WillCauseConflicts" xml:space="preserve">合并操作将存在冲突文件</x:String>
+  <x:String x:Key="Text.Merge.CloseResult" xml:space="preserve">关闭</x:String>
   <x:String x:Key="Text.MergeConflictEditor.AcceptBoth.MineFirst" xml:space="preserve">先应用 MINE 后 THEIRS</x:String>
   <x:String x:Key="Text.MergeConflictEditor.AcceptBoth.TheirsFirst" xml:space="preserve">先应用 THEIRS 后 MINE</x:String>
   <x:String x:Key="Text.MergeConflictEditor.UseBoth" xml:space="preserve">应用全部</x:String>
@@ -1045,7 +1074,8 @@
   <x:String x:Key="Text.Repository.OpenWithExternalTools" xml:space="preserve">使用外部工具打开</x:String>
   <x:String x:Key="Text.Repository.Remotes" xml:space="preserve">远程列表</x:String>
   <x:String x:Key="Text.Repository.Remotes.Add" xml:space="preserve">添加远程</x:String>
-  <x:String x:Key="Text.Repository.Resolve" xml:space="preserve">解决冲突</x:String>
+  <x:String x:Key="Text.Repository.RefreshStatus" xml:space="preserve">刷新状态</x:String>
+  <x:String x:Key="Text.Repository.Resolve" xml:space="preserve">查看冲突</x:String>
   <x:String x:Key="Text.Repository.Search" xml:space="preserve">查找提交</x:String>
   <x:String x:Key="Text.Repository.Search.ByAuthor" xml:space="preserve">作者</x:String>
   <x:String x:Key="Text.Repository.Search.ByContent" xml:space="preserve">变更内容</x:String>
@@ -1086,9 +1116,18 @@
   <x:String x:Key="Text.ResetWithoutCheckout.MoveTo" xml:space="preserve">重置点 ：</x:String>
   <x:String x:Key="Text.ResetWithoutCheckout.Target" xml:space="preserve">操作分支 ：</x:String>
   <x:String x:Key="Text.RevealFile" xml:space="preserve">在文件浏览器中查看</x:String>
-  <x:String x:Key="Text.Revert" xml:space="preserve">回滚操作确认</x:String>
-  <x:String x:Key="Text.Revert.Commit" xml:space="preserve">目标提交 ：</x:String>
-  <x:String x:Key="Text.Revert.CommitChanges" xml:space="preserve">回滚后提交更改</x:String>
+  <x:String x:Key="Text.Revert" xml:space="preserve">撤销这次提交的改动（保留历史）</x:String>
+  <x:String x:Key="Text.Revert.AffectedFiles" xml:space="preserve">预计受影响的文件（{0}）</x:String>
+  <x:String x:Key="Text.Revert.BranchLabel" xml:space="preserve">当前分支 ：</x:String>
+  <x:String x:Key="Text.Revert.CloseResult" xml:space="preserve">关闭</x:String>
+  <x:String x:Key="Text.Revert.Commit" xml:space="preserve">待撤销提交 ：</x:String>
+  <x:String x:Key="Text.Revert.CommitChanges" xml:space="preserve">生成反向提交并保留提交历史</x:String>
+  <x:String x:Key="Text.Revert.HistoryHint" xml:space="preserve">会在当前分支追加一条新的反向提交，原有历史完整保留；推送需在之后手动执行。</x:String>
+  <x:String x:Key="Text.Revert.MergeCommitBlock" xml:space="preserve">所选提交属于多父合并提交。首版仅处理单次普通提交的撤销，不会固定使用 -m 1 主线策略；请交由外部工具处理。</x:String>
+  <x:String x:Key="Text.Revert.NoAffectedFiles" xml:space="preserve">未检测到文件变动。</x:String>
+  <x:String x:Key="Text.Revert.ParentLabel" xml:space="preserve">父提交 ：</x:String>
+  <x:String x:Key="Text.Revert.PreflightLoading" xml:space="preserve">正在核对当前工作区、提交类型与预计影响的文件...</x:String>
+  <x:String x:Key="Text.Revert.RefreshSnapshot" xml:space="preserve">刷新预检</x:String>
   <x:String x:Key="Text.Running" xml:space="preserve">执行操作中，请耐心等待...</x:String>
   <x:String x:Key="Text.Save" xml:space="preserve">保    存</x:String>
   <x:String x:Key="Text.SaveAs" xml:space="preserve">另存为...</x:String>
@@ -1208,7 +1247,7 @@
   <x:String x:Key="Text.TagCM.CustomAction" xml:space="preserve">自定义操作</x:String>
   <x:String x:Key="Text.TagCM.Delete" xml:space="preserve">删除 ${0}$...</x:String>
   <x:String x:Key="Text.TagCM.DeleteMultiple" xml:space="preserve">删除选中 {0} 个标签...</x:String>
-  <x:String x:Key="Text.TagCM.Merge" xml:space="preserve">合并 ${0}$ 到 ${1}$...</x:String>
+  <x:String x:Key="Text.TagCM.Merge" xml:space="preserve">将【${0}$】的改动合并到【${1}$】...</x:String>
   <x:String x:Key="Text.TagCM.Push" xml:space="preserve">推送 ${0}$...</x:String>
   <x:String x:Key="Text.Terminate" xml:space="preserve">终止运行</x:String>
   <x:String x:Key="Text.TrustRepository" xml:space="preserve">不受信任的仓库</x:String>
@@ -1268,6 +1307,13 @@
   <x:String x:Key="Text.WorkingCopy.Conflicts.Resolved" xml:space="preserve">文件冲突已解决</x:String>
   <x:String x:Key="Text.WorkingCopy.Conflicts.UseMine" xml:space="preserve">使用 MINE</x:String>
   <x:String x:Key="Text.WorkingCopy.Conflicts.UseTheirs" xml:space="preserve">使用 THEIRS</x:String>
+  <x:String x:Key="Text.WorkingCopy.Conflicts.Origin.External" xml:space="preserve">外部操作进行中</x:String>
+  <x:String x:Key="Text.WorkingCopy.Conflicts.Origin.GitNest" xml:space="preserve">冲突状态已保留</x:String>
+  <x:String x:Key="Text.WorkingCopy.Conflicts.ReadOnlyNotice" xml:space="preserve">GitNest 仅提供冲突报警与受影响文件清单，不提供内置三向冲突编辑器或自动覆盖改写。请在外部工具或终端完成处理并核实后，点击“刷新状态”。</x:String>
+  <x:String x:Key="Text.WorkingCopy.Conflicts.MarkerLabel" xml:space="preserve">状态标记 ：</x:String>
+  <x:String x:Key="Text.WorkingCopy.Conflicts.FilesHeader" xml:space="preserve">冲突文件清单（{0}）</x:String>
+  <x:String x:Key="Text.WorkingCopy.Conflicts.EmptyFiles" xml:space="preserve">工作区当前没有未解决的冲突文件标记，但 Git 进行中状态标记依然存在；请在外部核实完成后点击刷新。</x:String>
+  <x:String x:Key="Text.WorkingCopy.Conflicts.ExternalAbortDisabled" xml:space="preserve">检测到外部或已被外部继续修改的进行中状态，为防止覆盖外部修改，不会直接取消该操作；待外部处理完成后点击“刷新状态”。</x:String>
   <x:String x:Key="Text.WorkingCopy.DiscardAll" xml:space="preserve">放弃所有更改</x:String>
   <x:String x:Key="Text.WorkingCopy.ExpandSidebar" xml:space="preserve">显示左侧栏</x:String>
   <x:String x:Key="Text.WorkingCopy.FilterChanges" xml:space="preserve">查找变更...</x:String>
