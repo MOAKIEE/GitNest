@@ -328,13 +328,14 @@ internal static partial class Program
         var wcView = window.GetVisualDescendants().OfType<Views.WorkingCopy>().First();
         var wcVm = (VM.WorkingCopy)wcView.DataContext!;
         var splitContinue = wcView.GetVisualDescendants().OfType<SplitButton>().FirstOrDefault(b => Equals(b.Content?.ToString(), App.Text("Repository.Continue")));
-        var amendCheck = wcView.GetVisualDescendants().OfType<CheckBox>().FirstOrDefault(c => Equals(c.Content?.ToString(), App.Text("WorkingCopy.Amend")));
+        var hasLegacyAmendCheck = wcView.GetVisualDescendants().OfType<CheckBox>().Any(c => Equals(c.Content?.ToString(), App.Text("WorkingCopy.Amend")));
+        var moreActionsBtn = wcView.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => b.Name == "CommitMoreActionsButton");
         Check(splitContinue != null &&
               splitContinue.IsVisible &&
-              !wcVm.UseAmend &&
-              amendCheck != null &&
-              !amendCheck.IsEnabled,
-              "GitNest DontCommit merge enables Continue SplitButton and disables Amend checkbox");
+              !hasLegacyAmendCheck &&
+              moreActionsBtn != null &&
+              !wcVm.CanOpenAmendLastCommit,
+              "GitNest DontCommit merge enables Continue SplitButton, removes Amend checkbox, and disables Amend More menu item");
         Screenshot(window, "workingcopy-dontcommit-merge-light");
         RunGitAllowFailure(repoPath, "merge", "--abort");
 

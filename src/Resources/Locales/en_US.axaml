@@ -1023,12 +1023,13 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.WorkingCopy.AddToGitIgnore.InFolder" xml:space="preserve">Ignore untracked files in this folder</x:String>
   <x:String x:Key="Text.WorkingCopy.AddToGitIgnore.SingleFile" xml:space="preserve">Ignore this file only</x:String>
   <x:String x:Key="Text.WorkingCopy.AddToGitIgnore.UntrackedInSameFolder" xml:space="preserve">Ignore all untracked files in the same folder</x:String>
-  <x:String x:Key="Text.WorkingCopy.Amend" xml:space="preserve">Amend</x:String>
   <x:String x:Key="Text.WorkingCopy.CanStageTip" xml:space="preserve">You can stage this file now.</x:String>
   <x:String x:Key="Text.WorkingCopy.ClearCommitHistories" xml:space="preserve">Clear History</x:String>
   <x:String x:Key="Text.WorkingCopy.ClearCommitHistories.Confirm" xml:space="preserve">Are you sure you want to clear all commit message history? This action cannot be undone.</x:String>
   <x:String x:Key="Text.WorkingCopy.CollapseSidebar" xml:space="preserve">Hide Sidebar</x:String>
   <x:String x:Key="Text.WorkingCopy.Commit" xml:space="preserve">COMMIT</x:String>
+  <x:String x:Key="Text.WorkingCopy.Commit.AmendMenu" xml:space="preserve">Amend Last Commit...</x:String>
+  <x:String x:Key="Text.WorkingCopy.Commit.MoreActions" xml:space="preserve">More Commit Actions</x:String>
   <x:String x:Key="Text.WorkingCopy.CommitAndPush" xml:space="preserve">COMMIT &amp; PUSH</x:String>
   <x:String x:Key="Text.WorkingCopy.CommitMessageHelper" xml:space="preserve">Recent Commit Messages</x:String>
   <x:String x:Key="Text.WorkingCopy.CommitTip" xml:space="preserve">Trigger click event</x:String>
@@ -1059,7 +1060,6 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.WorkingCopy.InProgress.DontCommitOrigin" xml:space="preserve">Staged Merge</x:String>
   <x:String x:Key="Text.WorkingCopy.NoCommitHistories" xml:space="preserve">NO RECENT INPUT MESSAGES</x:String>
   <x:String x:Key="Text.WorkingCopy.NoVerify" xml:space="preserve">No-Verify</x:String>
-  <x:String x:Key="Text.WorkingCopy.ResetAuthor" xml:space="preserve">Reset Author</x:String>
   <x:String x:Key="Text.WorkingCopy.SignOff" xml:space="preserve">SignOff</x:String>
   <x:String x:Key="Text.WorkingCopy.Staged" xml:space="preserve">STAGED</x:String>
   <x:String x:Key="Text.WorkingCopy.Staged.Unstage" xml:space="preserve">UNSTAGE</x:String>
@@ -1424,4 +1424,38 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.SelfUpdate.Unavailable" xml:space="preserve">No accessible release was found. The repository may be private or have no published releases. Open the GitNest releases page to check.</x:String>
   <x:String x:Key="Text.SelfUpdate.InvalidVersion" xml:space="preserve">The release tag is not a valid version. Expected a tag such as v0.1.0.</x:String>
   <x:String x:Key="Text.SelfUpdate.ReleasePage" xml:space="preserve">Open GitNest Releases</x:String>
+
+  <x:String x:Key="Text.AmendLastCommit.Title" xml:space="preserve">Amend Last Commit</x:String>
+  <x:String x:Key="Text.AmendLastCommit.Loading" xml:space="preserve">Inspecting staged snapshot, commit history, and remote publish status...</x:String>
+  <x:String x:Key="Text.AmendLastCommit.TargetBranch" xml:space="preserve">Target Branch:</x:String>
+  <x:String x:Key="Text.AmendLastCommit.DetachedBranch" xml:space="preserve">Detached HEAD</x:String>
+  <x:String x:Key="Text.AmendLastCommit.TargetCommit" xml:space="preserve">Target Commit:</x:String>
+  <x:String x:Key="Text.AmendLastCommit.TargetAuthor" xml:space="preserve">Original Author:</x:String>
+  <x:String x:Key="Text.AmendLastCommit.RemoteTarget" xml:space="preserve">Remote Target:</x:String>
+  <x:String x:Key="Text.AmendLastCommit.LiveRemoteTip" xml:space="preserve">Live Remote Tip:</x:String>
+  <x:String x:Key="Text.AmendLastCommit.BackupNotice" xml:space="preserve">A local recovery ref will be created automatically before amending (retained for 30 days).</x:String>
+  <x:String x:Key="Text.AmendLastCommit.ProtectionHint" xml:space="preserve">Branch protection blocks history rewrite on this branch. Create a new commit instead, or unlock it in Repository Settings -&gt; Git.</x:String>
+  <x:String x:Key="Text.AmendLastCommit.RemoteAuthorsWarning" xml:space="preserve">Collaborator commits detected ahead on remote; rewrite is blocked:</x:String>
+  <x:String x:Key="Text.AmendLastCommit.RewritePushedOptIn" xml:space="preserve">I confirm rewriting the pushed commit on {0} (strict --force-with-lease=refs/heads/{1}:{2})</x:String>
+  <x:String x:Key="Text.AmendLastCommit.CreateNewCommitInstead" xml:space="preserve">Create New Commit Instead</x:String>
+  <x:String x:Key="Text.AmendLastCommit.FetchAndReinspect" xml:space="preserve">Fetch &amp; Re-check Remote</x:String>
+  <x:String x:Key="Text.AmendLastCommit.Fetching" xml:space="preserve">Fetching remote...</x:String>
+  <x:String x:Key="Text.AmendLastCommit.NewlyStagedHeader" xml:space="preserve">Newly staged changes to merge ({0} file(s); {1} in resulting commit):</x:String>
+  <x:String x:Key="Text.AmendLastCommit.MoreFiles" xml:space="preserve">... and {0} more staged file(s)</x:String>
+  <x:String x:Key="Text.AmendLastCommit.NoNewStaged" xml:space="preserve">No newly staged files; this amend updates commit message, author, or trailer metadata only.</x:String>
+  <x:String x:Key="Text.AmendLastCommit.CommitMessage" xml:space="preserve">Commit Message</x:String>
+  <x:String x:Key="Text.AmendLastCommit.RestoreMessage" xml:space="preserve">Restore Original Message</x:String>
+  <x:String x:Key="Text.AmendLastCommit.SignOff" xml:space="preserve">SignOff (--signoff)</x:String>
+  <x:String x:Key="Text.AmendLastCommit.NoVerify" xml:space="preserve">No-Verify (--no-verify)</x:String>
+  <x:String x:Key="Text.AmendLastCommit.ResetAuthor" xml:space="preserve">Reset Author (--reset-author)</x:String>
+  <x:String x:Key="Text.AmendLastCommit.ConfirmLocal" xml:space="preserve">CONFIRM AMEND</x:String>
+  <x:String x:Key="Text.AmendLastCommit.ConfirmRewriteWithLease" xml:space="preserve">AMEND &amp; LEASE PUSH</x:String>
+  <x:String x:Key="Text.AmendLastCommit.RetryPushOnly" xml:space="preserve">RETRY PUSH ONLY</x:String>
+  <x:String x:Key="Text.AmendLastCommit.CloseResult" xml:space="preserve">CLOSE</x:String>
+  <x:String x:Key="Text.AmendLastCommit.PartialAmendCardTitle" xml:space="preserve">Local Amend Succeeded</x:String>
+  <x:String x:Key="Text.AmendLastCommit.PartialBackupHint" xml:space="preserve">Recovery Ref: {0} (retained for 30 days)</x:String>
+  <x:String x:Key="Text.AmendLastCommit.PartialPushCardTitle" xml:space="preserve">Remote Push Failed — Retry Push Only</x:String>
+  <x:String x:Key="Text.AmendLastCommit.OpenRecoveryLogs" xml:space="preserve">Open Operation Recovery</x:String>
+  <x:String x:Key="Text.AmendLastCommit.FailureTitle" xml:space="preserve">Amend Blocked / Failed</x:String>
+  <x:String x:Key="Text.AmendLastCommit.RetryPushSucceeded" xml:space="preserve">Lease push succeeded ({0} -&gt; {1}).</x:String>
 </ResourceDictionary>

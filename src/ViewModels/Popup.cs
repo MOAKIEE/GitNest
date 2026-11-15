@@ -20,7 +20,11 @@ namespace SourceGit.ViewModels
         public bool InProgress
         {
             get => _inProgress;
-            set => SetProperty(ref _inProgress, value);
+            set
+            {
+                if (SetProperty(ref _inProgress, value))
+                    OnPropertyChanged(nameof(CanConfirm));
+            }
         }
 
         public string ProgressDescription

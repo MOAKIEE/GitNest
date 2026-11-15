@@ -298,6 +298,17 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
+        private void OnOpenAmendLastCommit(object _, RoutedEventArgs e)
+        {
+            if (App.GetLauncher() is { CommandPalette: { } })
+                return;
+
+            if (DataContext is ViewModels.WorkingCopy vm)
+                vm.OpenAmendLastCommit();
+
+            e.Handled = true;
+        }
+
         private void OnDismissCommitAlert(object _, RoutedEventArgs e)
         {
             if (DataContext is ViewModels.WorkingCopy vm)
@@ -895,7 +906,6 @@ namespace SourceGit.Views
                 var stash = new MenuItem();
                 stash.Header = App.Text("FileCM.Stash");
                 stash.Icon = this.CreateMenuIcon("Icons.Stashes.Add");
-                stash.IsEnabled = !vm.UseAmend;
                 stash.Click += (_, e) =>
                 {
                     if (repo.CanCreatePopup())
@@ -1015,7 +1025,6 @@ namespace SourceGit.Views
                 var stash = new MenuItem();
                 stash.Header = App.Text("FileCM.StashMulti", changes.Count);
                 stash.Icon = this.CreateMenuIcon("Icons.Stashes.Add");
-                stash.IsEnabled = !vm.UseAmend;
                 stash.Click += (_, e) =>
                 {
                     if (repo.CanCreatePopup())

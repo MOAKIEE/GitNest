@@ -283,6 +283,11 @@ namespace SourceGit.ViewModels
             NotifyInlineNoticeVisibility();
         }
 
+        internal void ApplyExternalTwoStepSession(Models.CommitAndPushSession session)
+        {
+            ApplyTwoStepSessionState(session);
+        }
+
         private void ApplyTwoStepSessionState(Models.CommitAndPushSession session)
         {
             _activeTwoStepSession = session;

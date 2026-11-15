@@ -135,7 +135,7 @@ namespace SourceGit.Models
             }
 
             _watchers.Clear();
-            _timer.Dispose();
+            _timer?.Dispose();
             _timer = null;
         }
 

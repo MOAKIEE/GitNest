@@ -176,9 +176,6 @@ namespace SourceGit.ViewModels
                 {
                     if (_histories != null)
                         _histories.CurrentBranch = value;
-
-                    if (value != null && !value.Head.Equals(oldHead, StringComparison.Ordinal) && _workingCopy is { UseAmend: true })
-                        _workingCopy.UseAmend = false;
                 }
             }
         }

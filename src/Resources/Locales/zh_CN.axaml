@@ -1027,12 +1027,13 @@
   <x:String x:Key="Text.WorkingCopy.AddToGitIgnore.InFolder" xml:space="preserve">忽略该目录下的新文件</x:String>
   <x:String x:Key="Text.WorkingCopy.AddToGitIgnore.SingleFile" xml:space="preserve">忽略本文件</x:String>
   <x:String x:Key="Text.WorkingCopy.AddToGitIgnore.UntrackedInSameFolder" xml:space="preserve">忽略同目录下所有新文件</x:String>
-  <x:String x:Key="Text.WorkingCopy.Amend" xml:space="preserve">修补</x:String>
   <x:String x:Key="Text.WorkingCopy.CanStageTip" xml:space="preserve">现在您已可将其加入暂存区中</x:String>
   <x:String x:Key="Text.WorkingCopy.ClearCommitHistories" xml:space="preserve">清空历史提交信息</x:String>
   <x:String x:Key="Text.WorkingCopy.ClearCommitHistories.Confirm" xml:space="preserve">您确定要清空所有的历史提交信息记录吗（执行操作后无法撤回）？</x:String>
   <x:String x:Key="Text.WorkingCopy.CollapseSidebar" xml:space="preserve">隐藏左侧栏</x:String>
   <x:String x:Key="Text.WorkingCopy.Commit" xml:space="preserve">提交</x:String>
+  <x:String x:Key="Text.WorkingCopy.Commit.AmendMenu" xml:space="preserve">补充到上一次提交...</x:String>
+  <x:String x:Key="Text.WorkingCopy.Commit.MoreActions" xml:space="preserve">更多提交操作</x:String>
   <x:String x:Key="Text.WorkingCopy.CommitAndPush" xml:space="preserve">提交并推送</x:String>
   <x:String x:Key="Text.WorkingCopy.CommitMessageHelper" xml:space="preserve">最近提交信息</x:String>
   <x:String x:Key="Text.WorkingCopy.CommitTip" xml:space="preserve">触发点击事件</x:String>
@@ -1063,7 +1064,6 @@
   <x:String x:Key="Text.WorkingCopy.InProgress.DontCommitOrigin" xml:space="preserve">合并暂存待提交</x:String>
   <x:String x:Key="Text.WorkingCopy.NoCommitHistories" xml:space="preserve">没有提交信息记录</x:String>
   <x:String x:Key="Text.WorkingCopy.NoVerify" xml:space="preserve">跳过GIT钩子</x:String>
-  <x:String x:Key="Text.WorkingCopy.ResetAuthor" xml:space="preserve">重置提交者</x:String>
   <x:String x:Key="Text.WorkingCopy.SignOff" xml:space="preserve">署名</x:String>
   <x:String x:Key="Text.WorkingCopy.Staged" xml:space="preserve">已暂存</x:String>
   <x:String x:Key="Text.WorkingCopy.Staged.Unstage" xml:space="preserve">从暂存区移除选中</x:String>
@@ -1428,4 +1428,38 @@
   <x:String x:Key="Text.SelfUpdate.Unavailable" xml:space="preserve">未找到可访问的发行版本。仓库可能为私有，或尚未发布版本，请打开 GitNest 发行页查看。</x:String>
   <x:String x:Key="Text.SelfUpdate.InvalidVersion" xml:space="preserve">发行标签不是有效版本号，请使用 v0.1.0 等格式。</x:String>
   <x:String x:Key="Text.SelfUpdate.ReleasePage" xml:space="preserve">打开 GitNest 发行页</x:String>
+
+  <x:String x:Key="Text.AmendLastCommit.Title" xml:space="preserve">补充到上一次提交</x:String>
+  <x:String x:Key="Text.AmendLastCommit.Loading" xml:space="preserve">正在检查暂存快照、最近提交与远端发布状态...</x:String>
+  <x:String x:Key="Text.AmendLastCommit.TargetBranch" xml:space="preserve">当前分支：</x:String>
+  <x:String x:Key="Text.AmendLastCommit.DetachedBranch" xml:space="preserve">游离 HEAD</x:String>
+  <x:String x:Key="Text.AmendLastCommit.TargetCommit" xml:space="preserve">修订目标：</x:String>
+  <x:String x:Key="Text.AmendLastCommit.TargetAuthor" xml:space="preserve">原提交者：</x:String>
+  <x:String x:Key="Text.AmendLastCommit.RemoteTarget" xml:space="preserve">远端目标：</x:String>
+  <x:String x:Key="Text.AmendLastCommit.LiveRemoteTip" xml:space="preserve">远端最新：</x:String>
+  <x:String x:Key="Text.AmendLastCommit.BackupNotice" xml:space="preserve">执行 Amend 前将自动创建本地安全恢复引用（保留 30 天）。</x:String>
+  <x:String x:Key="Text.AmendLastCommit.ProtectionHint" xml:space="preserve">当前分支受分支保护锁定，禁止改写提交历史。请改为创建新提交，或在“仓库配置 -&gt; Git”中针对本仓库解锁。</x:String>
+  <x:String x:Key="Text.AmendLastCommit.RemoteAuthorsWarning" xml:space="preserve">远端已有他人提交更新，已阻止改写：</x:String>
+  <x:String x:Key="Text.AmendLastCommit.RewritePushedOptIn" xml:space="preserve">我确认改写已推送至 {0} 的提交（严格校验 --force-with-lease=refs/heads/{1}:{2}）</x:String>
+  <x:String x:Key="Text.AmendLastCommit.CreateNewCommitInstead" xml:space="preserve">改为创建新提交</x:String>
+  <x:String x:Key="Text.AmendLastCommit.FetchAndReinspect" xml:space="preserve">先 Fetch 并重新核对</x:String>
+  <x:String x:Key="Text.AmendLastCommit.Fetching" xml:space="preserve">正在 Fetch 远端...</x:String>
+  <x:String x:Key="Text.AmendLastCommit.NewlyStagedHeader" xml:space="preserve">本次新增纳入的暂存变更（{0} 个；修订后提交共 {1} 个文件）：</x:String>
+  <x:String x:Key="Text.AmendLastCommit.MoreFiles" xml:space="preserve">... 以及其余 {0} 个已暂存文件</x:String>
+  <x:String x:Key="Text.AmendLastCommit.NoNewStaged" xml:space="preserve">暂存区没有新增变更：本次仅修订提交说明、作者或署名信息。</x:String>
+  <x:String x:Key="Text.AmendLastCommit.CommitMessage" xml:space="preserve">提交说明</x:String>
+  <x:String x:Key="Text.AmendLastCommit.RestoreMessage" xml:space="preserve">恢复原提交说明</x:String>
+  <x:String x:Key="Text.AmendLastCommit.SignOff" xml:space="preserve">署名 (--signoff)</x:String>
+  <x:String x:Key="Text.AmendLastCommit.NoVerify" xml:space="preserve">跳过钩子 (--no-verify)</x:String>
+  <x:String x:Key="Text.AmendLastCommit.ResetAuthor" xml:space="preserve">重置提交者 (--reset-author)</x:String>
+  <x:String x:Key="Text.AmendLastCommit.ConfirmLocal" xml:space="preserve">确认补充提交</x:String>
+  <x:String x:Key="Text.AmendLastCommit.ConfirmRewriteWithLease" xml:space="preserve">确认 Amend 并带租约推送</x:String>
+  <x:String x:Key="Text.AmendLastCommit.RetryPushOnly" xml:space="preserve">仅重试推送</x:String>
+  <x:String x:Key="Text.AmendLastCommit.CloseResult" xml:space="preserve">关闭</x:String>
+  <x:String x:Key="Text.AmendLastCommit.PartialAmendCardTitle" xml:space="preserve">本地 Amend 已成功（已固定生成新提交）</x:String>
+  <x:String x:Key="Text.AmendLastCommit.PartialBackupHint" xml:space="preserve">恢复引用：{0}（保留 30 天）</x:String>
+  <x:String x:Key="Text.AmendLastCommit.PartialPushCardTitle" xml:space="preserve">远端推送失败（禁止重复 Amend）</x:String>
+  <x:String x:Key="Text.AmendLastCommit.OpenRecoveryLogs" xml:space="preserve">打开操作日志与恢复</x:String>
+  <x:String x:Key="Text.AmendLastCommit.FailureTitle" xml:space="preserve">补充提交未执行 / 失败</x:String>
+  <x:String x:Key="Text.AmendLastCommit.RetryPushSucceeded" xml:space="preserve">带租约重试推送成功（{0} -&gt; {1}）。</x:String>
 </ResourceDictionary>

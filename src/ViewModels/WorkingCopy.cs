@@ -44,6 +44,7 @@ namespace SourceGit.ViewModels
                     OnPropertyChanged(nameof(CanContinueInProgress));
                     OnPropertyChanged(nameof(ShowExternalInProgressFooter));
                     OnPropertyChanged(nameof(HasInlineNoticeArea));
+                    OnPropertyChanged(nameof(CanOpenAmendLastCommit));
                 }
             }
         }
@@ -158,7 +159,10 @@ namespace SourceGit.ViewModels
             private set
             {
                 if (SetProperty(ref _isCommitting, value))
+                {
                     _repo.NotifyIsSkippingOrAbortingMergeChanged();
+                    OnPropertyChanged(nameof(CanOpenAmendLastCommit));
+                }
             }
         }
 
@@ -174,43 +178,14 @@ namespace SourceGit.ViewModels
             set => _repo.UIStates.NoVerifyOnCommit = value;
         }
 
-        public bool UseAmend
+        public bool CanOpenAmendLastCommit => !HasInProgressBanner && !_isCommitting;
+
+        public void OpenAmendLastCommit()
         {
-            get => _useAmend;
-            set
-            {
-                if (SetProperty(ref _useAmend, value))
-                {
-                    if (value)
-                    {
-                        var currentBranch = _repo.CurrentBranch;
-                        if (currentBranch == null)
-                        {
-                            _repo.SendNotification("No commits to amend!!!", true);
-                            _useAmend = false;
-                            OnPropertyChanged();
-                            return;
-                        }
+            if (!CanOpenAmendLastCommit || !_repo.CanCreatePopup())
+                return;
 
-                        CommitMessage = new Commands.QueryCommitFullMessage(_repo.FullPath, currentBranch.Head).GetResult();
-                    }
-                    else
-                    {
-                        CommitMessage = string.Empty;
-                        ResetAuthor = false;
-                    }
-
-                    Staged = GetStagedChanges(_cached);
-                    VisibleStaged = GetVisibleChanges(_staged);
-                    SelectedStaged = new(null);
-                }
-            }
-        }
-
-        public bool ResetAuthor
-        {
-            get => _resetAuthor;
-            set => SetProperty(ref _resetAuthor, value);
+            _repo.ShowPopup(new AmendLastCommit(_repo, this));
         }
 
         public string Filter
@@ -344,35 +319,6 @@ namespace SourceGit.ViewModels
         {
             if (!IsChanged(_cached, changes))
             {
-                if (_useAmend)
-                {
-                    var testStaged = GetStagedChanges(_cached);
-                    if (IsChanged(_staged, testStaged))
-                    {
-                        var visibleStagedNew = GetVisibleChanges(testStaged);
-                        var selectedStagedNew = new List<Models.Change>();
-
-                        if (_selectedStaged is { Count: > 0 })
-                        {
-                            var set = new HashSet<string>();
-                            foreach (var c in _selectedStaged.Changes)
-                                set.Add(c.Path);
-
-                            foreach (var c in visibleStagedNew)
-                            {
-                                if (set.Contains(c.Path))
-                                    selectedStagedNew.Add(c);
-                            }
-                        }
-
-                        _isLoadingData = true;
-                        Staged = testStaged;
-                        VisibleStaged = visibleStagedNew;
-                        SelectedStaged = new(selectedStagedNew);
-                        _isLoadingData = false;
-                    }
-                }
-
                 HasUnsolvedConflicts = _cached.Find(x => x.IsConflicted) != null;
                 UpdateInProgressState();
                 UpdateDetail();
@@ -527,8 +473,6 @@ namespace SourceGit.ViewModels
             var (ok, lockStatus, diag) = await Commands.GitSyncService.UnstagePathsAsync(
                 _repo.FullPath,
                 paths,
-                useAmend: _useAmend,
-                amendChanges: _useAmend ? changes : null,
                 log: log);
             log.Complete();
 
@@ -823,27 +767,24 @@ namespace SourceGit.ViewModels
             }
 
             var allowEmpty = false;
-            if (!_useAmend)
+            if ((!autoStage && _staged.Count == 0) || (autoStage && _cached.Count == 0))
             {
-                if ((!autoStage && _staged.Count == 0) || (autoStage && _cached.Count == 0))
-                {
-                    var rs = await App.AskConfirmEmptyCommitAsync(_cached.Count > 0, _selectedUnstaged is { Count: > 0 });
-                    if (rs == Models.ConfirmEmptyCommitResult.Cancel)
-                        return;
+                var rs = await App.AskConfirmEmptyCommitAsync(_cached.Count > 0, _selectedUnstaged is { Count: > 0 });
+                if (rs == Models.ConfirmEmptyCommitResult.Cancel)
+                    return;
 
-                    if (rs == Models.ConfirmEmptyCommitResult.StageAllAndCommit)
-                    {
-                        autoStage = true;
-                    }
-                    else if (rs == Models.ConfirmEmptyCommitResult.StageSelectedAndCommit)
-                    {
-                        await StageChangesAsync(_selectedUnstaged.Changes, null, skipPartialStageConfirm: true);
-                        baselineSnapshot = await Commands.QueryStagedSnapshot.CaptureAsync(_repo.FullPath);
-                    }
-                    else if (rs == Models.ConfirmEmptyCommitResult.CreateEmptyCommit)
-                    {
-                        allowEmpty = true;
-                    }
+                if (rs == Models.ConfirmEmptyCommitResult.StageAllAndCommit)
+                {
+                    autoStage = true;
+                }
+                else if (rs == Models.ConfirmEmptyCommitResult.StageSelectedAndCommit)
+                {
+                    await StageChangesAsync(_selectedUnstaged.Changes, null, skipPartialStageConfirm: true);
+                    baselineSnapshot = await Commands.QueryStagedSnapshot.CaptureAsync(_repo.FullPath);
+                }
+                else if (rs == Models.ConfirmEmptyCommitResult.CreateEmptyCommit)
+                {
+                    allowEmpty = true;
                 }
             }
 
@@ -867,8 +808,8 @@ namespace SourceGit.ViewModels
                         Message = _commitMessage,
                         SignOff = EnableSignOff,
                         NoVerify = NoVerifyOnCommit,
-                        Amend = _useAmend,
-                        ResetAuthor = _resetAuthor,
+                        Amend = false,
+                        ResetAuthor = false,
                         AllowEmpty = allowEmpty,
                         CheckIdentity = true,
                         ExpectedSnapshot = baselineSnapshot,
@@ -903,7 +844,6 @@ namespace SourceGit.ViewModels
                     return;
                 }
 
-                UseAmend = false;
                 CommitMessage = string.Empty;
                 _displayedSnapshot = commitResult.CurrentSnapshot;
 
@@ -1005,13 +945,6 @@ namespace SourceGit.ViewModels
 
         private List<Models.Change> GetStagedChanges(List<Models.Change> cached)
         {
-            if (_useAmend)
-            {
-                var changes = new Commands.QueryStagedChangesWithAmend(_repo.FullPath).GetResult();
-                changes.Sort((l, r) => Models.NumericSort.Compare(l.Path, r.Path));
-                return changes;
-            }
-
             var rs = new List<Models.Change>();
             foreach (var c in cached)
             {
@@ -1206,8 +1139,6 @@ namespace SourceGit.ViewModels
         private bool _isStaging = false;
         private bool _isUnstaging = false;
         private bool _isCommitting = false;
-        private bool _useAmend = false;
-        private bool _resetAuthor = false;
         private bool _hasRemotes = false;
         private List<Models.Change> _cached = [];
         private List<Models.Change> _unstaged = [];
@@ -1292,6 +1223,7 @@ namespace SourceGit.ViewModels
         private void NotifyInProgressOwnershipChanged()
         {
             OnPropertyChanged(nameof(HasInProgressBanner));
+            OnPropertyChanged(nameof(CanOpenAmendLastCommit));
             OnPropertyChanged(nameof(InProgressOriginLabel));
             OnPropertyChanged(nameof(InProgressConflictBadgeText));
             OnPropertyChanged(nameof(InProgressBannerTooltip));

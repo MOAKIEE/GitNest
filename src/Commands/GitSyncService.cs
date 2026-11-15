@@ -881,6 +881,53 @@ namespace SourceGit.Commands
                 }
             }
 
+            string forceWithLeaseArg = null;
+            if (!string.IsNullOrWhiteSpace(options.ForceWithLeaseExpectSha))
+            {
+                var expectedLeaseSha = CommandArgumentHelper.ValidateNonOptionToken(
+                    options.ForceWithLeaseExpectSha,
+                    nameof(options.ForceWithLeaseExpectSha));
+
+                if (!string.IsNullOrWhiteSpace(options.ExpectedPushUrl))
+                {
+                    var targetErr = await RemotePushTarget.VerifyAsync(
+                        repoPath, options.Remote.Name, options.ExpectedPushUrl, cancellationToken).ConfigureAwait(false);
+                    if (!string.IsNullOrEmpty(targetErr))
+                    {
+                        return new Models.PushExecutionResult
+                        {
+                            Outcome = Models.PushOutcomeKind.GitError,
+                            RemoteName = options.Remote.Name,
+                            LocalBranch = options.LocalBranch,
+                            RemoteBranch = options.RemoteBranch,
+                            Refspec = refspec,
+                            HeadSha = snapshot.HeadOid,
+                            Summary = targetErr,
+                        };
+                    }
+                }
+
+                var localProtection = await BranchProtectionPolicy.InspectAsync(repoPath, options.LocalBranch, cancellationToken)
+                    .ConfigureAwait(false);
+                var remoteProtection = await BranchProtectionPolicy.InspectAsync(repoPath, options.RemoteBranch, cancellationToken)
+                    .ConfigureAwait(false);
+                if (localProtection.IsEffectivelyProtected || remoteProtection.IsEffectivelyProtected)
+                {
+                    return new Models.PushExecutionResult
+                    {
+                        Outcome = Models.PushOutcomeKind.ProtectedOrHookRejected,
+                        RemoteName = options.Remote.Name,
+                        LocalBranch = options.LocalBranch,
+                        RemoteBranch = options.RemoteBranch,
+                        Refspec = refspec,
+                        HeadSha = snapshot.HeadOid,
+                        Summary = remoteProtection.IsEffectivelyProtected ? remoteProtection.Summary : localProtection.Summary,
+                    };
+                }
+
+                forceWithLeaseArg = $"--force-with-lease=refs/heads/{options.RemoteBranch}:{expectedLeaseSha}";
+            }
+
             var pushedSha = await BranchDeletionService.ResolveRefShaAsync(repoPath, $"{sourceRevision}^{{commit}}", cancellationToken).ConfigureAwait(false);
             if (string.IsNullOrEmpty(pushedSha))
                 return new Models.PushExecutionResult { Outcome = Models.PushOutcomeKind.GitError, Summary = "要推送的本地提交已不存在，请刷新后重试。" };
@@ -895,7 +942,8 @@ namespace SourceGit.Commands
                 options.RemoteBranch,
                 options.CheckSubmodules,
                 options.NoVerify,
-                pushTarget.Url)
+                pushTarget.Url,
+                forceWithLeaseArg)
             {
                 RaiseError = false,
             };
@@ -948,21 +996,28 @@ namespace SourceGit.Commands
                             ? $"远端 {options.Remote.Name}/{options.RemoteBranch} 已是最新。"
                             : string.IsNullOrEmpty(options.SourceRevisionSha)
                                 ? $"已推送分支 {options.LocalBranch} 至 {options.Remote.Name}/{options.RemoteBranch}。"
-                                : $"已推送提交 {pushedSha[..10]} 至 {options.Remote.Name}/{options.RemoteBranch}。",
+                                : !string.IsNullOrEmpty(forceWithLeaseArg)
+                                    ? $"已按 --force-with-lease 租约同步修订提交 {pushedSha[..10]} 至 {options.Remote.Name}/{options.RemoteBranch}。"
+                                    : $"已推送提交 {pushedSha[..10]} 至 {options.Remote.Name}/{options.RemoteBranch}。",
                     DiagnosticDetail = diag,
                 };
             }
 
-            var kind = ClassifyPushFailure(diag);
+            var rejectedByLease = !string.IsNullOrEmpty(forceWithLeaseArg) && HistoryResetService.IsRemoteLeaseRejection(diag);
+            var kind = rejectedByLease ? Models.PushOutcomeKind.NonFastForwardRejected : ClassifyPushFailure(diag);
+            var summary = rejectedByLease
+                ? $"远端分支 '{options.Remote.Name}/{options.RemoteBranch}' 在确认后已出现新提交，已按 --force-with-lease 租约拒绝覆写并保留远端提交；本地修订提交 {ShortShaForSummary(pushedSha)} 仍保留。"
+                : FormatPushFailureSummary(options.Remote.Name, options.RemoteBranch, kind, diag);
             return new Models.PushExecutionResult
             {
                 Outcome = kind,
+                RejectedByLease = rejectedByLease,
                 RemoteName = options.Remote.Name,
                 LocalBranch = options.LocalBranch,
                 RemoteBranch = options.RemoteBranch,
                 Refspec = refspec,
                 HeadSha = snapshot.HeadOid,
-                Summary = FormatPushFailureSummary(options.Remote.Name, options.RemoteBranch, kind, diag),
+                Summary = summary,
                 DiagnosticDetail = diag,
             };
         }
@@ -1323,6 +1378,14 @@ namespace SourceGit.Commands
             return fallback;
         }
 
+        private static string ShortShaForSummary(string sha)
+        {
+            if (string.IsNullOrWhiteSpace(sha))
+                return "-";
+            var trimmed = sha.Trim();
+            return trimmed.Length > 10 ? trimmed[..10] : trimmed;
+        }
+
         private static async Task TryRecordOperationAsync(
             string repoPath,
             Models.OperationJournalStore journalStore,
@@ -1335,6 +1398,8 @@ namespace SourceGit.Commands
             string remoteBranchName = null,
             string originalTipSha = null,
             string targetTipSha = null,
+            string expectedRemoteTipSha = null,
+            string backupRefName = null,
             string commandSummary = null,
             string diagnosticDetail = null)
         {
@@ -1360,6 +1425,8 @@ namespace SourceGit.Commands
                     remoteBranchName: remoteBranchName,
                     originalTipSha: originalTipSha,
                     targetTipSha: targetTipSha,
+                    expectedRemoteTipSha: expectedRemoteTipSha,
+                    backupRefName: backupRefName,
                     journalStore: journalStore,
                     diagnosticDetail: diagnosticDetail);
             }

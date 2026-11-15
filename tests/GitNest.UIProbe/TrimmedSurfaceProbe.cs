@@ -2,6 +2,7 @@ using System.Collections;
 using System.Reflection;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.VisualTree;
 using SourceGit;
 using SourceGit.Models;
@@ -271,19 +272,30 @@ internal static partial class Program
         cfgWin.Show();
         Await(() => !cfgVm.IsLoading);
 
-        var cfgTabControl = cfgWin.GetVisualDescendants().OfType<TabControl>().First();
-        var cfgTabHeaders = cfgTabControl.Items
-            .OfType<TabItem>()
-            .Select(t => (t.Header as TextBlock)?.Text ?? t.Header?.ToString() ?? string.Empty)
-            .ToList();
-        Check(cfgTabControl.Items.Count == 2 &&
-              cfgTabHeaders.All(h => !h.Contains("模板", StringComparison.Ordinal) && !h.Contains("Template", StringComparison.OrdinalIgnoreCase)),
-              $"RepositoryConfigure exposes exactly 2 tabs after removing CommitTemplate, CustomAction, and OpenAI (actual={cfgTabControl.Items.Count})");
-        Screenshot(cfgWin, "trim-config-tabs-light");
+        var cfgTabControls = cfgWin.GetVisualDescendants().OfType<TabControl>().ToList();
+        var cfgExpander = cfgWin.FindControl<ToggleButton>("AdvancedExpander");
+        var cfgScroller = cfgWin.FindControl<ScrollViewer>("GitConfigScroller");
+        var cfgIssueList = cfgWin.GetVisualDescendants().OfType<ListBox>().FirstOrDefault(l => ReferenceEquals(l.ItemsSource, cfgVm.IssueTrackers));
+        Check(cfgTabControls.Count == 0 &&
+              cfgExpander != null &&
+              cfgExpander.IsChecked == false &&
+              cfgIssueList != null &&
+              !cfgIssueList.IsEffectivelyVisible,
+              "RepositoryConfigure renders as a single scrollable Git page with IssueTracker collapsed under Advanced");
+        Screenshot(cfgWin, "trim-config-singlepage-light");
+
+        cfgExpander!.IsChecked = true;
+        Pump();
+        cfgScroller?.ScrollToEnd();
+        Pump();
+        Check(cfgIssueList!.IsEffectivelyVisible,
+              "Expanding Advanced reveals IssueTracker rules inside the single RepositoryConfigure page");
+        Screenshot(cfgWin, "trim-config-advanced-issues-light");
+
         App.SetTheme("Dark", "");
         cfgWin.Width = 680;
         Pump();
-        Screenshot(cfgWin, "trim-config-tabs-dark-narrow");
+        Screenshot(cfgWin, "trim-config-advanced-issues-dark-narrow");
         App.SetTheme("Light", "");
         cfgWin.Close();
 
@@ -497,6 +509,163 @@ internal static partial class Program
         checkoutHostWin.Close();
         launcher.ActivePage.Popup = null;
         App.SetTheme("Light", "");
+        App.SetLocale("zh_CN");
+
+        // Batch 5: Dedicated AmendLastCommit modal + More menu + Protected/Unpushed/Partial-Retry states
+        var amendOrigin = Path.Combine(_root, "amend-probe-origin.git");
+        var amendOriginMoved = Path.Combine(_root, "amend-probe-origin-offline.git");
+        var amendRepoPath = Path.Combine(_root, "amend-ui-probe");
+        Git(_root, "init", "--bare", "-b", "main", amendOrigin);
+        Git(_root, "clone", amendOrigin, amendRepoPath);
+        Git(amendRepoPath, "config", "user.name", "Probe User");
+        Git(amendRepoPath, "config", "user.email", "probe@example.invalid");
+        File.WriteAllText(Path.Combine(amendRepoPath, "app.txt"), "v1\n");
+        Git(amendRepoPath, "add", ".");
+        Git(amendRepoPath, "commit", "-m", "chore: initial app");
+        Git(amendRepoPath, "push", "-u", "origin", "main");
+        Git(amendRepoPath, "fetch", "origin");
+
+        var prevPage5 = launcher.ActivePage;
+        var normalizedAmendRepo = amendRepoPath.Replace('\\', '/');
+        launcher.OpenRepositoryInTab(amendRepoPath, null);
+        Await(() => launcher.ActivePage?.Data is VM.Repository r &&
+                    string.Equals(r.FullPath.Replace('\\', '/'), normalizedAmendRepo, StringComparison.OrdinalIgnoreCase) &&
+                    r.CurrentBranch != null);
+        var amendPage = launcher.ActivePage;
+        var amendRepo = (VM.Repository)amendPage.Data;
+        try
+        {
+            amendRepo.SelectedViewIndex = 1; // Working Copy view
+            Pump();
+
+            var amendHostWin = new Window
+            {
+                Content = new Views.LauncherPage { DataContext = amendPage },
+                Width = 1080,
+                Height = 680,
+                ShowInTaskbar = false,
+                Title = "Batch5 Amend UI Probe",
+            };
+            _window = amendHostWin;
+            amendHostWin.Show();
+            Await(() => amendHostWin.GetVisualDescendants().OfType<Views.WorkingCopy>().FirstOrDefault()?.DataContext is VM.WorkingCopy);
+
+            var wcView5 = amendHostWin.GetVisualDescendants().OfType<Views.WorkingCopy>().First();
+            var wcVm5 = (VM.WorkingCopy)wcView5.DataContext!;
+            var hasAmendCheckbox5 = wcView5.GetVisualDescendants().OfType<CheckBox>()
+                .Any(c => Equals(c.Content?.ToString(), "Amend") || Equals(c.Content?.ToString(), "修补"));
+            var moreBtn5 = wcView5.FindControl<Button>("CommitMoreActionsButton");
+            Check(!hasAmendCheckbox5 && moreBtn5 != null && wcVm5.CanOpenAmendLastCommit,
+                  "WorkingCopy removes regular Amend checkbox and exposes More actions Amend menu");
+            Screenshot(amendHostWin, "trim-workingcopy-more-actions-light");
+
+            // Case 1: Already pushed on protected 'main' (Dark, zh_CN, Narrow 680px)
+            File.AppendAllText(Path.Combine(amendRepoPath, "app.txt"), "protected tweak\n");
+            Git(amendRepoPath, "add", "app.txt");
+            var protAmendVm = new VM.AmendLastCommit(amendRepo, wcVm5);
+            Await(() => protAmendVm.EnsureLoadedAsync().IsCompleted);
+            Check(protAmendVm.IsAlreadyPushed &&
+                  protAmendVm.BlockedByBranchProtection &&
+                  !protAmendVm.CanConfirm &&
+                  protAmendVm.GuideNewCommitAsPrimary,
+                  "Pushed commit on protected main blocks Amend rewrite and guides Create New Commit Instead");
+
+            App.SetTheme("Dark", "");
+            App.SetLocale("zh_CN");
+            amendHostWin.Width = 680;
+            amendPage.Popup = protAmendVm;
+            Pump();
+            Screenshot(amendHostWin, "trim-amend-protected-dark-narrow");
+            amendPage.CancelPopup();
+
+            // Case 2: Unpushed local feature branch with newly staged file (Light, zh_CN)
+            Git(amendRepoPath, "checkout", "-b", "feat/amend-ui");
+            File.WriteAllText(Path.Combine(amendRepoPath, "feature.txt"), "draft v1\n");
+            Git(amendRepoPath, "add", "feature.txt");
+            Git(amendRepoPath, "commit", "-m", "feat: local draft");
+            File.AppendAllText(Path.Combine(amendRepoPath, "feature.txt"), "extra line\n");
+            Git(amendRepoPath, "add", "feature.txt");
+
+            var unpushedAmendVm = new VM.AmendLastCommit(amendRepo, wcVm5);
+            Await(() => unpushedAmendVm.EnsureLoadedAsync().IsCompleted);
+            Check(unpushedAmendVm.IsUnpushedLocalOnly &&
+                  unpushedAmendVm.HasNewlyStagedChanges &&
+                  unpushedAmendVm.CanConfirm &&
+                  unpushedAmendVm.CommitMessage == "feat: local draft",
+                  "Unpushed branch Amend modal preloads message, lists newly staged changes, and enables confirmation");
+
+            App.SetTheme("Light", "");
+            amendHostWin.Width = 980;
+            amendPage.Popup = unpushedAmendVm;
+            Pump();
+            Screenshot(amendHostWin, "trim-amend-unpushed-light");
+            var confirmUnpushed = amendPage.ProcessPopupAsync();
+            Await(() => confirmUnpushed.IsCompleted);
+            Pump();
+            Check(amendPage.Popup == null, "Unpushed Amend executes cleanly and closes modal");
+
+            // Case 3: Pushed feature branch -> explicit opt-in -> remote offline partial failure -> Retry Push Only
+            Git(amendRepoPath, "push", "-u", "origin", "feat/amend-ui");
+            Git(amendRepoPath, "fetch", "origin");
+            File.WriteAllText(Path.Combine(amendRepoPath, "retry-file.txt"), "retry payload\n");
+            Git(amendRepoPath, "add", "retry-file.txt");
+
+            var pushedAmendVm = new VM.AmendLastCommit(amendRepo, wcVm5);
+            Await(() => pushedAmendVm.EnsureLoadedAsync().IsCompleted);
+            Check(pushedAmendVm.IsAlreadyPushed &&
+                  pushedAmendVm.CanOptInPushedRewrite &&
+                  !pushedAmendVm.ConfirmRewritePushedWithLease &&
+                  !pushedAmendVm.CanConfirm &&
+                  pushedAmendVm.GuideNewCommitAsPrimary,
+                  "Pushed feature branch Amend defaults to New Commit guide with lease rewrite checkbox unchecked");
+
+            pushedAmendVm.ConfirmRewritePushedWithLease = true;
+            Check(pushedAmendVm.CanConfirm, "Checking explicit lease rewrite opt-in enables Amend & Lease Push");
+
+            App.SetLocale("en_US");
+            amendPage.Popup = pushedAmendVm;
+            Pump();
+
+            // Simulate remote failure after preflight succeeded so local Amend succeeds while push fails
+            Directory.Move(amendOrigin, amendOriginMoved);
+            var partialTask = amendPage.ProcessPopupAsync();
+            Await(() => partialTask.IsCompleted);
+            Pump();
+            var retryBtn5 = amendHostWin.GetVisualDescendants().OfType<Button>()
+                .FirstOrDefault(b => Equals(b.Content?.ToString(), App.Text("AmendLastCommit.RetryPushOnly")) && b.IsVisible);
+            Check(pushedAmendVm.IsPushRetryOnlyState &&
+                  amendPage.Popup == pushedAmendVm &&
+                  pushedAmendVm.ConfirmButtonText == App.Text("AmendLastCommit.RetryPushOnly") &&
+                  retryBtn5 != null &&
+                  retryBtn5.IsEffectivelyEnabled &&
+                  wcVm5.HasTwoStepStatus &&
+                  wcVm5.CanRetryPushOnly,
+                  "Partial Amend failure keeps popup open with enabled Retry Push Only button and syncs WorkingCopy banner");
+            Screenshot(amendHostWin, "trim-amend-partial-retry-light");
+
+            // Restore remote and retry push ONLY (no second amend)
+            Directory.Move(amendOriginMoved, amendOrigin);
+            var amendedLocalHead = Git(amendRepoPath, "rev-parse", "HEAD");
+            var retryPushTask = amendPage.ProcessPopupAsync();
+            Await(() => retryPushTask.IsCompleted);
+            Pump();
+            var remoteAfterRetry = Git(amendOrigin, "rev-parse", "refs/heads/feat/amend-ui");
+            Check(amendPage.Popup == null &&
+                  string.Equals(remoteAfterRetry, amendedLocalHead, StringComparison.Ordinal) &&
+                  !wcVm5.CanRetryPushOnly,
+                  "Retry Push Only completes lease push without re-amending commit");
+
+            amendHostWin.Close();
+        }
+        finally
+        {
+            if (Directory.Exists(amendOriginMoved) && !Directory.Exists(amendOrigin))
+                Directory.Move(amendOriginMoved, amendOrigin);
+            amendPage.Popup = null;
+            launcher.CloseTab(amendPage);
+            launcher.ActivePage = prevPage5;
+        }
+
         App.SetLocale("zh_CN");
 
         App.SetLocale("en_US");

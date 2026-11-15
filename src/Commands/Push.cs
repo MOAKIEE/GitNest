@@ -11,7 +11,8 @@ namespace SourceGit.Commands
             string remoteBranchName,
             bool checkSubmodules,
             bool noVerify,
-            string pushUrl)
+            string pushUrl,
+            string forceWithLeaseArg = null)
         {
             WorkingDirectory = repo;
             Context = repo;
@@ -23,6 +24,8 @@ namespace SourceGit.Commands
                 builder.Append("--recurse-submodules=check ");
             if (noVerify)
                 builder.Append("--no-verify ");
+            if (!string.IsNullOrWhiteSpace(forceWithLeaseArg))
+                builder.Append(CommandArgumentHelper.Quote(forceWithLeaseArg)).Append(' ');
 
             var refspec = $"{sourceSha}:refs/heads/{remoteBranchName}";
             Args = RemotePushTarget.BuildPushArguments(pushUrl, builder.ToString(), refspec);

@@ -2273,7 +2273,7 @@ namespace SourceGit.Commands
             return (configured, additional);
         }
 
-        private static async Task<(bool HasConfiguredUpstream, bool IsPushTarget, string RemoteName, string RemoteBranchName, string TrackingRefName, string RedactedUrl, string LocalTrackingTipSha)> ResolveRemoteEndpointAsync(
+        internal static async Task<(bool HasConfiguredUpstream, bool IsPushTarget, string RemoteName, string RemoteBranchName, string TrackingRefName, string RedactedUrl, string LocalTrackingTipSha)> ResolveRemoteEndpointAsync(
             string repoPath,
             string localBranchName,
             string explicitRemoteName,
@@ -2497,7 +2497,7 @@ namespace SourceGit.Commands
             };
         }
 
-        private static async Task<IReadOnlyList<Models.ResetCommitSummary>> ReadCommitRangeAsync(
+        internal static async Task<IReadOnlyList<Models.ResetCommitSummary>> ReadCommitRangeAsync(
             string repoPath,
             string excludedBaseSha,
             string tipSha,
@@ -2545,7 +2545,7 @@ namespace SourceGit.Commands
             return list;
         }
 
-        private static IReadOnlyList<Models.ResetAuthorAttribution> AggregateAuthors(IReadOnlyList<Models.ResetCommitSummary> commits)
+        internal static IReadOnlyList<Models.ResetAuthorAttribution> AggregateAuthors(IReadOnlyList<Models.ResetCommitSummary> commits)
         {
             if (commits == null || commits.Count == 0)
                 return Array.Empty<Models.ResetAuthorAttribution>();
@@ -2569,7 +2569,7 @@ namespace SourceGit.Commands
                 .ToList();
         }
 
-        private static bool HasOtherAuthors(
+        internal static bool HasOtherAuthors(
             IReadOnlyList<Models.ResetAuthorAttribution> authors,
             string currentUserName,
             string currentUserEmail)
@@ -2595,7 +2595,7 @@ namespace SourceGit.Commands
             return false;
         }
 
-        private static async Task<List<string>> ReadFirstParentChainAsync(string repoPath, string tipSha, CancellationToken cancellationToken)
+        internal static async Task<List<string>> ReadFirstParentChainAsync(string repoPath, string tipSha, CancellationToken cancellationToken)
         {
             var res = await Command.RunGitDirectAsync(repoPath, cancellationToken, "rev-list", "--first-parent", tipSha)
                 .ConfigureAwait(false);
@@ -2702,7 +2702,7 @@ namespace SourceGit.Commands
             return res.IsSuccess ? res.StdOut.Trim() : string.Empty;
         }
 
-        private static async Task<string> ResolveRefShaAsync(string repoPath, string fullRef, CancellationToken cancellationToken)
+        internal static async Task<string> ResolveRefShaAsync(string repoPath, string fullRef, CancellationToken cancellationToken)
         {
             var res = await Command.RunGitDirectAsync(repoPath, cancellationToken, "show-ref", "--verify", "--", fullRef)
                 .ConfigureAwait(false);
@@ -2721,14 +2721,14 @@ namespace SourceGit.Commands
             return res.IsSuccess ? res.StdOut.Trim() : string.Empty;
         }
 
-        private static async Task<bool> CommitObjectExistsLocallyAsync(string repoPath, string sha, CancellationToken cancellationToken)
+        internal static async Task<bool> CommitObjectExistsLocallyAsync(string repoPath, string sha, CancellationToken cancellationToken)
         {
             var res = await Command.RunGitDirectAsync(repoPath, cancellationToken, "cat-file", "-e", $"{sha}^{{commit}}")
                 .ConfigureAwait(false);
             return res.IsSuccess;
         }
 
-        private static async Task<bool> IsAncestorAsync(string repoPath, string ancestorSha, string descendantSha, CancellationToken cancellationToken)
+        internal static async Task<bool> IsAncestorAsync(string repoPath, string ancestorSha, string descendantSha, CancellationToken cancellationToken)
         {
             var res = await Command.RunGitDirectAsync(repoPath, cancellationToken, "merge-base", "--is-ancestor", ancestorSha, descendantSha)
                 .ConfigureAwait(false);
@@ -2781,7 +2781,7 @@ namespace SourceGit.Commands
                 : Path.TrimEndingDirectorySeparator(Path.GetFullPath(path).Replace('\\', '/'));
         }
 
-        private static bool IsRemoteLeaseRejection(string text)
+        internal static bool IsRemoteLeaseRejection(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
                 return false;

@@ -35,6 +35,7 @@ internal static partial class Program
         "next-stage-2",
         "next-stage-3",
         "next-stage-4",
+        "next-stage-5",
     ];
 
     private static void AddRequestedSuites(string raw)
@@ -293,7 +294,8 @@ internal static partial class Program
                 ShouldRunSuite("next-stage-1") ||
                 ShouldRunSuite("next-stage-2") ||
                 ShouldRunSuite("next-stage-3") ||
-                ShouldRunSuite("next-stage-4"))
+                ShouldRunSuite("next-stage-4") ||
+                ShouldRunSuite("next-stage-5"))
                 await RunNextStageTestsAsync(realGit, root);
         }
         finally

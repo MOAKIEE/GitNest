@@ -139,12 +139,16 @@ namespace SourceGit.Models
         public bool CheckSubmodules { get; init; }
         public bool NoVerify { get; init; }
         public bool ConfirmOverwriteExistingRemoteBranchWithoutUpstream { get; init; }
+        public string ExpectedPushUrl { get; init; } = string.Empty;
+        public string ForceWithLeaseExpectSha { get; init; } = string.Empty;
+        public string BackupRefName { get; init; } = string.Empty;
     }
 
     public sealed class PushExecutionResult
     {
         public bool Succeeded => Outcome is PushOutcomeKind.Success or PushOutcomeKind.UpToDate;
         public PushOutcomeKind Outcome { get; init; } = PushOutcomeKind.Success;
+        public bool RejectedByLease { get; init; }
         public string RemoteName { get; init; } = string.Empty;
         public string LocalBranch { get; init; } = string.Empty;
         public string RemoteBranch { get; init; } = string.Empty;

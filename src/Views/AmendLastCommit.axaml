@@ -1,0 +1,367 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:m="using:SourceGit.Models"
+             xmlns:vm="using:SourceGit.ViewModels"
+             xmlns:v="using:SourceGit.Views"
+             mc:Ignorable="d" d:DesignWidth="544" d:DesignHeight="520"
+             x:Class="SourceGit.Views.AmendLastCommit"
+             x:DataType="vm:AmendLastCommit"
+             MaxWidth="544">
+  <StackPanel Orientation="Vertical" Margin="8,0">
+    <!-- Title -->
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Path Width="16" Height="16" Data="{StaticResource Icons.Edit}" Fill="DarkOrange"/>
+      <TextBlock FontSize="18" Classes="bold" Text="{DynamicResource Text.AmendLastCommit.Title}"/>
+    </StackPanel>
+
+    <ScrollViewer MaxHeight="480"
+                  Margin="0,12,0,0"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Orientation="Vertical" Spacing="10" Margin="0,0,10,0">
+        <!-- Loading State -->
+        <TextBlock FontSize="12"
+                   Foreground="{DynamicResource Brush.FG2}"
+                   TextWrapping="Wrap"
+                   Text="{DynamicResource Text.AmendLastCommit.Loading}"
+                   IsVisible="{Binding IsLoadingPreflight, Mode=OneWay}"/>
+
+        <!-- Target Commit Summary Card -->
+        <Border Padding="10,8"
+                CornerRadius="4"
+                Background="{DynamicResource Brush.Contents}"
+                BorderThickness="1"
+                BorderBrush="{DynamicResource Brush.Border1}"
+                IsVisible="{Binding ShowSummaryCard, Mode=OneWay}">
+          <StackPanel Spacing="5">
+            <Grid ColumnDefinitions="82,*">
+              <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.AmendLastCommit.TargetBranch}"/>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                <Path Width="13" Height="13" Data="{StaticResource Icons.Branch}" Fill="{DynamicResource Brush.FG1}"/>
+                <TextBlock Classes="bold" Text="{Binding TargetBranchDisplay, Mode=OneWay}" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Grid>
+
+            <Grid ColumnDefinitions="82,*" IsVisible="{Binding !HasHardBlocker, Mode=OneWay}">
+              <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.AmendLastCommit.TargetCommit}"/>
+              <Grid Grid.Column="1" ColumnDefinitions="Auto,Auto,*">
+                <Path Grid.Column="0" Width="13" Height="13" Data="{StaticResource Icons.Commit}" Fill="{DynamicResource Brush.FG1}"/>
+                <TextBlock Grid.Column="1" Margin="6,0,0,0" FontFamily="{DynamicResource Fonts.Monospace}" Foreground="DarkOrange" Text="{Binding HeadShortSha, Mode=OneWay}"/>
+                <TextBlock Grid.Column="2" Margin="8,0,0,0" Text="{Binding HeadSubject, Mode=OneWay}" TextTrimming="CharacterEllipsis"/>
+              </Grid>
+            </Grid>
+
+            <Grid ColumnDefinitions="82,*" IsVisible="{Binding HasHeadAuthor, Mode=OneWay}">
+              <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.AmendLastCommit.TargetAuthor}"/>
+              <TextBlock Grid.Column="1" FontSize="12" Text="{Binding HeadAuthorDisplay, Mode=OneWay}" TextWrapping="Wrap"/>
+            </Grid>
+
+            <Grid ColumnDefinitions="82,*" IsVisible="{Binding HasRemoteEndpoint, Mode=OneWay}">
+              <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.AmendLastCommit.RemoteTarget}"/>
+              <TextBlock Grid.Column="1" FontSize="12" Classes="bold" Text="{Binding RemoteTargetDisplay, Mode=OneWay}" TextWrapping="Wrap"/>
+            </Grid>
+
+            <Grid ColumnDefinitions="82,*" IsVisible="{Binding HasRemoteEndpoint, Mode=OneWay}">
+              <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.AmendLastCommit.LiveRemoteTip}"/>
+              <TextBlock Grid.Column="1" FontSize="12" FontFamily="{DynamicResource Fonts.Monospace}" Text="{Binding LiveRemoteTipDisplay, Mode=OneWay}" TextWrapping="Wrap"/>
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Hard Blocker Card (conflicts / in-progress / unborn HEAD) -->
+        <Border Padding="10,8"
+                CornerRadius="4"
+                Background="#1EDC2626"
+                BorderThickness="1"
+                BorderBrush="#55DC2626"
+                IsVisible="{Binding HasHardBlocker, Mode=OneWay}">
+          <Grid ColumnDefinitions="Auto,*">
+            <Path Grid.Column="0" Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,8,0" Data="{StaticResource Icons.Error}" Fill="OrangeRed"/>
+            <TextBlock Grid.Column="1" Foreground="{DynamicResource Brush.FG1}" TextWrapping="Wrap" Text="{Binding BlockReason, Mode=OneWay}"/>
+          </Grid>
+        </Border>
+
+        <!-- Configuration Form -->
+        <StackPanel Orientation="Vertical"
+                    Spacing="10"
+                    IsVisible="{Binding ShowConfigurationForm, Mode=OneWay}">
+
+          <!-- Safe Unpushed Banner -->
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="#1416A34A"
+                  BorderThickness="1"
+                  BorderBrush="#4416A34A"
+                  IsVisible="{Binding IsUnpushedLocalOnly, Mode=OneWay}">
+            <StackPanel Spacing="4">
+              <Grid ColumnDefinitions="Auto,*">
+                <Path Grid.Column="0" Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,8,0" Data="{StaticResource Icons.CheckCircled}" Fill="#16A34A"/>
+                <TextBlock Grid.Column="1" FontSize="12" TextWrapping="Wrap" Text="{Binding RemotePublishSummary, Mode=OneWay}"/>
+              </Grid>
+              <TextBlock FontSize="11" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap" Text="{DynamicResource Text.AmendLastCommit.BackupNotice}"/>
+            </StackPanel>
+          </Border>
+
+          <!-- Pushed / Unknown / Unfetched / Protection Warning Card -->
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="#18D97706"
+                  BorderThickness="1"
+                  BorderBrush="#55D97706"
+                  IsVisible="{Binding RequiresRemoteWarningCard, Mode=OneWay}">
+            <StackPanel Spacing="8">
+              <Grid ColumnDefinitions="Auto,*">
+                <Path Grid.Column="0" Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,8,0"
+                      Data="{StaticResource Icons.Error}" Fill="OrangeRed"
+                      IsVisible="{Binding IsBlockedRemoteDanger, Mode=OneWay}"/>
+                <Path Grid.Column="0" Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,8,0"
+                      Data="{StaticResource Icons.Error}" Fill="DarkOrange"
+                      IsVisible="{Binding IsCautionRemoteBanner, Mode=OneWay}"/>
+                <StackPanel Grid.Column="1" Spacing="4">
+                  <TextBlock FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" Text="{Binding RemotePublishSummary, Mode=OneWay}"/>
+                  <TextBlock FontSize="11" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap"
+                             IsVisible="{Binding HasRemotePublishDetail, Mode=OneWay}"
+                             Text="{Binding RemotePublishDetail, Mode=OneWay}"/>
+                  <TextBlock FontSize="11" Foreground="OrangeRed" TextWrapping="Wrap"
+                             IsVisible="{Binding BlockedByBranchProtection, Mode=OneWay}"
+                             Text="{DynamicResource Text.AmendLastCommit.ProtectionHint}"/>
+                </StackPanel>
+              </Grid>
+
+              <!-- Collaborator Commits Ahead Warning -->
+              <Border Padding="8,6"
+                      CornerRadius="4"
+                      Background="#1EDC2626"
+                      BorderThickness="1"
+                      BorderBrush="#55DC2626"
+                      IsVisible="{Binding HasOtherAuthorsOnRemote, Mode=OneWay}">
+                <StackPanel Spacing="2">
+                  <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="OrangeRed" TextWrapping="Wrap" Text="{DynamicResource Text.AmendLastCommit.RemoteAuthorsWarning}"/>
+                  <TextBlock FontSize="11" TextWrapping="Wrap" Text="{Binding RemoteAuthorsSummary, Mode=OneWay}"/>
+                </StackPanel>
+              </Border>
+
+              <!-- Explicit Lease Rewrite Opt-In (Unchecked by Default) -->
+              <Border Padding="8,6"
+                      CornerRadius="4"
+                      Background="{DynamicResource Brush.Contents}"
+                      BorderThickness="1"
+                      BorderBrush="#55D97706"
+                      IsVisible="{Binding CanOptInPushedRewrite, Mode=OneWay}">
+                <CheckBox IsChecked="{Binding ConfirmRewritePushedWithLease, Mode=TwoWay}">
+                  <TextBlock FontSize="11"
+                             FontFamily="{DynamicResource Fonts.Monospace}"
+                             TextWrapping="Wrap"
+                             Text="{Binding RewritePushedOptInText, Mode=OneWay}"/>
+                </CheckBox>
+              </Border>
+
+              <!-- Safe Action Buttons -->
+              <WrapPanel Orientation="Horizontal">
+                <Button Classes="flat primary"
+                        Height="28" Padding="12,0" Margin="0,0,8,0"
+                        Content="{DynamicResource Text.AmendLastCommit.CreateNewCommitInstead}"
+                        IsVisible="{Binding GuideNewCommitAsPrimary, Mode=OneWay}"
+                        Click="OnCreateNewCommitInsteadClicked"/>
+                <Button Classes="flat"
+                        Height="28" Padding="12,0" Margin="0,0,8,0"
+                        Content="{DynamicResource Text.AmendLastCommit.CreateNewCommitInstead}"
+                        IsVisible="{Binding GuideNewCommitAsSecondary, Mode=OneWay}"
+                        Click="OnCreateNewCommitInsteadClicked"/>
+                <Button Classes="flat"
+                        Height="28" Padding="12,0"
+                        Content="{Binding FetchButtonText, Mode=OneWay}"
+                        IsVisible="{Binding CanFetchAndReinspect, Mode=OneWay}"
+                        IsEnabled="{Binding !IsFetching, Mode=OneWay}"
+                        Click="OnFetchAndReinspectClicked"/>
+              </WrapPanel>
+            </StackPanel>
+          </Border>
+
+          <!-- Newly Staged Changes Preview -->
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="{DynamicResource Brush.Contents}"
+                  BorderThickness="1"
+                  BorderBrush="{DynamicResource Brush.Border1}">
+            <StackPanel Spacing="6">
+              <TextBlock FontSize="12"
+                         Classes="bold"
+                         TextWrapping="Wrap"
+                         IsVisible="{Binding HasNewlyStagedChanges, Mode=OneWay}"
+                         Text="{Binding NewlyStagedHeader, Mode=OneWay}"/>
+              <ItemsControl ItemsSource="{Binding VisibleNewlyStagedChanges, Mode=OneWay}"
+                            IsVisible="{Binding HasNewlyStagedChanges, Mode=OneWay}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="m:Change">
+                    <Grid ColumnDefinitions="18,*" Margin="0,2">
+                      <v:ChangeStatusIcon Grid.Column="0"
+                                          Width="13" Height="13"
+                                          VerticalAlignment="Center"
+                                          IsUnstagedChange="False"
+                                          Change="{Binding}"/>
+                      <TextBlock Grid.Column="1"
+                                 FontSize="11"
+                                 FontFamily="{DynamicResource Fonts.Monospace}"
+                                 TextTrimming="CharacterEllipsis"
+                                 Text="{Binding Path}"/>
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock FontSize="11"
+                         Foreground="{DynamicResource Brush.FG2}"
+                         IsVisible="{Binding HasMoreNewlyStaged, Mode=OneWay}"
+                         Text="{Binding MoreNewlyStagedText, Mode=OneWay}"/>
+              <TextBlock FontSize="11"
+                         Foreground="{DynamicResource Brush.FG2}"
+                         TextWrapping="Wrap"
+                         IsVisible="{Binding !HasNewlyStagedChanges, Mode=OneWay}"
+                         Text="{DynamicResource Text.AmendLastCommit.NoNewStaged}"/>
+            </StackPanel>
+          </Border>
+
+          <!-- Signing & Commit Hook Status -->
+          <Border Padding="10,6"
+                  CornerRadius="4"
+                  Background="{DynamicResource Brush.Contents}"
+                  BorderThickness="1"
+                  BorderBrush="{DynamicResource Brush.Border1}">
+            <StackPanel Spacing="2">
+              <TextBlock FontSize="11"
+                         Foreground="DarkOrange"
+                         TextWrapping="Wrap"
+                         IsVisible="{Binding IsSigningIssue, Mode=OneWay}"
+                         Text="{Binding SigningSummary, Mode=OneWay}"/>
+              <TextBlock FontSize="11"
+                         Foreground="{DynamicResource Brush.FG2}"
+                         TextWrapping="Wrap"
+                         IsVisible="{Binding !IsSigningIssue, Mode=OneWay}"
+                         Text="{Binding SigningSummary, Mode=OneWay}"/>
+              <TextBlock FontSize="11"
+                         Foreground="{DynamicResource Brush.FG2}"
+                         TextWrapping="Wrap"
+                         Text="{Binding HookSummary, Mode=OneWay}"/>
+            </StackPanel>
+          </Border>
+
+          <!-- Commit Message Editor -->
+          <StackPanel Spacing="4">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Grid.Column="0"
+                         FontSize="12"
+                         Classes="bold"
+                         VerticalAlignment="Center"
+                         Text="{DynamicResource Text.AmendLastCommit.CommitMessage}"/>
+              <Button Grid.Column="1"
+                      Classes="flat"
+                      Height="24" Padding="8,0"
+                      FontSize="11"
+                      Content="{DynamicResource Text.AmendLastCommit.RestoreMessage}"
+                      IsVisible="{Binding CanRestoreOriginalMessage, Mode=OneWay}"
+                      Click="OnRestoreMessageClicked"/>
+            </Grid>
+            <TextBox x:Name="AmendCommitMessageBox"
+                     MinHeight="82" MaxHeight="140"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     VerticalContentAlignment="Top"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     Text="{Binding CommitMessage, Mode=TwoWay}"/>
+          </StackPanel>
+
+          <!-- Commit Flags -->
+          <WrapPanel Orientation="Horizontal">
+            <CheckBox Height="24"
+                      Margin="0,0,14,0"
+                      IsChecked="{Binding SignOff, Mode=TwoWay}"
+                      Content="{DynamicResource Text.AmendLastCommit.SignOff}"/>
+            <CheckBox Height="24"
+                      Margin="0,0,14,0"
+                      IsChecked="{Binding NoVerify, Mode=TwoWay}"
+                      Content="{DynamicResource Text.AmendLastCommit.NoVerify}"/>
+            <CheckBox Height="24"
+                      IsChecked="{Binding ResetAuthor, Mode=TwoWay}"
+                      Content="{DynamicResource Text.AmendLastCommit.ResetAuthor}"/>
+          </WrapPanel>
+        </StackPanel>
+
+        <!-- Partial Failure (Local Amend Succeeded -> Push Failed -> Push-Retry-Only) -->
+        <StackPanel Orientation="Vertical"
+                    Spacing="10"
+                    IsVisible="{Binding IsPartialFailureView, Mode=OneWay}">
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="#1416A34A"
+                  BorderThickness="1"
+                  BorderBrush="#5516A34A">
+            <StackPanel Spacing="4">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Path Width="14" Height="14" Data="{StaticResource Icons.CheckCircled}" Fill="#16A34A"/>
+                <TextBlock FontSize="13" Classes="bold" Text="{Binding PartialAmendDetail, Mode=OneWay}" TextWrapping="Wrap"/>
+              </StackPanel>
+              <TextBlock FontSize="11" FontFamily="{DynamicResource Fonts.Monospace}" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap" Text="{Binding PartialBackupRefDetail, Mode=OneWay}"/>
+            </StackPanel>
+          </Border>
+
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="#1EDC2626"
+                  BorderThickness="1"
+                  BorderBrush="#55DC2626">
+            <StackPanel Spacing="6">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Path Width="14" Height="14" Data="{StaticResource Icons.Error}" Fill="OrangeRed"/>
+                <TextBlock FontSize="13" Classes="bold" Text="{DynamicResource Text.AmendLastCommit.PartialPushCardTitle}" TextWrapping="Wrap"/>
+              </StackPanel>
+              <TextBlock FontSize="12" TextWrapping="Wrap" Text="{Binding ResultSummary, Mode=OneWay}"/>
+              <TextBlock FontSize="11" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap"
+                         IsVisible="{Binding HasResultDetail, Mode=OneWay}"
+                         Text="{Binding ResultDetail, Mode=OneWay}"/>
+            </StackPanel>
+          </Border>
+
+          <Button Classes="flat"
+                  Height="28" Padding="12,0" HorizontalAlignment="Left"
+                  Content="{DynamicResource Text.AmendLastCommit.OpenRecoveryLogs}"
+                  Click="OnOpenRecoveryLogsClicked"/>
+        </StackPanel>
+
+        <!-- Failure / Blocked Execution Result Card -->
+        <StackPanel Orientation="Vertical"
+                    Spacing="10"
+                    IsVisible="{Binding IsErrorResultView, Mode=OneWay}">
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="#1EDC2626"
+                  BorderThickness="1"
+                  BorderBrush="#55DC2626">
+            <StackPanel Spacing="6">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Path Width="14" Height="14" Data="{StaticResource Icons.Error}" Fill="OrangeRed"/>
+                <TextBlock FontSize="13" Classes="bold" Text="{DynamicResource Text.AmendLastCommit.FailureTitle}"/>
+              </StackPanel>
+              <TextBlock FontSize="12" TextWrapping="Wrap" Text="{Binding ResultSummary, Mode=OneWay}"/>
+              <TextBlock FontSize="11" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap"
+                         IsVisible="{Binding HasResultDetail, Mode=OneWay}"
+                         Text="{Binding ResultDetail, Mode=OneWay}"/>
+            </StackPanel>
+          </Border>
+
+          <WrapPanel Orientation="Horizontal">
+            <Button Classes="flat primary"
+                    Height="28" Padding="12,0" Margin="0,0,8,0"
+                    Content="{DynamicResource Text.AmendLastCommit.CreateNewCommitInstead}"
+                    Click="OnCreateNewCommitInsteadClicked"/>
+            <Button Classes="flat"
+                    Height="28" Padding="12,0"
+                    Content="{DynamicResource Text.AmendLastCommit.OpenRecoveryLogs}"
+                    Click="OnOpenRecoveryLogsClicked"/>
+          </WrapPanel>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </StackPanel>
+</UserControl>

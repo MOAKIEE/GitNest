@@ -24,6 +24,8 @@ internal static partial class Program
             await RunBatch3TestsAsync(realGit, stageRoot, utf8NoBom);
         if (ShouldRunSuite("next-stage-4"))
             await RunBatch4TestsAsync(realGit, stageRoot, utf8NoBom);
+        if (ShouldRunSuite("next-stage-5"))
+            await RunBatch5TestsAsync(realGit, stageRoot, utf8NoBom);
     }
 
     private static async Task RunBatch1TestsAsync(string realGit, string stageRoot, UTF8Encoding utf8NoBom)
@@ -946,6 +948,322 @@ internal static partial class Program
             initVm.Close();
             await Task.Delay(200);
         }
+    }
+
+    private static async Task RunBatch5TestsAsync(string realGit, string stageRoot, UTF8Encoding utf8NoBom)
+    {
+        // Batch 5: Merged RepositoryConfigure (IssueTracker under Advanced) + Dedicated Amend Last Commit safety
+        var wcType = typeof(SourceGit.ViewModels.WorkingCopy);
+        Check(wcType.GetProperty("UseAmend") == null && wcType.GetProperty("ResetAuthor") == null,
+              "WorkingCopy no longer exposes inline UseAmend or ResetAuthor properties");
+        Check(wcType.GetMethod("OpenAmendLastCommit") != null && wcType.GetProperty("CanOpenAmendLastCommit") != null,
+              "WorkingCopy exposes dedicated OpenAmendLastCommit entry point");
+
+        var batch5Root = Path.Combine(stageRoot, "batch5-amend");
+        var originBare = Path.Combine(batch5Root, "origin.git");
+        var originMoved = Path.Combine(batch5Root, "origin-offline.git");
+        var cloneA = Path.Combine(batch5Root, "clone-a");
+        var cloneB = Path.Combine(batch5Root, "clone-b");
+        Directory.CreateDirectory(batch5Root);
+
+        await GitAsync(realGit, "init", "--bare", "-b", "main", originBare);
+        await GitAsync(realGit, "clone", originBare, cloneA);
+        await GitAsync(realGit, "-C", cloneA, "config", "user.name", "Alice");
+        await GitAsync(realGit, "-C", cloneA, "config", "user.email", "alice@example.invalid");
+        await File.WriteAllTextAsync(Path.Combine(cloneA, "README.md"), "base\n", utf8NoBom);
+        await GitAsync(realGit, "-C", cloneA, "add", ".");
+        await GitAsync(realGit, "-C", cloneA, "commit", "-m", "chore: base on #101");
+        await GitAsync(realGit, "-C", cloneA, "push", "-u", "origin", "main");
+        await GitAsync(realGit, "clone", originBare, cloneB);
+        await GitAsync(realGit, "-C", cloneB, "config", "user.name", "Bob Collaborator");
+        await GitAsync(realGit, "-C", cloneB, "config", "user.email", "bob@example.invalid");
+
+        // 1. IssueTracker rules work from RepositoryConfigure (private + shared .issuetracker) and match commit text
+        var cfgRepoVm = new SourceGit.ViewModels.Repository(false, cloneA, Path.Combine(cloneA, ".git"));
+        try
+        {
+            var cfgVm = new SourceGit.ViewModels.RepositoryConfigure(cfgRepoVm);
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            while (cfgVm.IsLoading && DateTime.UtcNow < deadline)
+                await Task.Delay(30);
+
+            cfgVm.AddIssueTracker("LocalJira", @"PROJ-(\d+)", "https://jira.example.invalid/browse/PROJ-$1");
+            cfgVm.SelectedIssueTracker!.IsShared = false;
+            cfgVm.AddIssueTracker("SharedGitHub", @"#(\d+)", "https://github.example.invalid/team/repo/issues/$1");
+            cfgVm.SelectedIssueTracker!.IsShared = true;
+            await cfgVm.SaveAsync();
+
+            var localIssueRegex = (await GitAsync(realGit, "-C", cloneA, "config", "--local", "--get", "issuetracker.LocalJira.regex")).Trim();
+            var sharedIssueFile = Path.Combine(cloneA, ".issuetracker");
+            var sharedIssueRegex = (await GitAsync(realGit, "-C", cloneA, "config", "-f", sharedIssueFile, "--get", "issuetracker.SharedGitHub.regex")).Trim();
+
+            var loadedRules = new List<SourceGit.Models.IssueTracker>();
+            await new SourceGit.Commands.IssueTracker(cloneA, true).ReadAllAsync(loadedRules, true);
+            await new SourceGit.Commands.IssueTracker(cloneA, false).ReadAllAsync(loadedRules, false);
+
+            var collector = new InlineElementCollector();
+            foreach (var rule in loadedRules)
+                rule.Matches(collector, "Fix PROJ-42 and #101");
+            var matchedUrls = Enumerable.Range(0, collector.Count)
+                .Select(i => collector[i])
+                .Where(e => e.Type == InlineElementType.Link)
+                .Select(e => e.Link)
+                .ToList();
+
+            Check(localIssueRegex == @"PROJ-(\d+)" &&
+                  File.Exists(sharedIssueFile) &&
+                  sharedIssueRegex == @"#(\d+)" &&
+                  matchedUrls.Contains("https://jira.example.invalid/browse/PROJ-42") &&
+                  matchedUrls.Contains("https://github.example.invalid/team/repo/issues/101"),
+                  "RepositoryConfigure IssueTracker rules persist to .git/config and .issuetracker and match commit links");
+        }
+        finally
+        {
+            cfgRepoVm.Close();
+            await Task.Delay(150);
+        }
+
+        // 2. Unpushed local branch Amend succeeds, preserves history depth, creates 30-day backup ref, supports reset-author/signoff
+        await GitAsync(realGit, "-C", cloneA, "checkout", "-b", "feat/amend-local");
+        await File.WriteAllTextAsync(Path.Combine(cloneA, "local.txt"), "v1\n", utf8NoBom);
+        await GitAsync(realGit, "-C", cloneA, "add", "local.txt");
+        await GitAsync(realGit, "-C", cloneA, "commit", "-m", "feat: local amend target");
+        var localBeforeSha = (await GitAsync(realGit, "-C", cloneA, "rev-parse", "HEAD")).Trim();
+        var countBefore = int.Parse((await GitAsync(realGit, "-C", cloneA, "rev-list", "--count", "HEAD")).Trim());
+
+        await File.WriteAllTextAsync(Path.Combine(cloneA, "local.txt"), "v2\n", utf8NoBom);
+        await GitAsync(realGit, "-C", cloneA, "add", "local.txt");
+
+        var journalStore = new OperationJournalStore(Path.Combine(stageRoot, "batch5-journal.json"));
+        var unpushedPre = await GitSyncService.InspectAmendLastCommitAsync(cloneA);
+        Check(!unpushedPre.HasHardBlocker &&
+              unpushedPre.RemotePublishState == AmendRemotePublishState.UnpushedLocalOnly &&
+              unpushedPre.CanAmendDirectly &&
+              unpushedPre.NewlyStagedChanges.Any(c => c.Path == "local.txt"),
+              "Unpushed feature branch preflight confirms UnpushedLocalOnly and lists newly staged file");
+
+        var localAmendOut = await GitSyncService.ExecuteAmendLastCommitAsync(
+            cloneA,
+            new AmendLastCommitExecutionOptions
+            {
+                Preflight = unpushedPre,
+                Message = "feat: local amend updated",
+                SignOff = true,
+                ResetAuthor = true,
+                RewritePushedRemoteWithLease = false,
+            },
+            journalStore: journalStore);
+        var localAfterSha = (await GitAsync(realGit, "-C", cloneA, "rev-parse", "HEAD")).Trim();
+        var countAfter = int.Parse((await GitAsync(realGit, "-C", cloneA, "rev-list", "--count", "HEAD")).Trim());
+        var localMsg = (await GitAsync(realGit, "-C", cloneA, "log", "-1", "--format=%B")).Trim();
+        var backupSha = (await GitAsync(realGit, "-C", cloneA, "rev-parse", "--verify", localAmendOut.BackupRefName)).Trim();
+
+        Check(localAmendOut.Succeeded &&
+              localAmendOut.AmendSucceeded &&
+              !localAmendOut.PushAttempted &&
+              countAfter == countBefore &&
+              localAfterSha != localBeforeSha &&
+              backupSha == localBeforeSha &&
+              localMsg.Contains("Signed-off-by: Alice <alice@example.invalid>", StringComparison.Ordinal),
+              "Local unpushed Amend updates HEAD in place with SignOff and retains original SHA in backup ref");
+
+        // 3. UnknownRemoteState (unreachable remote) refuses silent Amend
+        await GitAsync(realGit, "-C", cloneA, "checkout", "-b", "feat/amend-unknown");
+        await GitAsync(realGit, "-C", cloneA, "remote", "add", "broken", Path.Combine(batch5Root, "does-not-exist.git"));
+        await GitAsync(realGit, "-C", cloneA, "config", "branch.feat/amend-unknown.remote", "broken");
+        await GitAsync(realGit, "-C", cloneA, "config", "branch.feat/amend-unknown.merge", "refs/heads/feat/amend-unknown");
+        await File.WriteAllTextAsync(Path.Combine(cloneA, "unk.txt"), "1\n", utf8NoBom);
+        await GitAsync(realGit, "-C", cloneA, "add", "unk.txt");
+        var headBeforeUnknown = (await GitAsync(realGit, "-C", cloneA, "rev-parse", "HEAD")).Trim();
+        var unknownPre = await GitSyncService.InspectAmendLastCommitAsync(cloneA);
+        var unknownExec = await GitSyncService.ExecuteAmendLastCommitAsync(
+            cloneA,
+            new AmendLastCommitExecutionOptions { Preflight = unknownPre, Message = "should fail" },
+            journalStore: journalStore);
+        var headAfterUnknown = (await GitAsync(realGit, "-C", cloneA, "rev-parse", "HEAD")).Trim();
+        Check(unknownPre.RemotePublishState == AmendRemotePublishState.UnknownRemoteState &&
+              !unknownPre.CanAmendDirectly &&
+              !unknownExec.Succeeded &&
+              unknownExec.BlockedByRemoteState &&
+              headAfterUnknown == headBeforeUnknown,
+              "Unknown/offline remote state refuses Amend and leaves HEAD untouched");
+        await GitAsync(realGit, "-C", cloneA, "remote", "remove", "broken");
+
+        // 4. UnfetchedOrStaleRemote refuses direct Amend until fetched
+        await GitAsync(realGit, "-C", cloneA, "checkout", "feat/amend-local");
+        await GitAsync(realGit, "-C", cloneA, "push", "-u", "origin", "feat/amend-local");
+        await GitAsync(realGit, "-C", cloneB, "fetch", "origin");
+        await GitAsync(realGit, "-C", cloneB, "checkout", "-B", "feat/amend-local", "origin/feat/amend-local");
+        await File.WriteAllTextAsync(Path.Combine(cloneB, "bob-unfetched.txt"), "bob\n", utf8NoBom);
+        await GitAsync(realGit, "-C", cloneB, "add", "bob-unfetched.txt");
+        await GitAsync(realGit, "-C", cloneB, "commit", "-m", "bob commit ahead on server");
+        await GitAsync(realGit, "-C", cloneB, "push", "origin", "feat/amend-local");
+        var serverAheadSha = (await GitAsync(realGit, "-C", originBare, "rev-parse", "refs/heads/feat/amend-local")).Trim();
+
+        await File.WriteAllTextAsync(Path.Combine(cloneA, "stale-stage.txt"), "s\n", utf8NoBom);
+        await GitAsync(realGit, "-C", cloneA, "add", "stale-stage.txt");
+        var unfetchedPre = await GitSyncService.InspectAmendLastCommitAsync(cloneA);
+        var unfetchedExec = await GitSyncService.ExecuteAmendLastCommitAsync(
+            cloneA,
+            new AmendLastCommitExecutionOptions { Preflight = unfetchedPre, Message = "blocked stale" },
+            journalStore: journalStore);
+        Check(unfetchedPre.RemotePublishState == AmendRemotePublishState.UnfetchedOrStaleRemote &&
+              !unfetchedExec.Succeeded &&
+              unfetchedExec.BlockedByRemoteState &&
+              (await GitAsync(realGit, "-C", cloneA, "rev-parse", "HEAD")).Trim() == localAfterSha,
+              "Unfetched remote commits block silent Amend with UnfetchedOrStaleRemote");
+
+        // 5. Protected branch 'main' AlreadyPushed blocks rewrite even with RewritePushedRemoteWithLease=true
+        await GitAsync(realGit, "-C", cloneA, "reset", "--hard");
+        await GitAsync(realGit, "-C", cloneA, "checkout", "main");
+        await GitAsync(realGit, "-C", cloneA, "fetch", "origin");
+        await File.WriteAllTextAsync(Path.Combine(cloneA, "main-edit.txt"), "blocked\n", utf8NoBom);
+        await GitAsync(realGit, "-C", cloneA, "add", "main-edit.txt");
+        var mainProtectedPre = await GitSyncService.InspectAmendLastCommitAsync(cloneA);
+        var mainProtectedExec = await GitSyncService.ExecuteAmendLastCommitAsync(
+            cloneA,
+            new AmendLastCommitExecutionOptions
+            {
+                Preflight = mainProtectedPre,
+                Message = "try rewrite main",
+                RewritePushedRemoteWithLease = true,
+            },
+            journalStore: journalStore);
+        Check(mainProtectedPre.RemotePublishState == AmendRemotePublishState.AlreadyPushed &&
+              mainProtectedPre.BlockedByBranchProtection &&
+              !mainProtectedPre.CanOptInPushedRewrite &&
+              !mainProtectedExec.Succeeded &&
+              mainProtectedExec.BlockedByProtection,
+              "Protected branch 'main' blocks pushed Amend rewrite under BranchProtectionPolicy");
+        await GitAsync(realGit, "-C", cloneA, "reset", "--hard");
+
+        // 6. Unlocked pushed feature branch: default blocked -> opt-in lease push succeeds -> collaborator lease race rejected -> partial outage Retry Push Only succeeds
+        await GitAsync(realGit, "-C", cloneA, "checkout", "-b", "feat/amend-lease");
+        await File.WriteAllTextAsync(Path.Combine(cloneA, "lease.txt"), "v1\n", utf8NoBom);
+        await GitAsync(realGit, "-C", cloneA, "add", "lease.txt");
+        await GitAsync(realGit, "-C", cloneA, "commit", "-m", "feat: lease base");
+        await GitAsync(realGit, "-C", cloneA, "push", "-u", "origin", "feat/amend-lease");
+        await GitAsync(realGit, "-C", cloneA, "fetch", "origin");
+
+        await File.WriteAllTextAsync(Path.Combine(cloneA, "lease.txt"), "v2\n", utf8NoBom);
+        await GitAsync(realGit, "-C", cloneA, "add", "lease.txt");
+        var leasePre1 = await GitSyncService.InspectAmendLastCommitAsync(cloneA);
+        var defaultBlockedExec = await GitSyncService.ExecuteAmendLastCommitAsync(
+            cloneA,
+            new AmendLastCommitExecutionOptions
+            {
+                Preflight = leasePre1,
+                Message = "default should block",
+                RewritePushedRemoteWithLease = false,
+            },
+            journalStore: journalStore);
+        Check(leasePre1.RemotePublishState == AmendRemotePublishState.AlreadyPushed &&
+              leasePre1.CanOptInPushedRewrite &&
+              !defaultBlockedExec.Succeeded &&
+              defaultBlockedExec.BlockedByRemoteState,
+              "AlreadyPushed branch blocks Amend unless explicit lease rewrite opt-in is passed");
+
+        var optInExec = await GitSyncService.ExecuteAmendLastCommitAsync(
+            cloneA,
+            new AmendLastCommitExecutionOptions
+            {
+                Preflight = leasePre1,
+                Message = "feat: lease rewritten",
+                RewritePushedRemoteWithLease = true,
+            },
+            journalStore: journalStore);
+        var leaseTipRemote1 = (await GitAsync(realGit, "-C", originBare, "rev-parse", "refs/heads/feat/amend-lease")).Trim();
+        var leaseTipLocal1 = (await GitAsync(realGit, "-C", cloneA, "rev-parse", "HEAD")).Trim();
+        Check(optInExec.Succeeded &&
+              optInExec.PushSucceeded &&
+              leaseTipRemote1 == leaseTipLocal1,
+              "Explicit opt-in Amend rewrites local HEAD and updates pushed remote via strict --force-with-lease");
+
+        // Race: preflight on cloneA matches tip1, then cloneB pushes collaborator commit tip2 BEFORE cloneA executes lease push
+        await GitAsync(realGit, "-C", cloneA, "fetch", "origin");
+        await File.WriteAllTextAsync(Path.Combine(cloneA, "lease.txt"), "v3-local\n", utf8NoBom);
+        await GitAsync(realGit, "-C", cloneA, "add", "lease.txt");
+        var racePre = await GitSyncService.InspectAmendLastCommitAsync(cloneA);
+
+        await GitAsync(realGit, "-C", cloneB, "fetch", "origin");
+        await GitAsync(realGit, "-C", cloneB, "checkout", "-B", "feat/amend-lease", "origin/feat/amend-lease");
+        await File.WriteAllTextAsync(Path.Combine(cloneB, "bob-race.txt"), "collaborator wins\n", utf8NoBom);
+        await GitAsync(realGit, "-C", cloneB, "add", "bob-race.txt");
+        await GitAsync(realGit, "-C", cloneB, "commit", "-m", "bob concurrent commit");
+        await GitAsync(realGit, "-C", cloneB, "push", "origin", "feat/amend-lease");
+        var collaboratorSha = (await GitAsync(realGit, "-C", originBare, "rev-parse", "refs/heads/feat/amend-lease")).Trim();
+
+        var raceExec = await GitSyncService.ExecuteAmendLastCommitAsync(
+            cloneA,
+            new AmendLastCommitExecutionOptions
+            {
+                Preflight = racePre,
+                Message = "feat: race amend",
+                RewritePushedRemoteWithLease = true,
+            },
+            journalStore: journalStore);
+        var serverTipAfterRace = (await GitAsync(realGit, "-C", originBare, "rev-parse", "refs/heads/feat/amend-lease")).Trim();
+        Check(!raceExec.Succeeded &&
+              raceExec.IsPartialSuccess &&
+              raceExec.RejectedByLease &&
+              serverTipAfterRace == collaboratorSha &&
+              raceExec.CanRetryPushOnly,
+              "Concurrent collaborator push rejects pinned --force-with-lease, preserves server commit, and enters Push-Retry-Only state");
+
+        // Partial outage + Retry Push Only recovery (backup ref untouched, no duplicate amend)
+        await GitAsync(realGit, "-C", cloneA, "checkout", "-b", "feat/amend-retry");
+        await File.WriteAllTextAsync(Path.Combine(cloneA, "retry.txt"), "r1\n", utf8NoBom);
+        await GitAsync(realGit, "-C", cloneA, "add", "retry.txt");
+        await GitAsync(realGit, "-C", cloneA, "commit", "-m", "feat: retry base");
+        await GitAsync(realGit, "-C", cloneA, "push", "-u", "origin", "feat/amend-retry");
+        await GitAsync(realGit, "-C", cloneA, "fetch", "origin");
+
+        await File.WriteAllTextAsync(Path.Combine(cloneA, "retry.txt"), "r2\n", utf8NoBom);
+        await GitAsync(realGit, "-C", cloneA, "add", "retry.txt");
+        var partialPre = await GitSyncService.InspectAmendLastCommitAsync(cloneA);
+        var shaBeforePartialAmend = partialPre.HeadSha;
+
+        Directory.Move(originBare, originMoved);
+        AmendLastCommitOutcome partialExec;
+        try
+        {
+            partialExec = await GitSyncService.ExecuteAmendLastCommitAsync(
+                cloneA,
+                new AmendLastCommitExecutionOptions
+                {
+                    Preflight = partialPre,
+                    Message = "feat: amended before network outage",
+                    RewritePushedRemoteWithLease = true,
+                },
+                journalStore: journalStore);
+        }
+        finally
+        {
+            if (Directory.Exists(originMoved) && !Directory.Exists(originBare))
+                Directory.Move(originMoved, originBare);
+        }
+
+        var amendedHeadSha = (await GitAsync(realGit, "-C", cloneA, "rev-parse", "HEAD")).Trim();
+        Check(!partialExec.Succeeded &&
+              partialExec.AmendSucceeded &&
+              !partialExec.PushSucceeded &&
+              partialExec.IsPartialSuccess &&
+              partialExec.NewHeadSha == amendedHeadSha &&
+              amendedHeadSha != shaBeforePartialAmend &&
+              partialExec.CanRetryPushOnly &&
+              partialExec.RetrySession?.PendingPushOptions?.ForceWithLeaseExpectSha == partialPre.LiveRemoteTipSha,
+              "Remote push outage leaves local Amend intact with backup ref and lease-pinned RetrySession");
+
+        var retrySessionRes = await GitSyncService.RetryPushSessionAsync(
+            partialExec.RetrySession!,
+            journalStore: journalStore);
+        var remoteRetryTip = (await GitAsync(realGit, "-C", originBare, "rev-parse", "refs/heads/feat/amend-retry")).Trim();
+        var headAfterRetry = (await GitAsync(realGit, "-C", cloneA, "rev-parse", "HEAD")).Trim();
+        Check(retrySessionRes.IsFullySucceeded &&
+              headAfterRetry == amendedHeadSha &&
+              remoteRetryTip == amendedHeadSha &&
+              serverAheadSha.Length == 40,
+              "RetryPushSessionAsync pushes already-amended HEAD with lease without re-amending");
     }
 
     private static async Task<(int ExitCode, string StdOut, string StdErr)> GitAllowFailureAsync(string git, params string[] arguments)
