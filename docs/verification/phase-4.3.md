@@ -26,8 +26,8 @@ Wired `RunPhase43AcceptanceTestsAsync` into `tests/GitNest.IntegrationTests/Prog
 | CJK/special paths, binary diffs, unborn repo, large history (650 commits), missing Git inspection & auth feedback/redaction | `Phase43AcceptanceTests.cs`, `CommitSyncTests.cs`, `ComparisonTests.cs` |
 | v1 surface trimming, 32-package NuGet/license parity, High-DPI `PerMonitorV2` & x64 user installer/upgrade/uninstall | `Phase41TrimTests.cs`, `Probe --trim-surface` (24/24), `Probe --high-dpi` (7/7), `verify-installer.ps1` (38/38) |
 
-## 3. Final Clean Build, Test, Probe & Installer Verification Results
-All runs executed sequentially after the final code edit cleanly with zero leftover temporary files, branches, or test directories:
+## 3. Phase 4.3 Baseline Results (Before Review Fixes)
+The following results describe the original phase 4.3 package. Current results and package hash are recorded below and in [release-notes.md](../release-notes.md).
 - `.\build\scripts\build-gitnest.ps1 -Publish`: **0 warnings, 0 errors** -> `artifacts/windows-x64/GitNest.exe`.
 - `.\build\scripts\test-gitnest.ps1`: **388 / 388** real-Git integration checks passed.
 - **All 12 UIProbe suites passed**:
@@ -46,3 +46,15 @@ All runs executed sequentially after the final code edit cleanly with zero lefto
 - `.\build\scripts\build-installer.ps1 -SkipPublish`: Built `artifacts/installer/GitNest-Setup-0.1.0-dev-win-x64.exe` (**35.95 MB**, SHA-256 `2072815A74402B908A2340AAD605F115B93E4081E5CCD39F236DD41D8B53BEDF`).
 - `.\build\scripts\verify-installer.ps1`: **38 / 38** clean-install, upgrade (`0.1.1-test`), uninstall, preservation, PE manifest, and exclusion checks passed.
 - Cleaned temporary test artifacts (`%TEMP%\*GitNest*`, `artifacts/smoke/`) to Windows Recycle Bin (`0` remaining test items, single local `main` branch, single repository worktree).
+
+## 4. 2026-11-15 审查修复后的交付
+
+修复内容与新增回归见 [review-fixes.md](review-fixes.md)。环境为 Windows 11 x64（build 26300）、Git `2.45.1.windows.1`、.NET SDK `10.0.404`。
+
+- Windows x64 自包含程序构建发布成功，0 警告、0 错误。
+- 最终代码的完整集成检查 424/424 通过；12 组 UI 探针共 183/183 通过，分支删除为 16 项、撤回／改写及指定修订推送为 19 项，其余组数与原基线一致。
+- 最终安装包为 `artifacts/installer/GitNest-Setup-0.1.0-dev-win-x64.exe`，35.95 MB，SHA-256 `12A34A2FFAD8EA8FE5C14F086B0FB9EF6A950EFE88B3191D4455C66348254707`。
+- 该安装包的安装、升级、启动、数据保留及卸载检查 38/38 通过，原用户配置已恢复。
+- 中英词条各 1411 项，键差集为 0；29 份 Markdown 的本地链接均通过检查。
+- 高 DPI 证据为 PE 清单与 150%／200% 离屏渲染。2.2 原生窗口与完整进程重启补验被物理 Esc 中止，剩余条目见 [phase-2.2.md](phase-2.2.md)。
+- 最终日志保存在 `artifacts/logs/review-*.log`。审查临时文件及隔离夹具已送入回收站，仓库保留单一 `main` 分支和主工作树。

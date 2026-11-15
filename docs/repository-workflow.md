@@ -35,4 +35,4 @@ git push origin main
 4. 运行集成检查。
 5. 上传日志和 `GitNest-windows-x64` 应用目录，保留 7 天。
 
-仅修改文档时跳过自动 CI；工作流权限为仓库内容只读。安装器与正式发行包按实施计划阶段四接入。
+仅修改文档时跳过自动 CI；工作流权限为仓库内容只读。安装器通过 `build/scripts/build-installer.ps1` 本地构建，使用 `build/scripts/verify-installer.ps1` 验证安装、升级和卸载。

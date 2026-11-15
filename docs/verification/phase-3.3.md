@@ -43,7 +43,7 @@
 5. **工作树删除与清理 UI 探针**：
    - 执行 `.\build\scripts\probe-gitnest.ps1 -WorktreeDelete`：`Passed 20 probe checks.`（覆盖主工作树保护、脏/未跟踪/`.gitignore` 文件分项拦截与显式 `--force` `IsEffectivelyVisible` 红色警告、锁定解锁重检、嵌套仓库双向阻断、当前打开工作树标签页自动切换回主仓并关闭原页签、`worktree -> -d 未合并止步 -> -D -> 冻结 lease 拒绝 -> 备份恢复`、detached HEAD 备份恢复、缺失目录转清理预览保留锁定记录）。
 6. **视觉截图检查（`artifacts/probes/phase-3.3/`）**：
-   - [worktree-remove-dirty-force-light.png](file:///C:/Project/GitNest/artifacts/probes/phase-3.3/worktree-remove-dirty-force-light.png)（浅色 `1120x760`）：路径、文件分布、5 项彩色明细、强删勾选、红框不可逆损失警告、可选本地分支复选框及操作按钮完整可见，无滚动遮挡，左侧栏“工作树”标题与图标无重叠。
-   - [worktree-remove-follow-up-unmerged-light.png](file:///C:/Project/GitNest/artifacts/probes/phase-3.3/worktree-remove-follow-up-unmerged-light.png)（浅色 `1120x760`）：切回主仓关闭工作树页签后的分步结果、2 个未合并提交列表及“仍然强制删除剩余分支（-D）”按钮完整无截断。
-   - [worktree-remove-detached-dark-narrow.png](file:///C:/Project/GitNest/artifacts/probes/phase-3.3/worktree-remove-detached-dark-narrow.png)（暗黑窄窗 `780x700`）：detached HEAD 徽标与 30 天备份说明折行正常、暗黑对比清晰。
-   - [worktree-prune-preview-dark-narrow.png](file:///C:/Project/GitNest/artifacts/probes/phase-3.3/worktree-prune-preview-dark-narrow.png)（暗黑窄窗 `780x700`）：2 条待清理失效记录与 1 条锁定保留记录及原因一屏完整展示，无文本与按钮裁切。
+   - [worktree-remove-dirty-force-light.png](../../artifacts/probes/phase-3.3/worktree-remove-dirty-force-light.png)（浅色 `1120x760`）：路径、文件分布、5 项彩色明细、强删勾选、红框不可逆损失警告、可选本地分支复选框及操作按钮完整可见，无滚动遮挡，左侧栏“工作树”标题与图标无重叠。
+   - [worktree-remove-follow-up-unmerged-light.png](../../artifacts/probes/phase-3.3/worktree-remove-follow-up-unmerged-light.png)（浅色 `1120x760`）：切回主仓关闭工作树页签后的分步结果、2 个未合并提交列表及“仍然强制删除剩余分支（-D）”按钮完整无截断。
+   - [worktree-remove-detached-dark-narrow.png](../../artifacts/probes/phase-3.3/worktree-remove-detached-dark-narrow.png)（暗黑窄窗 `780x700`）：detached HEAD 徽标与 30 天备份说明折行正常、暗黑对比清晰。
+   - [worktree-prune-preview-dark-narrow.png](../../artifacts/probes/phase-3.3/worktree-prune-preview-dark-narrow.png)（暗黑窄窗 `780x700`）：2 条待清理失效记录与 1 条锁定保留记录及原因一屏完整展示，无文本与按钮裁切。

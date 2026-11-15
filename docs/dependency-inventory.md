@@ -41,4 +41,4 @@
 
 共 32 个 NuGet 包。完整内容哈希见 [依赖快照](dependency-snapshot.json)。
 
-实际发布时的包集合以对应发布输出为准；阶段四随安装包收录依赖许可正文。
+安装包附带项目许可证、署名、第三方依赖来源与许可链接，以及 `licenses/AvaloniaEdit-LICENSE.txt`；发布包集合以对应发布输出为准。

@@ -34,13 +34,13 @@
 
 ### 验证命令与结果（Batch 3.4b 末次编辑后实测）
 - 双语资源与 XML 校验：`zh_CN.axaml` / `en_US.axaml` 解析无误，`zh=1447 en=1447 diff=0`。
-- `.\build\scripts\build-gitnest.ps1 -Publish`：`0` 个警告、`0` 个错误，发布产物：[GitNest.exe](file:///C:/Project/GitNest/artifacts/windows-x64/GitNest.exe)。
+- `.\build\scripts\build-gitnest.ps1 -Publish`：`0` 个警告、`0` 个错误，发布产物：[GitNest.exe](../../artifacts/windows-x64/GitNest.exe)。
 - `.\build\scripts\test-gitnest.ps1`：**233 / 233** 项真实 Git 集成测试全部通过。
 - `.\build\scripts\probe-gitnest.ps1 -MergeRevert`：**11 / 11** 项 UI 探针断言全部通过（`TEMP_LEFTOVERS=0`）。
 - `.\build\scripts\probe-gitnest.ps1 -CommitSync`：**11 / 11** 项回归 UI 探针通过并零残留正常退出（`TEMP_LEFTOVERS=0`）。
 - 探针截图清单与视觉核对（已逐张直读检查）：
-  - [merge-directed-preview-light.png](file:///C:/Project/GitNest/artifacts/probes/phase-3.4/merge-directed-preview-light.png)
-  - [merge-conflict-aborted-dark-narrow.png](file:///C:/Project/GitNest/artifacts/probes/phase-3.4/merge-conflict-aborted-dark-narrow.png)
-  - [revert-normal-preview-light.png](file:///C:/Project/GitNest/artifacts/probes/phase-3.4/revert-normal-preview-light.png)
-  - [revert-merge-commit-blocked-dark-narrow.png](file:///C:/Project/GitNest/artifacts/probes/phase-3.4/revert-merge-commit-blocked-dark-narrow.png)
-  - [external-conflict-readonly-light.png](file:///C:/Project/GitNest/artifacts/probes/phase-3.4/external-conflict-readonly-light.png)
+  - [merge-directed-preview-light.png](../../artifacts/probes/phase-3.4/merge-directed-preview-light.png)
+  - [merge-conflict-aborted-dark-narrow.png](../../artifacts/probes/phase-3.4/merge-conflict-aborted-dark-narrow.png)
+  - [revert-normal-preview-light.png](../../artifacts/probes/phase-3.4/revert-normal-preview-light.png)
+  - [revert-merge-commit-blocked-dark-narrow.png](../../artifacts/probes/phase-3.4/revert-merge-commit-blocked-dark-narrow.png)
+  - [external-conflict-readonly-light.png](../../artifacts/probes/phase-3.4/external-conflict-readonly-light.png)
