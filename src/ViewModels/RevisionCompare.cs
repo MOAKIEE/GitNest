@@ -48,11 +48,6 @@ namespace SourceGit.ViewModels
             get => !_repo.IsBare && _endPoint != null;
         }
 
-        public bool CanSaveAsPatch
-        {
-            get => _startPoint != null && _endPoint != null;
-        }
-
         public int TotalChanges
         {
             get => _totalChanges;
@@ -305,13 +300,6 @@ namespace SourceGit.ViewModels
                     .MultipleFilesWithRevisionAsync(checkouts, sha);
 
             log.Complete();
-        }
-
-        public async Task SaveChangesAsPatchAsync(List<Models.Change> changes, string saveTo)
-        {
-            var succ = await Commands.SaveChangesAsPatch.ProcessRevisionCompareChangesAsync(_repo.FullPath, changes ?? _changes, GetSHA(_startPoint), GetSHA(_endPoint), saveTo);
-            if (succ)
-                _repo.SendNotification(App.Text("SaveAsPatchSuccess"));
         }
 
         public void ClearSearchFilter()

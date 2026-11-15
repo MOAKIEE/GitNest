@@ -159,33 +159,6 @@ namespace SourceGit.ViewModels
                 _repo.ShowPopup(new DropStash(_repo, stash));
         }
 
-        public async Task SaveStashAsPatchAsync(Models.Stash stash, string saveTo)
-        {
-            var opts = new List<Models.DiffOption>();
-            var changes = await new Commands.CompareRevisions(_repo.FullPath, $"{stash.SHA}^", stash.SHA)
-                .ReadAsync()
-                .ConfigureAwait(false);
-
-            foreach (var c in changes)
-                opts.Add(new Models.DiffOption(stash.Parents[0], stash.SHA, c));
-
-            if (stash.Parents.Count == 3)
-            {
-                var untracked = await new Commands.CompareRevisions(_repo.FullPath, stash.UntrackedParent, stash.Parents[2])
-                    .ReadAsync()
-                    .ConfigureAwait(false);
-
-                foreach (var c in untracked)
-                    opts.Add(new Models.DiffOption(stash.UntrackedParent, stash.Parents[2], c));
-
-                changes.AddRange(untracked);
-            }
-
-            var succ = await Commands.SaveChangesAsPatch.ProcessStashChangesAsync(_repo.FullPath, opts, saveTo);
-            if (succ)
-                _repo.SendNotification(App.Text("SaveAsPatchSuccess"));
-        }
-
         public void OpenChangeWithExternalDiffTool(Models.Change change)
         {
             Models.DiffOption opt;

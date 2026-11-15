@@ -20,37 +20,6 @@ namespace SourceGit.Views
         {
             if (DataContext is ViewModels.RevisionCompare { ChangeSelection: { Count: > 0 } selection } vm)
             {
-                var patch = new MenuItem();
-                patch.Header = App.Text("FileCM.SaveAsPatch");
-                patch.Icon = this.CreateMenuIcon("Icons.Save");
-                patch.Click += async (_, e) =>
-                {
-                    var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
-                    if (storageProvider == null)
-                        return;
-
-                    var options = new FilePickerSaveOptions();
-                    options.Title = App.Text("FileCM.SaveAsPatch");
-                    options.DefaultExtension = ".patch";
-                    options.FileTypeChoices = [new FilePickerFileType("Patch File") { Patterns = ["*.patch"] }];
-
-                    try
-                    {
-                        var storageFile = await storageProvider.SaveFilePickerAsync(options);
-                        if (storageFile != null)
-                        {
-                            var saveTo = storageFile.Path.LocalPath;
-                            await vm.SaveChangesAsPatchAsync(selection.Changes, saveTo);
-                        }
-                    }
-                    catch (Exception exception)
-                    {
-                        Models.Notification.Send(null, $"Failed to save as patch: {exception.Message}", true);
-                    }
-
-                    e.Handled = true;
-                };
-
                 var selectedSingleFolder = selection.IsSingleFolder;
                 var fullPathOfFolder = selectedSingleFolder ? vm.GetAbsPath(selection.SingleFolderPath) : null;
                 var relativePathOfFolder = selectedSingleFolder ? selection.SingleFolderPath : null;
@@ -132,8 +101,6 @@ namespace SourceGit.Views
                         ev.Handled = true;
                     };
 
-                    menu.Items.Add(patch);
-                    menu.Items.Add(new MenuItem() { Header = "-" });
                     menu.Items.Add(resetToLeft);
                     menu.Items.Add(resetToRight);
                     menu.Items.Add(new MenuItem() { Header = "-" });
@@ -222,8 +189,6 @@ namespace SourceGit.Views
                         ev.Handled = true;
                     };
 
-                    menu.Items.Add(patch);
-                    menu.Items.Add(new MenuItem() { Header = "-" });
                     menu.Items.Add(resetToLeft);
                     menu.Items.Add(resetToRight);
                     menu.Items.Add(new MenuItem() { Header = "-" });
@@ -241,34 +206,6 @@ namespace SourceGit.Views
         {
             if (DataContext is ViewModels.RevisionCompare vm && sender is TextBlock block)
                 vm.NavigateTo(block.Text);
-
-            e.Handled = true;
-        }
-
-        private async void OnSaveAsPatch(object sender, RoutedEventArgs e)
-        {
-            var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
-            if (storage == null)
-                return;
-
-            if (DataContext is not ViewModels.RevisionCompare vm)
-                return;
-
-            var options = new FilePickerSaveOptions();
-            options.Title = App.Text("FileCM.SaveAsPatch");
-            options.DefaultExtension = ".patch";
-            options.FileTypeChoices = [new FilePickerFileType("Patch File") { Patterns = ["*.patch"] }];
-
-            try
-            {
-                var storageFile = await storage.SaveFilePickerAsync(options);
-                if (storageFile != null)
-                    await vm.SaveChangesAsPatchAsync(null, storageFile.Path.LocalPath);
-            }
-            catch (Exception exception)
-            {
-                Models.Notification.Send(null, $"Failed to save as patch: {exception.Message}", true);
-            }
 
             e.Handled = true;
         }

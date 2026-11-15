@@ -20,39 +20,6 @@ namespace SourceGit.Views
         {
             if (DataContext is ViewModels.Compare { ChangeSelection: { Count: > 0 } selection } vm)
             {
-                var patch = new MenuItem();
-                patch.Header = App.Text("FileCM.SaveAsPatch");
-                patch.Icon = this.CreateMenuIcon("Icons.Save");
-                patch.Click += async (_, e) =>
-                {
-                    var storageProvider = this.StorageProvider;
-                    if (storageProvider == null)
-                        return;
-
-                    var options = new FilePickerSaveOptions();
-                    options.Title = App.Text("FileCM.SaveAsPatch");
-                    options.DefaultExtension = ".patch";
-                    options.FileTypeChoices = [new FilePickerFileType("Patch File") { Patterns = ["*.patch"] }];
-
-                    try
-                    {
-                        var storageFile = await storageProvider.SaveFilePickerAsync(options);
-                        if (storageFile != null)
-                        {
-                            var saveTo = storageFile.Path.LocalPath;
-                            var succ = await vm.SaveChangesAsPatchAsync(selection.Changes, saveTo);
-                            if (succ)
-                                await new Alert().ShowAsync(this, "Save patch successfully.", false);
-                        }
-                    }
-                    catch (Exception exception)
-                    {
-                        await new Alert().ShowAsync(this, $"Failed to save as patch: {exception.Message}", true);
-                    }
-
-                    e.Handled = true;
-                };
-
                 var selectedSingleFolder = selection.IsSingleFolder;
                 var fullPathOfFolder = selectedSingleFolder ? vm.GetAbsPath(selection.SingleFolderPath) : null;
                 var relativePathOfFolder = selectedSingleFolder ? selection.SingleFolderPath : null;
@@ -93,8 +60,6 @@ namespace SourceGit.Views
 
                     if (menu.Items.Count > 0)
                         menu.Items.Add(new MenuItem() { Header = "-" });
-
-                    menu.Items.Add(patch);
 
                     if (vm.CanResetFiles)
                     {
@@ -162,8 +127,6 @@ namespace SourceGit.Views
                         menu.Items.Add(explore);
                         menu.Items.Add(new MenuItem() { Header = "-" });
                     }
-
-                    menu.Items.Add(patch);
 
                     if (vm.CanResetFiles)
                     {
@@ -265,22 +228,6 @@ namespace SourceGit.Views
                 commits.Sort((l, r) => l.CommitterTime.CompareTo(r.CommitterTime));
 
                 var menu = new ContextMenu();
-                var hasCurrentHead = vm.BaseHead.IsCurrentHead || vm.ToHead.IsCurrentHead;
-                if (hasCurrentHead && listBox.Tag is Models.Commit { IsCurrentHead: false })
-                {
-                    var cherryPick = new MenuItem();
-                    cherryPick.Header = App.Text("CommitCM.CherryPickMultiple");
-                    cherryPick.Icon = this.CreateMenuIcon("Icons.CherryPick");
-                    cherryPick.Click += (_, ev) =>
-                    {
-                        vm.CherryPick(commits);
-                        ev.Handled = true;
-                    };
-
-                    menu.Items.Add(cherryPick);
-                    menu.Items.Add(new MenuItem() { Header = "-" });
-                }
-
                 var copy = new MenuItem();
                 copy.Header = App.Text("Copy");
                 copy.Icon = this.CreateMenuIcon("Icons.Copy");

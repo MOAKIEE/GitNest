@@ -17,9 +17,6 @@ namespace SourceGit.Converters
         public static readonly FuncValueConverter<int, Thickness> ToTreeMargin =
             new(v => new Thickness(v * 16, 0, 0, 0));
 
-        public static readonly FuncValueConverter<int, string> ToUnsolvedDesc =
-            new(v => v == 0 ? App.Text("MergeConflictEditor.AllResolved") : App.Text("MergeConflictEditor.ConflictsRemaining", v));
-
         public static readonly FuncValueConverter<int, string> ToBadgeWithLimit =
             new(v => v > 999 ? "999+" : v.ToString());
 

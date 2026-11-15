@@ -258,19 +258,6 @@ namespace SourceGit.Views
                     menu.Items.Add(checkoutCommit);
                 }
 
-                var pushTag = new MenuItem();
-                pushTag.Header = App.Text("TagCM.Push", tag.Name);
-                pushTag.Icon = this.CreateMenuIcon("Icons.Push");
-                pushTag.IsEnabled = repo.Remotes.Count > 0;
-                pushTag.Click += (_, ev) =>
-                {
-                    if (repo.CanCreatePopup())
-                        repo.ShowPopup(new ViewModels.PushTag(repo, tag));
-                    ev.Handled = true;
-                };
-                menu.Items.Add(new MenuItem() { Header = "-" });
-                menu.Items.Add(pushTag);
-
                 if (repo.CurrentBranch is { IsDetachedHead: false } current)
                 {
                     var mergeTag = new MenuItem();
@@ -282,19 +269,10 @@ namespace SourceGit.Views
                             repo.ShowPopup(new ViewModels.Merge(repo, tag, current.Name));
                         ev.Handled = true;
                     };
+                    menu.Items.Add(new MenuItem() { Header = "-" });
                     menu.Items.Add(mergeTag);
                 }
 
-                var deleteTag = new MenuItem();
-                deleteTag.Header = App.Text("TagCM.Delete", tag.Name);
-                deleteTag.Icon = this.CreateMenuIcon("Icons.Clear");
-                deleteTag.Click += (_, ev) =>
-                {
-                    if (repo.CanCreatePopup())
-                        repo.ShowPopup(new ViewModels.DeleteTag(repo, tag));
-                    ev.Handled = true;
-                };
-                menu.Items.Add(deleteTag);
                 menu.Items.Add(new MenuItem() { Header = "-" });
 
                 var compareWithHead = new MenuItem();
@@ -327,32 +305,6 @@ namespace SourceGit.Views
                 };
                 menu.Items.Add(archive);
                 menu.Items.Add(new MenuItem() { Header = "-" });
-
-                var actions = repo.GetCustomActions(Models.CustomActionScope.Tag);
-                if (actions.Count > 0)
-                {
-                    var custom = new MenuItem();
-                    custom.Header = App.Text("TagCM.CustomAction");
-                    custom.Icon = this.CreateMenuIcon("Icons.Action");
-
-                    foreach (var action in actions)
-                    {
-                        var (dup, label) = action;
-                        var item = new MenuItem();
-                        item.Icon = this.CreateMenuIcon("Icons.Action");
-                        item.Header = label;
-                        item.Click += async (_, ev) =>
-                        {
-                            await repo.ExecCustomActionAsync(dup, tag);
-                            ev.Handled = true;
-                        };
-
-                        custom.Items.Add(item);
-                    }
-
-                    menu.Items.Add(custom);
-                    menu.Items.Add(new MenuItem() { Header = "-" });
-                }
 
                 var copy = new MenuItem();
                 copy.Header = App.Text("Copy");
@@ -417,19 +369,8 @@ namespace SourceGit.Views
                     menu.Items.Add(compare);
                 }
 
-                var deleteMultiple = new MenuItem();
-                deleteMultiple.Header = App.Text("TagCM.DeleteMultiple", selected.Count);
-                deleteMultiple.Icon = this.CreateMenuIcon("Icons.Clear");
-                deleteMultiple.Click += (_, ev) =>
-                {
-                    if (repo.CanCreatePopup())
-                        repo.ShowPopup(new ViewModels.DeleteMultipleTags(repo, selected));
-
-                    ev.Handled = true;
-                };
-
-                menu.Items.Add(deleteMultiple);
-                menu.Open(listBox);
+                if (menu.Items.Count > 0)
+                    menu.Open(listBox);
             }
 
             e.Handled = true;
@@ -463,33 +404,6 @@ namespace SourceGit.Views
             if (e.Key == Key.F && e.KeyModifiers == (OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control))
             {
                 RaiseEvent(new RoutedEventArgs(SearchRequestedEvent));
-                e.Handled = true;
-            }
-            else if (e.Key is (Key.Delete or Key.Back) && e.KeyModifiers == KeyModifiers.None)
-            {
-                if (DataContext is not ViewModels.Repository repo)
-                    return;
-
-                var selected = (sender as ListBox)?.SelectedItems;
-                var tags = new List<Models.Tag>();
-                foreach (var item in selected)
-                {
-                    if (item is ViewModels.TagListItem i)
-                        tags.Add(i.Tag);
-                    else if (item is ViewModels.TagTreeNode n)
-                        CollectTagsInNode(n, tags);
-                }
-
-                if (tags.Count == 1)
-                {
-                    repo.DeleteTag(tags[0]);
-                }
-                else if (tags.Count > 1)
-                {
-                    if (repo.CanCreatePopup())
-                        repo.ShowPopup(new ViewModels.DeleteMultipleTags(repo, tags));
-                }
-
                 e.Handled = true;
             }
         }

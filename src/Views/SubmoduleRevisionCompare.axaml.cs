@@ -19,39 +19,6 @@ namespace SourceGit.Views
         {
             if (DataContext is ViewModels.SubmoduleRevisionCompare { ChangeSelection: { Count: > 0 } selection } vm)
             {
-                var patch = new MenuItem();
-                patch.Header = App.Text("FileCM.SaveAsPatch");
-                patch.Icon = this.CreateMenuIcon("Icons.Save");
-                patch.Click += async (_, e) =>
-                {
-                    var storageProvider = this.StorageProvider;
-                    if (storageProvider == null)
-                        return;
-
-                    var options = new FilePickerSaveOptions();
-                    options.Title = App.Text("FileCM.SaveAsPatch");
-                    options.DefaultExtension = ".patch";
-                    options.FileTypeChoices = [new FilePickerFileType("Patch File") { Patterns = ["*.patch"] }];
-
-                    try
-                    {
-                        var storageFile = await storageProvider.SaveFilePickerAsync(options);
-                        if (storageFile != null)
-                        {
-                            var saveTo = storageFile.Path.LocalPath;
-                            var succ = await vm.SaveChangesAsPatchAsync(selection.Changes, saveTo);
-                            if (succ)
-                                await new Alert().ShowAsync(this, "Save patch successfully.", false);
-                        }
-                    }
-                    catch (Exception exception)
-                    {
-                        await new Alert().ShowAsync(this, $"Failed to save as patch: {exception.Message}", true);
-                    }
-
-                    e.Handled = true;
-                };
-
                 var selectedSingleFolder = selection.IsSingleFolder;
                 var fullPathOfFolder = selectedSingleFolder ? vm.GetAbsPath(selection.SingleFolderPath) : null;
                 var relativePathOfFolder = selectedSingleFolder ? selection.SingleFolderPath : null;
@@ -113,8 +80,6 @@ namespace SourceGit.Views
                         ev.Handled = true;
                     };
 
-                    menu.Items.Add(patch);
-                    menu.Items.Add(new MenuItem() { Header = "-" });
                     menu.Items.Add(copyPath);
                     menu.Items.Add(copyFullPath);
                 }
@@ -135,8 +100,6 @@ namespace SourceGit.Views
                         menu.Items.Add(explore);
                         menu.Items.Add(new MenuItem() { Header = "-" });
                     }
-
-                    menu.Items.Add(patch);
 
                     var copyPath = new MenuItem();
                     copyPath.Header = App.Text("CopyPath");

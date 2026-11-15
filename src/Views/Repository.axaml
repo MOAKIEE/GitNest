@@ -513,7 +513,7 @@
 
                 <!-- Tags -->
                 <ToggleButton Grid.Row="4" Classes="group_expander" IsChecked="{Binding IsTagGroupExpanded, Mode=TwoWay}">
-                  <Grid ColumnDefinitions="16,*,Auto,Auto,Auto">
+                  <Grid ColumnDefinitions="16,*,Auto,Auto">
                     <Path Grid.Column="0" Width="11" Height="11" Margin="0,1,0,0" HorizontalAlignment="Left" Data="{StaticResource Icons.Tags}" Fill="{DynamicResource Brush.FG2}"/>
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
                       <TextBlock Classes="group_header_label" Text="{DynamicResource Text.Repository.Tags}"/>
@@ -529,21 +529,13 @@
                     <Button Grid.Column="3"
                             Classes="icon_button"
                             Width="14"
-                            Margin="8,0,0,0"
+                            Margin="8,0"
                             Click="OnOpenSortTagMenu"
                             ToolTip.Tip="{DynamicResource Text.Repository.Tags.Sort}">
                       <Grid>
                         <Path Width="12" Height="12" Data="{StaticResource Icons.OrderByName}" IsVisible="{Binding IsSortingTagsByName, Mode=OneWay}"/>
                         <Path Width="12" Height="12" Data="{StaticResource Icons.OrderByTime}" IsVisible="{Binding !IsSortingTagsByName, Mode=OneWay}"/>
                       </Grid>
-                    </Button>
-                    <Button Grid.Column="4"
-                            Classes="icon_button"
-                            Width="14"
-                            Margin="8,0"
-                            Command="{Binding CreateNewTag}"
-                            ToolTip.Tip="{DynamicResource Text.Repository.Tags.Add}">
-                      <Path Width="12" Height="12" Data="{StaticResource Icons.Tag.Add}"/>
                     </Button>
                   </Grid>
                 </ToggleButton>
@@ -561,7 +553,7 @@
 
                 <!-- Submodules -->
                 <ToggleButton Grid.Row="6" Classes="group_expander" IsChecked="{Binding IsSubmoduleGroupExpanded, Mode=TwoWay}">
-                  <Grid ColumnDefinitions="16,*,Auto,Auto,Auto">
+                  <Grid ColumnDefinitions="16,*,Auto">
                     <Path Grid.Column="0" Width="11" Height="11" HorizontalAlignment="Left" Data="{StaticResource Icons.Submodules}" Fill="{DynamicResource Brush.FG2}"/>
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
                       <TextBlock Classes="group_header_label" Text="{DynamicResource Text.Repository.Submodules}"/>
@@ -570,28 +562,12 @@
                     <ToggleButton Grid.Column="2"
                                   Classes="line_path"
                                   Width="14"
+                                  Margin="0,0,8,0"
                                   IsChecked="{Binding ShowSubmodulesAsTree, Mode=TwoWay}"
                                   IsVisible="{Binding Submodules, Converter={x:Static c:ListConverters.IsNotNullOrEmpty}}"
                                   ToolTip.Tip="{DynamicResource Text.Repository.ShowSubmodulesAsTree}">
                       <Path Width="11" Height="11" Data="{DynamicResource Icons.Tree}"/>
                     </ToggleButton>
-                    <Button Grid.Column="3"
-                            Classes="icon_button"
-                            Width="14"
-                            Margin="8,0"
-                            Command="{Binding UpdateSubmodules}"
-                            IsVisible="{Binding Submodules, Converter={x:Static c:ListConverters.IsNotNullOrEmpty}}"
-                            ToolTip.Tip="{DynamicResource Text.Repository.Submodules.Update}">
-                      <Path Width="12" Height="12" Data="{StaticResource Icons.Loading}"/>
-                    </Button>
-                    <Button Grid.Column="4"
-                            Classes="icon_button"
-                            Width="14"
-                            Margin="0,0,8,0"
-                            Command="{Binding AddSubmodule}"
-                            ToolTip.Tip="{DynamicResource Text.Repository.Submodules.Add}">
-                      <Path Width="12" Height="12" Data="{StaticResource Icons.Submodule.Add}"/>
-                    </Button>
                   </Grid>
                 </ToggleButton>
                 <v:SubmodulesView Grid.Row="7"
@@ -606,7 +582,7 @@
 
                 <!-- Worktrees -->
                 <ToggleButton Grid.Row="8" Classes="group_expander" IsChecked="{Binding IsWorktreeGroupExpanded, Mode=TwoWay}">
-                  <Grid ColumnDefinitions="16,*,Auto,Auto,Auto">
+                  <Grid ColumnDefinitions="16,*,Auto,Auto">
                     <Path Grid.Column="0" Width="11" Height="11" HorizontalAlignment="Left" Data="{StaticResource Icons.Worktrees}" Fill="{DynamicResource Brush.FG2}"/>
                     <Grid Grid.Column="1" ColumnDefinitions="*,Auto" ClipToBounds="True" ToolTip.Tip="{DynamicResource Text.Repository.Worktrees}">
                       <TextBlock Grid.Column="0" Classes="group_header_label" TextTrimming="CharacterEllipsis" Text="{DynamicResource Text.Repository.Worktrees}"/>
@@ -624,20 +600,11 @@
                     <Button Grid.Column="3"
                             Classes="icon_button"
                             Width="14"
-                            Margin="0,0,6,0"
+                            Margin="0,0,9,0"
                             Click="OnPruneWorktrees"
                             IsVisible="{Binding Worktrees, Converter={x:Static c:ListConverters.IsNotNullOrEmpty}}"
                             ToolTip.Tip="{DynamicResource Text.PruneWorktrees}">
                       <Path Width="11" Height="11" Data="{StaticResource Icons.Clean}"/>
-                    </Button>
-                    <Button Grid.Column="4"
-                            Classes="icon_button"
-                            Width="14"
-                            Margin="0,0,9,0"
-                            Command="{Binding AddWorktree}"
-                            ToolTip.Tip="{DynamicResource Text.Repository.Worktrees.Add}"
-                            ToolTip.Placement="Right">
-                      <Path Width="11" Height="11" Data="{StaticResource Icons.Worktree.Add}"/>
                     </Button>
                   </Grid>
                 </ToggleButton>
@@ -819,104 +786,9 @@
             <Grid Grid.Column="2">
               <!-- Dashboard (History) Page -->
               <Border IsVisible="{Binding IsDashboardVisible, Mode=OneWay}" PropertyChanged="OnRightPagePropertyChanged">
-                <Grid RowDefinitions="Auto,Auto,*" Background="{DynamicResource Brush.SubPanel}">
-                  <!-- Bisect Information Bar -->
-                  <Grid Grid.Row="0"
-                        Height="28"
-                        ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto"
-                        Background="{DynamicResource Brush.Conflict}"
-                        IsVisible="{Binding BisectState, Converter={x:Static ObjectConverters.NotEqual}, ConverterParameter={x:Static m:BisectState.None}}">
-                    <TextBlock Grid.Column="0"
-                               FontWeight="Bold"
-                               Margin="8,0"
-                               Foreground="{DynamicResource Brush.Conflict.Foreground}"
-                               Text="{DynamicResource Text.Bisect.WaitingForFirstBad}"
-                               IsVisible="{Binding BisectState, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static m:BisectState.WaitingForFirstBad}}"/>
-
-                    <TextBlock Grid.Column="0"
-                               FontWeight="Bold"
-                               Margin="8,0"
-                               Foreground="{DynamicResource Brush.Conflict.Foreground}"
-                               Text="{DynamicResource Text.Bisect.WaitingForCheckoutAnother}"
-                               IsVisible="{Binding BisectState, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static m:BisectState.WaitingForCheckoutAnother}}"/>
-
-                    <TextBlock Grid.Column="0"
-                               FontWeight="Bold"
-                               Margin="8,0"
-                               Foreground="{DynamicResource Brush.Conflict.Foreground}"
-                               Text="{DynamicResource Text.Bisect.WaitingForFirstGood}"
-                               IsVisible="{Binding BisectState, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static m:BisectState.WaitingForFirstGood}}"/>
-
-                    <TextBlock Grid.Column="0"
-                               FontWeight="Bold"
-                               Margin="8,0"
-                               Foreground="{DynamicResource Brush.Conflict.Foreground}"
-                               Text="{DynamicResource Text.Bisect.WaitingForMark}"
-                               IsVisible="{Binding BisectState, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static m:BisectState.WaitingForMark}}"/>
-
-                    <v:LoadingIcon Grid.Column="1"
-                                   Width="14" Height="14"
-                                   Margin="4,0"
-                                   IsVisible="{Binding IsBisectCommandRunning}"/>
-
-                    <Button Grid.Column="2"
-                            Classes="flat"
-                            Margin="4,0"
-                            FontWeight="Regular"
-                            BorderThickness="0"
-                            Content="{DynamicResource Text.Bisect.Bad}"
-                            Padding="8,2"
-                            Click="OnBisectCommand"
-                            Tag="bad">
-                      <Button.IsEnabled>
-                        <MultiBinding Converter="{x:Static BoolConverters.And}">
-                          <Binding Path="IsBisectCommandRunning" Converter="{x:Static BoolConverters.Not}"/>
-                          <Binding Path="BisectState" Converter="{x:Static ObjectConverters.NotEqual}" ConverterParameter="{x:Static m:BisectState.WaitingForCheckoutAnother}"/>
-                        </MultiBinding>
-                      </Button.IsEnabled>
-                    </Button>
-                    <Button Grid.Column="3"
-                            Classes="flat"
-                            Margin="4,0"
-                            FontWeight="Regular"
-                            BorderThickness="0"
-                            Content="{DynamicResource Text.Bisect.Good}"
-                            Padding="8,2"
-                            Click="OnBisectCommand"
-                            Tag="good">
-                      <Button.IsEnabled>
-                        <MultiBinding Converter="{x:Static BoolConverters.And}">
-                          <Binding Path="IsBisectCommandRunning" Converter="{x:Static BoolConverters.Not}"/>
-                          <Binding Path="BisectState" Converter="{x:Static ObjectConverters.NotEqual}" ConverterParameter="{x:Static m:BisectState.WaitingForFirstBad}"/>
-                          <Binding Path="BisectState" Converter="{x:Static ObjectConverters.NotEqual}" ConverterParameter="{x:Static m:BisectState.WaitingForCheckoutAnother}"/>
-                        </MultiBinding>
-                      </Button.IsEnabled>
-                    </Button>
-                    <Button Grid.Column="4"
-                            Classes="flat"
-                            Margin="4,0"
-                            FontWeight="Regular"
-                            BorderThickness="0"
-                            Content="{DynamicResource Text.Bisect.Skip}"
-                            IsVisible="{Binding BisectState, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static m:BisectState.WaitingForMark}}"
-                            IsEnabled="{Binding !IsBisectCommandRunning}"
-                            Padding="8,2"
-                            Click="OnBisectCommand"
-                            Tag="skip"/>
-                    <Button Grid.Column="5"
-                            Classes="flat"
-                            Margin="4,0"
-                            FontWeight="Regular"
-                            BorderThickness="0"
-                            Content="{DynamicResource Text.Bisect.Abort}"
-                            IsEnabled="{Binding !IsBisectCommandRunning}"
-                            Padding="8,2"
-                            Click="OnBisectCommand"
-                            Tag="reset"/>
-                  </Grid>
-
+                <Grid RowDefinitions="Auto,*" Background="{DynamicResource Brush.SubPanel}">
                   <!-- History Filter Bar -->
-                  <Border Grid.Row="1"
+                  <Border Grid.Row="0"
                           Background="{DynamicResource Brush.Popup}"
                           BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Brush.Border0}"
                           IsVisible="{Binding UIStates.HistoryFilters.Count, Converter={x:Static c:IntConverters.IsGreaterThanZero}}">
@@ -1007,10 +879,9 @@
                   </Border>
 
                   <!-- History -->
-                  <v:Histories Grid.Row="2"
+                  <v:Histories Grid.Row="1"
                                DataContext="{Binding Histories, Mode=OneWay}"
                                CurrentBranch="{Binding CurrentBranch, Mode=OneWay}"
-                               Bisect="{Binding Bisect, Mode=OneWay}"
                                HasSingleRemote="{Binding HasSingleRemote, Mode=OneWay}"
                                IssueTrackers="{Binding IssueTrackers, Mode=OneWay}">
                     <v:Histories.IsDetailsPanelExpanded>

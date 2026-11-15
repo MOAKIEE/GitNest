@@ -92,34 +92,6 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
-        private async void OnSaveAsPatch(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button { DataContext: ViewModels.FileHistoriesCompareRevisions compare })
-            {
-                var options = new FilePickerSaveOptions();
-                options.Title = App.Text("FileCM.SaveAsPatch");
-                options.DefaultExtension = ".patch";
-                options.FileTypeChoices = [new FilePickerFileType("Patch File") { Patterns = ["*.patch"] }];
-
-                try
-                {
-                    var storageFile = await StorageProvider.SaveFilePickerAsync(options);
-                    if (storageFile == null)
-                        return;
-
-                    var succ = await compare.SaveAsPatch(storageFile.Path.LocalPath);
-                    if (succ)
-                        await new Alert().ShowAsync(this, "Saved as patch successfully.", false);
-                }
-                catch (Exception exception)
-                {
-                    await new Alert().ShowAsync(this, $"Failed to save as patch: {exception.Message}", true);
-                }
-
-                e.Handled = true;
-            }
-        }
-
         private void OnCommitSubjectDataContextChanged(object sender, EventArgs e)
         {
             if (sender is Border border)

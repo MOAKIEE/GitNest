@@ -527,13 +527,6 @@ namespace SourceGit.ViewModels
             IsUnstaging = false;
         }
 
-        public async Task SaveChangesToPatchAsync(List<Models.Change> changes, bool isUnstaged, string saveTo)
-        {
-            var succ = await Commands.SaveChangesAsPatch.ProcessLocalChangesAsync(_repo.FullPath, changes, isUnstaged, saveTo);
-            if (succ)
-                _repo.SendNotification(App.Text("SaveAsPatchSuccess"));
-        }
-
         public void DiscardAllChanges()
         {
             if (_repo.CanCreatePopup())

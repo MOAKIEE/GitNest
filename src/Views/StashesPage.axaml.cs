@@ -78,34 +78,6 @@ namespace SourceGit.Views
                     ev.Handled = true;
                 };
 
-                var patch = new MenuItem();
-                patch.Header = App.Text("StashCM.SaveAsPatch");
-                patch.Icon = this.CreateMenuIcon("Icons.Save");
-                patch.Click += async (_, ev) =>
-                {
-                    var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
-                    if (storageProvider == null)
-                        return;
-
-                    var options = new FilePickerSaveOptions();
-                    options.Title = App.Text("StashCM.SaveAsPatch");
-                    options.DefaultExtension = ".patch";
-                    options.FileTypeChoices = [new FilePickerFileType("Patch File") { Patterns = ["*.patch"] }];
-
-                    try
-                    {
-                        var storageFile = await storageProvider.SaveFilePickerAsync(options);
-                        if (storageFile != null)
-                            await vm.SaveStashAsPatchAsync(stash, storageFile.Path.LocalPath);
-                    }
-                    catch (Exception exception)
-                    {
-                        Models.Notification.Send(null, $"Failed to save as patch: {exception.Message}", true);
-                    }
-
-                    ev.Handled = true;
-                };
-
                 var copy = new MenuItem();
                 copy.Header = App.Text("StashCM.CopyMessage");
                 copy.Icon = this.CreateMenuIcon("Icons.Copy");
@@ -120,8 +92,6 @@ namespace SourceGit.Views
                 menu.Items.Add(apply);
                 menu.Items.Add(branch);
                 menu.Items.Add(drop);
-                menu.Items.Add(new MenuItem { Header = "-" });
-                menu.Items.Add(patch);
                 menu.Items.Add(new MenuItem { Header = "-" });
                 menu.Items.Add(copy);
                 menu.Open(border);

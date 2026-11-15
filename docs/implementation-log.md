@@ -301,3 +301,12 @@
 - 对称补全中英双语词条（`en_US.axaml` 与 `zh_CN.axaml` 均达 `1634` 条，`diff=0`），新增 `tests/GitNest.IntegrationTests/Phase37SyncTests.cs` 并扩展 `tests/GitNest.UIProbe/ConfigProbe.cs`（接入 `probe-gitnest.ps1 -ConfigRefresh`）。
 - 末次代码改动后验证：`.\build\scripts\build-gitnest.ps1 -Publish`（**0** 警告 **0** 错误，产出 `artifacts/windows-x64/GitNest.exe`）、`.\build\scripts\test-gitnest.ps1`（**320 / 320** 通过）、`.\build\scripts\probe-gitnest.ps1 -ConfigRefresh`（**4 / 4** 通过，核对 `artifacts/probes/phase-3.7/` 下 3 张截图）及 `.\build\scripts\probe-gitnest.ps1 -Config`（**13 / 13** 回归通过）；详情见 [phase-3.7.md](verification/phase-3.7.md)。
 - 阶段三（3.1～3.7）全部完成；接续进入阶段四批次 4.1（首版入口裁剪、依赖及资源清理）。
+
+## 2026-11-15 · 批次 4.1：首版入口裁剪、依赖及资源清理
+
+- 前一批提交：`681594e1`（批次 3.7：配置作用域写入、外部变更复核与刷新）。
+- 按 [设计文档](design.md) 第 2 节完整裁剪首版不纳入能力（共移除 98 个独立模块/命令/弹窗文件并同步清理入口、热键与命令面板）：移除 `Azure.AI.OpenAI` / `OpenAI` 依赖及 `src/AI/`、`CustomAction`、`GitFlow`、`Bisect`、`InteractiveRebase`、`CherryPick`、`MergeConflictEditor`、补丁管理与保存/应用、`TryGetCreatePullRequestURL`、标签写入、工作树新建/迁移与子模块创建/变更按钮；保留只读 Worktree/Submodule/LFS 识别、只读标签视图、`Apply.cs`/`SaveChangesAsPatch.cs` 内部按块暂存底层复用，以及 `CherryPickInProgress`/`GitInProgressKind.Bisect` 外部冲突状态只读拦截。
+- 清理 `src/ViewModels/FileHistories.cs` 残留 `_changes` 字段与 `src/Resources/Icons.axaml` 中 18 个未引用图标；在 `en_US.axaml` 与 `zh_CN.axaml` 增补只读标签页所需的 `Text.Tag.Annotated`（`"Annotated"` / `"附注标签"`），同时完整移除 224 条失效功能词条并校验双语零差集（`en=1411 zh=1411 diff=0`）。
+- 同步更新 `THIRD-PARTY-LICENSES.md`、[依赖清单](dependency-inventory.md) 与 [依赖快照](dependency-snapshot.json)（Windows x64 Release 发布集合由基线 49 个 NuGet 包精简为 32 个包）；将阶段临时文件移入回收站。
+- 新增 `tests/GitNest.IntegrationTests/Phase41TrimTests.cs` 与 `tests/GitNest.UIProbe/TrimmedSurfaceProbe.cs`（接入 `probe-gitnest.ps1 -TrimSurface`）。末次代码改动后验证：`.\build\scripts\build-gitnest.ps1 -Publish`（**0** 警告 **0** 错误，产出 `artifacts/windows-x64/GitNest.exe`）、`.\build\scripts\test-gitnest.ps1`（**370 / 370** 通过）、`.\build\scripts\probe-gitnest.ps1 -TrimSurface`（**24 / 24** 通过，逐张核对 `artifacts/probes/phase-4.1/` 下 4 张截图），并复测 `-Config`（**13 / 13**）、`-ConfigRefresh`（**4 / 4**）、`-CommitSync`（**11 / 11**）、`-OperationRecovery`（**13 / 13**）与 `-Comparison`（**30 / 30**）回归探针均通过；详情见 [phase-4.1.md](verification/phase-4.1.md)。
+- 批次 4.1 完成；接续进入批次 4.2（Windows x64 安装包、升级、卸载及高 DPI 验证）。

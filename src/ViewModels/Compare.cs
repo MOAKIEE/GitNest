@@ -271,17 +271,6 @@ namespace SourceGit.ViewModels
                 await new Commands.Checkout(_repo.FullPath).MultipleFilesWithRevisionAsync(checkouts, _toHead.SHA);
         }
 
-        public async Task<bool> SaveChangesAsPatchAsync(List<Models.Change> changes, string saveTo)
-        {
-            return await Commands.SaveChangesAsPatch.ProcessRevisionCompareChangesAsync(_repo.FullPath, changes, _based, _to, saveTo);
-        }
-
-        public void CherryPick(List<Models.Commit> commits)
-        {
-            if (_repo.CanCreatePopup())
-                _repo.ShowPopup(new CherryPick(_repo, commits));
-        }
-
         private void UpdatePickableCommits()
         {
             IsLoadingPickableCommits = true;

@@ -284,11 +284,6 @@ namespace SourceGit.Views
                                 repo.ShowPopup(new ViewModels.CreateBranch(repo, bc));
                             e.Handled = true;
                             return;
-                        case Key.T when e.KeyModifiers.HasFlag(KeyModifiers.Shift):
-                            if (repo.CanCreatePopup() && repo.GetSelectedCommitInHistory() is { } tc)
-                                repo.ShowPopup(new ViewModels.CreateTag(repo, tc));
-                            e.Handled = true;
-                            return;
                         case Key.E:
                             Native.OS.OpenInFileManager(repo.FullPath);
                             e.Handled = true;

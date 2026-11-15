@@ -42,19 +42,7 @@ namespace SourceGit.Models
             set;
         } = false;
 
-        public string PreferredOpenAIService
-        {
-            get;
-            set;
-        } = "---";
-
         public AvaloniaList<CommitTemplate> CommitTemplates
-        {
-            get;
-            set;
-        } = [];
-
-        public AvaloniaList<CustomAction> CustomActions
         {
             get;
             set;
@@ -114,33 +102,6 @@ namespace SourceGit.Models
             {
                 // Ignore save errors
             }
-        }
-
-        public CustomAction AddNewCustomAction()
-        {
-            var act = new CustomAction() { Name = "Unnamed Action" };
-            CustomActions.Add(act);
-            return act;
-        }
-
-        public void RemoveCustomAction(CustomAction act)
-        {
-            if (act != null)
-                CustomActions.Remove(act);
-        }
-
-        public void MoveCustomActionUp(CustomAction act)
-        {
-            var idx = CustomActions.IndexOf(act);
-            if (idx > 0)
-                CustomActions.Move(idx - 1, idx);
-        }
-
-        public void MoveCustomActionDown(CustomAction act)
-        {
-            var idx = CustomActions.IndexOf(act);
-            if (idx < CustomActions.Count - 1)
-                CustomActions.Move(idx + 1, idx);
         }
 
         private static string HashContent(string source)

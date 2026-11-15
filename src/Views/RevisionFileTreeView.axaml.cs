@@ -731,33 +731,6 @@ namespace SourceGit.Views
                 }
             }
 
-            var actions = repo.GetCustomActions(Models.CustomActionScope.File);
-            if (actions.Count > 0)
-            {
-                var target = new Models.CustomActionTargetFile(file.Path, vm.Commit);
-                var custom = new MenuItem();
-                custom.Header = App.Text("FileCM.CustomAction");
-                custom.Icon = this.CreateMenuIcon("Icons.Action");
-
-                foreach (var action in actions)
-                {
-                    var (dup, label) = action;
-                    var item = new MenuItem();
-                    item.Icon = this.CreateMenuIcon("Icons.Action");
-                    item.Header = label;
-                    item.Click += async (_, e) =>
-                    {
-                        await repo.ExecCustomActionAsync(dup, target);
-                        e.Handled = true;
-                    };
-
-                    custom.Items.Add(item);
-                }
-
-                menu.Items.Add(custom);
-                menu.Items.Add(new MenuItem() { Header = "-" });
-            }
-
             var copyPath = new MenuItem();
             copyPath.Header = App.Text("CopyPath");
             copyPath.Icon = this.CreateMenuIcon("Icons.Copy");

@@ -776,23 +776,6 @@ namespace SourceGit.Views
                     menu.Items.Add(this.CreateRewriteRemoteMenuItem(repo, branch, upstream));
                 menu.Items.Add(new MenuItem() { Header = "-" });
 
-                var type = repo.GetGitFlowType(branch);
-                if (type != Models.GitFlowBranchType.None)
-                {
-                    var finish = new MenuItem();
-                    finish.Header = App.Text("BranchCM.Finish", branch.Name);
-                    finish.Icon = this.CreateMenuIcon("Icons.GitFlow.Finish");
-                    finish.IsEnabled = !repo.IsBare;
-                    finish.Click += (_, e) =>
-                    {
-                        if (repo.CanCreatePopup())
-                            repo.ShowPopup(new ViewModels.GitFlowFinish(repo, branch, type));
-                        e.Handled = true;
-                    };
-                    menu.Items.Add(finish);
-                    menu.Items.Add(new MenuItem() { Header = "-" });
-                }
-
                 if (upstream != null)
                 {
                     var compareWithUpstream = new MenuItem();
@@ -828,21 +811,6 @@ namespace SourceGit.Views
                     e.Handled = true;
                 };
                 menu.Items.Add(checkout);
-
-                if (hasNoWorktree)
-                {
-                    var checkoutAsWorktree = new MenuItem();
-                    checkoutAsWorktree.Header = App.Text("BranchCM.CheckoutAsWorktree", branch.Name);
-                    checkoutAsWorktree.Icon = this.CreateMenuIcon("Icons.Worktree.Add");
-                    checkoutAsWorktree.Click += (_, e) =>
-                    {
-                        if (repo.CanCreatePopup())
-                            repo.ShowPopup(new ViewModels.CheckoutAsWorktree(repo, branch));
-
-                        e.Handled = true;
-                    };
-                    menu.Items.Add(checkoutAsWorktree);
-                }
                 menu.Items.Add(new MenuItem() { Header = "-" });
 
                 if (upstream != null && hasNoWorktree)
@@ -901,38 +869,9 @@ namespace SourceGit.Views
                         e.Handled = true;
                     };
 
-                    var interactiveRebase = new MenuItem();
-                    interactiveRebase.Header = App.Text("BranchCM.InteractiveRebase.Manually", current.Name, branch.Name);
-                    interactiveRebase.Icon = this.CreateMenuIcon("Icons.InteractiveRebase");
-                    interactiveRebase.IsEnabled = !current.Head.Equals(branch.Head, StringComparison.Ordinal);
-                    interactiveRebase.Click += async (_, e) =>
-                    {
-                        var commit = await new Commands.QuerySingleCommit(repo.FullPath, branch.Head).GetResultAsync();
-                        await this.ShowDialogAsync(new ViewModels.InteractiveRebase(repo, commit));
-                        e.Handled = true;
-                    };
-
                     menu.Items.Add(merge);
                     menu.Items.Add(rebase);
                     menu.Items.Add(new MenuItem() { Header = "-" });
-                    menu.Items.Add(interactiveRebase);
-
-                    var type = repo.GetGitFlowType(branch);
-                    if (type != Models.GitFlowBranchType.None)
-                    {
-                        var finish = new MenuItem();
-                        finish.Header = App.Text("BranchCM.Finish", branch.Name);
-                        finish.Icon = this.CreateMenuIcon("Icons.GitFlow.Finish");
-                        finish.IsEnabled = !repo.IsBare || !hasNoWorktree;
-                        finish.Click += (_, e) =>
-                        {
-                            if (repo.CanCreatePopup())
-                                repo.ShowPopup(new ViewModels.GitFlowFinish(repo, branch, type));
-                            e.Handled = true;
-                        };
-                        menu.Items.Add(new MenuItem() { Header = "-" });
-                        menu.Items.Add(finish);
-                    }
                 }
 
                 if (hasNoWorktree)
@@ -1039,39 +978,9 @@ namespace SourceGit.Views
                 e.Handled = true;
             };
 
-            var createTag = new MenuItem();
-            createTag.Icon = this.CreateMenuIcon("Icons.Tag.Add");
-            createTag.Header = App.Text("CreateTag");
-            createTag.Click += (_, e) =>
-            {
-                if (repo.CanCreatePopup())
-                    repo.ShowPopup(new ViewModels.CreateTag(repo, branch));
-                e.Handled = true;
-            };
-
             menu.Items.Add(new MenuItem() { Header = "-" });
             menu.Items.Add(createBranch);
-            menu.Items.Add(createTag);
-
-            if (upstream != null)
-            {
-                var remote = repo.Remotes.Find(x => x.Name.Equals(upstream.Remote, StringComparison.Ordinal));
-                if (remote != null && remote.TryGetCreatePullRequestURL(out var prURL, upstream.Name))
-                {
-                    var createPR = new MenuItem();
-                    createPR.Header = App.Text("BranchCM.CreatePRForUpstream", upstream.FriendlyName);
-                    createPR.Icon = this.CreateMenuIcon("Icons.CreatePR");
-                    createPR.Click += (_, e) =>
-                    {
-                        Native.OS.OpenBrowser(prURL);
-                        e.Handled = true;
-                    };
-
-                    menu.Items.Add(createPR);
-                }
-            }
             menu.Items.Add(new MenuItem() { Header = "-" });
-            TryToAddCustomActionsToBranchContextMenu(repo, menu, branch);
 
             if (!repo.IsBare)
             {
@@ -1225,7 +1134,6 @@ namespace SourceGit.Views
             menu.Items.Add(setPushURL);
             menu.Items.Add(delete);
             menu.Items.Add(new MenuItem() { Header = "-" });
-            TryToAddCustomActionsToRemoteContextMenu(repo, menu, remote);
             menu.Items.Add(copy);
             return menu;
         }
@@ -1245,18 +1153,6 @@ namespace SourceGit.Views
                 e.Handled = true;
             };
             menu.Items.Add(checkout);
-
-            var checkoutAsWorktree = new MenuItem();
-            checkoutAsWorktree.Header = App.Text("BranchCM.CheckoutAsWorktree", name);
-            checkoutAsWorktree.Icon = this.CreateMenuIcon("Icons.Worktree.Add");
-            checkoutAsWorktree.Click += (_, e) =>
-            {
-                if (repo.CanCreatePopup())
-                    repo.ShowPopup(new ViewModels.CheckoutRemoteBranchAsWorktree(repo, branch));
-
-                e.Handled = true;
-            };
-            menu.Items.Add(checkoutAsWorktree);
             menu.Items.Add(new MenuItem() { Header = "-" });
 
             if (repo.CurrentBranch is { } current)
@@ -1291,17 +1187,6 @@ namespace SourceGit.Views
                     e.Handled = true;
                 };
 
-                var interactiveRebase = new MenuItem();
-                interactiveRebase.Header = App.Text("BranchCM.InteractiveRebase.Manually", current.Name, name);
-                interactiveRebase.Icon = this.CreateMenuIcon("Icons.InteractiveRebase");
-                interactiveRebase.IsEnabled = !current.Head.Equals(branch.Head, StringComparison.Ordinal);
-                interactiveRebase.Click += async (_, e) =>
-                {
-                    var commit = await new Commands.QuerySingleCommit(repo.FullPath, branch.Head).GetResultAsync();
-                    await this.ShowDialogAsync(new ViewModels.InteractiveRebase(repo, commit));
-                    e.Handled = true;
-                };
-
                 var compareWithHead = new MenuItem();
                 compareWithHead.Header = App.Text("BranchCM.CompareWithHead");
                 compareWithHead.Icon = this.CreateMenuIcon("Icons.Compare");
@@ -1321,8 +1206,6 @@ namespace SourceGit.Views
                 menu.Items.Add(pull);
                 menu.Items.Add(merge);
                 menu.Items.Add(rebase);
-                menu.Items.Add(new MenuItem() { Header = "-" });
-                menu.Items.Add(interactiveRebase);
                 menu.Items.Add(new MenuItem() { Header = "-" });
                 menu.Items.Add(compareWithHead);
                 menu.Items.Add(compareWith);
@@ -1366,33 +1249,7 @@ namespace SourceGit.Views
                 e.Handled = true;
             };
 
-            var createTag = new MenuItem();
-            createTag.Icon = this.CreateMenuIcon("Icons.Tag.Add");
-            createTag.Header = App.Text("CreateTag");
-            createTag.Click += (_, e) =>
-            {
-                if (repo.CanCreatePopup())
-                    repo.ShowPopup(new ViewModels.CreateTag(repo, branch));
-                e.Handled = true;
-            };
-
             menu.Items.Add(createBranch);
-            menu.Items.Add(createTag);
-
-            var remote = repo.Remotes.Find(x => x.Name.Equals(branch.Remote, StringComparison.Ordinal));
-            if (remote != null && remote.TryGetCreatePullRequestURL(out var prURL, branch.Name))
-            {
-                var createPR = new MenuItem();
-                createPR.Header = App.Text("BranchCM.CreatePR");
-                createPR.Icon = this.CreateMenuIcon("Icons.CreatePR");
-                createPR.Click += (_, e) =>
-                {
-                    Native.OS.OpenBrowser(prURL);
-                    e.Handled = true;
-                };
-
-                menu.Items.Add(createPR);
-            }
 
             menu.Items.Add(new MenuItem() { Header = "-" });
 
@@ -1418,67 +1275,8 @@ namespace SourceGit.Views
 
             menu.Items.Add(archive);
             menu.Items.Add(new MenuItem() { Header = "-" });
-            TryToAddCustomActionsToBranchContextMenu(repo, menu, branch);
             menu.Items.Add(copy);
             return menu;
-        }
-
-        private void TryToAddCustomActionsToBranchContextMenu(ViewModels.Repository repo, ContextMenu menu, Models.Branch branch)
-        {
-            var actions = repo.GetCustomActions(Models.CustomActionScope.Branch);
-            if (actions.Count == 0)
-                return;
-
-            var custom = new MenuItem();
-            custom.Header = App.Text("BranchCM.CustomAction");
-            custom.Icon = this.CreateMenuIcon("Icons.Action");
-
-            foreach (var action in actions)
-            {
-                var (dup, label) = action;
-                var item = new MenuItem();
-                item.Icon = this.CreateMenuIcon("Icons.Action");
-                item.Header = label;
-                item.Click += async (_, e) =>
-                {
-                    await repo.ExecCustomActionAsync(dup, branch);
-                    e.Handled = true;
-                };
-
-                custom.Items.Add(item);
-            }
-
-            menu.Items.Add(custom);
-            menu.Items.Add(new MenuItem() { Header = "-" });
-        }
-
-        private void TryToAddCustomActionsToRemoteContextMenu(ViewModels.Repository repo, ContextMenu menu, Models.Remote remote)
-        {
-            var actions = repo.GetCustomActions(Models.CustomActionScope.Remote);
-            if (actions.Count == 0)
-                return;
-
-            var custom = new MenuItem();
-            custom.Header = App.Text("RemoteCM.CustomAction");
-            custom.Icon = this.CreateMenuIcon("Icons.Action");
-
-            foreach (var action in actions)
-            {
-                var (dup, label) = action;
-                var item = new MenuItem();
-                item.Icon = this.CreateMenuIcon("Icons.Action");
-                item.Header = label;
-                item.Click += async (_, e) =>
-                {
-                    await repo.ExecCustomActionAsync(dup, remote);
-                    e.Handled = true;
-                };
-
-                custom.Items.Add(item);
-            }
-
-            menu.Items.Add(custom);
-            menu.Items.Add(new MenuItem() { Header = "-" });
         }
 
         private List<ViewModels.BranchTreeNode> _nodes = null;

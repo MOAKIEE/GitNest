@@ -118,7 +118,7 @@
                 IsVisible="{Binding !IsAnnotated}"/>
           <TextBlock FontWeight="Bold" Margin="6,0,0,0" Text="{Binding Name}"/>
           <Border Background="Green" Margin="4,0,0,0" CornerRadius="4" IsVisible="{Binding IsAnnotated}">
-            <TextBlock Text="{DynamicResource Text.CreateTag.Type.Annotated}" Margin="4,0" Foreground="White"/>
+            <TextBlock Text="{DynamicResource Text.Tag.Annotated}" Margin="4,0" Foreground="White"/>
           </Border>
         </StackPanel>
 

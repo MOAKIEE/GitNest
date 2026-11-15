@@ -505,16 +505,6 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
-        private async void OnBisectCommand(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button button &&
-                DataContext is ViewModels.Repository { IsBisectCommandRunning: false } repo &&
-                repo.CanCreatePopup())
-                await repo.ExecBisectCommandAsync(button.Tag as string);
-
-            e.Handled = true;
-        }
-
         private async void OnOpenRecoveryLogs(object sender, RoutedEventArgs e)
         {
             if (DataContext is ViewModels.Repository repo)

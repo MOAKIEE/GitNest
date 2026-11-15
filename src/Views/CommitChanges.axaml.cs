@@ -95,37 +95,6 @@ namespace SourceGit.Views
                 ev.Handled = true;
             };
 
-            var patch = new MenuItem();
-            patch.Header = App.Text("FileCM.SaveAsPatch");
-            patch.Icon = this.CreateMenuIcon("Icons.Save");
-            patch.Click += async (_, e) =>
-            {
-                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
-                if (storageProvider == null)
-                    return;
-
-                var options = new FilePickerSaveOptions();
-                options.Title = App.Text("FileCM.SaveAsPatch");
-                options.DefaultExtension = ".patch";
-                options.FileTypeChoices = [new FilePickerFileType("Patch File") { Patterns = ["*.patch"] }];
-
-                try
-                {
-                    var storageFile = await storageProvider.SaveFilePickerAsync(options);
-                    if (storageFile != null)
-                    {
-                        var saveTo = storageFile.Path.LocalPath;
-                        await vm.SaveChangesAsPatchAsync(changes, saveTo);
-                    }
-                }
-                catch (Exception exception)
-                {
-                    repo.SendNotification($"Failed to save as patch: {exception.Message}", true);
-                }
-
-                e.Handled = true;
-            };
-
             var copyPath = new MenuItem();
             copyPath.Header = App.Text("CopyPath");
             copyPath.Icon = this.CreateMenuIcon("Icons.Copy");
@@ -150,7 +119,6 @@ namespace SourceGit.Views
             menu.Items.Add(explore);
             menu.Items.Add(new MenuItem { Header = "-" });
             menu.Items.Add(history);
-            menu.Items.Add(patch);
             menu.Items.Add(new MenuItem { Header = "-" });
             menu.Items.Add(copyPath);
             menu.Items.Add(copyFullPath);
@@ -162,37 +130,6 @@ namespace SourceGit.Views
         {
             if (DataContext is not ViewModels.CommitDetail { Repository: { } repo, Commit: { } commit } vm)
                 return null;
-
-            var patch = new MenuItem();
-            patch.Header = App.Text("FileCM.SaveAsPatch");
-            patch.Icon = this.CreateMenuIcon("Icons.Save");
-            patch.Click += async (_, e) =>
-            {
-                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
-                if (storageProvider == null)
-                    return;
-
-                var options = new FilePickerSaveOptions();
-                options.Title = App.Text("FileCM.SaveAsPatch");
-                options.DefaultExtension = ".patch";
-                options.FileTypeChoices = [new FilePickerFileType("Patch File") { Patterns = ["*.patch"] }];
-
-                try
-                {
-                    var storageFile = await storageProvider.SaveFilePickerAsync(options);
-                    if (storageFile != null)
-                    {
-                        var saveTo = storageFile.Path.LocalPath;
-                        await vm.SaveChangesAsPatchAsync([change], saveTo);
-                    }
-                }
-                catch (Exception exception)
-                {
-                    repo.SendNotification($"Failed to save as patch: {exception.Message}", true);
-                }
-
-                e.Handled = true;
-            };
 
             var copyPath = new MenuItem();
             copyPath.Header = App.Text("CopyPath");
@@ -215,8 +152,6 @@ namespace SourceGit.Views
             };
 
             var menu = new ContextMenu();
-            menu.Items.Add(patch);
-            menu.Items.Add(new MenuItem { Header = "-" });
             menu.Items.Add(copyPath);
             menu.Items.Add(copyFullPath);
 
@@ -228,40 +163,7 @@ namespace SourceGit.Views
             if (DataContext is not ViewModels.CommitDetail { Repository: { } repo, Commit: { } commit } vm)
                 return null;
 
-            var patch = new MenuItem();
-            patch.Header = App.Text("FileCM.SaveAsPatch");
-            patch.Icon = this.CreateMenuIcon("Icons.Save");
-            patch.Click += async (_, e) =>
-            {
-                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
-                if (storageProvider == null)
-                    return;
-
-                var options = new FilePickerSaveOptions();
-                options.Title = App.Text("FileCM.SaveAsPatch");
-                options.DefaultExtension = ".patch";
-                options.FileTypeChoices = [new FilePickerFileType("Patch File") { Patterns = ["*.patch"] }];
-
-                try
-                {
-                    var storageFile = await storageProvider.SaveFilePickerAsync(options);
-                    if (storageFile != null)
-                    {
-                        var saveTo = storageFile.Path.LocalPath;
-                        await vm.SaveChangesAsPatchAsync(changes, saveTo);
-                    }
-                }
-                catch (Exception exception)
-                {
-                    repo.SendNotification($"Failed to save as patch: {exception.Message}", true);
-                }
-
-                e.Handled = true;
-            };
-
             var menu = new ContextMenu();
-            menu.Items.Add(patch);
-            menu.Items.Add(new MenuItem() { Header = "-" });
 
             if (!repo.IsBare)
             {

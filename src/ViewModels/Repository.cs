@@ -42,12 +42,6 @@ namespace SourceGit.ViewModels
             get => _uiStates;
         }
 
-        public Models.GitFlow GitFlow
-        {
-            get;
-            set;
-        } = new();
-
         public bool FocusOnCurrentBranch
         {
             get => _uiStates.FocusOnCurrentBranch;
@@ -427,18 +421,6 @@ namespace SourceGit.ViewModels
             get => _workingCopy is { InProgressContext: { }, IsCommitting: true };
         }
 
-        public Models.BisectState BisectState
-        {
-            get => _bisectState;
-            private set => SetProperty(ref _bisectState, value);
-        }
-
-        public bool IsBisectCommandRunning
-        {
-            get => _isBisectCommandRunning;
-            private set => SetProperty(ref _isBisectCommandRunning, value);
-        }
-
         public bool IsAutoFetching
         {
             get => _isAutoFetching;
@@ -600,28 +582,6 @@ namespace SourceGit.ViewModels
                 await page.ProcessPopupAsync();
         }
 
-        public bool IsGitFlowEnabled()
-        {
-            return GitFlow is { IsValid: true } &&
-                _branches.Find(x => x.IsLocal && x.Name.Equals(GitFlow.ProductionBranch, StringComparison.Ordinal)) != null &&
-                _branches.Find(x => x.IsLocal && x.Name.Equals(GitFlow.DevelopmentBranch, StringComparison.Ordinal)) != null;
-        }
-
-        public Models.GitFlowBranchType GetGitFlowType(Models.Branch b)
-        {
-            if (!IsGitFlowEnabled())
-                return Models.GitFlowBranchType.None;
-
-            var name = b.Name;
-            if (name.StartsWith(GitFlow.FeaturePrefix, StringComparison.Ordinal))
-                return Models.GitFlowBranchType.Feature;
-            if (name.StartsWith(GitFlow.ReleasePrefix, StringComparison.Ordinal))
-                return Models.GitFlowBranchType.Release;
-            if (name.StartsWith(GitFlow.HotfixPrefix, StringComparison.Ordinal))
-                return Models.GitFlowBranchType.Hotfix;
-            return Models.GitFlowBranchType.None;
-        }
-
         public bool IsLFSEnabled()
         {
             var path = Path.Combine(GitDir, "hooks", "pre-push");
@@ -762,7 +722,6 @@ namespace SourceGit.ViewModels
                     IssueTrackers.Clear();
                     IssueTrackers.AddRange(issuetrackers);
                     _hasAllowedSignersFile = config.TryGetValue("gpg.ssh.allowedsignersfile", out var allowedSignersFile) && !string.IsNullOrEmpty(allowedSignersFile);
-                    GitFlow.Parse(config);
                     ConfigurationStateChanged?.Invoke();
                 });
             }, token);
@@ -830,24 +789,6 @@ namespace SourceGit.ViewModels
                 await ShowAndStartPopupAsync(new Push(this, null));
             else
                 ShowPopup(new Push(this, null));
-        }
-
-        public void ApplyPatch()
-        {
-            if (CanCreatePopup())
-                ShowPopup(new Apply(this));
-        }
-
-        public async Task ExecCustomActionAsync(Models.CustomAction action, object scopeTarget)
-        {
-            if (!CanCreatePopup())
-                return;
-
-            var popup = new ExecuteCustomAction(this, action, scopeTarget);
-            if (action.Controls.Count == 0)
-                await ShowAndStartPopupAsync(popup);
-            else
-                ShowPopup(popup);
         }
 
         public async Task CleanupAsync()
@@ -1369,46 +1310,6 @@ namespace SourceGit.ViewModels
             await wc.AbortMergeAsync();
         }
 
-        public List<(Models.CustomAction, CustomActionContextMenuLabel)> GetCustomActions(Models.CustomActionScope scope)
-        {
-            var actions = new List<(Models.CustomAction, CustomActionContextMenuLabel)>();
-
-            foreach (var act in Preferences.Instance.CustomActions)
-            {
-                if (act.Scope == scope)
-                    actions.Add((act, new CustomActionContextMenuLabel(act.Name, true)));
-            }
-
-            foreach (var act in _settings.CustomActions)
-            {
-                if (act.Scope == scope)
-                    actions.Add((act, new CustomActionContextMenuLabel(act.Name, false)));
-            }
-
-            return actions;
-        }
-
-        public async Task ExecBisectCommandAsync(string subcmd)
-        {
-            using var lockWatcher = _watcher?.Lock();
-            IsBisectCommandRunning = true;
-
-            var log = CreateLog($"Bisect({subcmd})");
-
-            var succ = await new Commands.Bisect(FullPath, subcmd).Use(log).ExecAsync();
-            log.Complete();
-
-            var head = await new Commands.QueryRevisionByRefName(FullPath, "HEAD").GetResultAsync();
-            if (!succ)
-                SendNotification(log.Content.Substring(log.Content.IndexOf('\n')).Trim(), true);
-            else if (log.Content.Contains("is the first bad commit"))
-                SendNotification(log.Content.Substring(log.Content.IndexOf('\n')).Trim());
-
-            MarkBranchesDirtyManually();
-            NavigateToCommit(head, true);
-            IsBisectCommandRunning = false;
-        }
-
         public bool MayHaveSubmodules()
         {
             var modulesFile = Path.Combine(FullPath, ".gitmodules");
@@ -1574,7 +1475,6 @@ namespace SourceGit.ViewModels
                     {
                         _histories.IsLoading = false;
                         _histories.Commits = commits;
-                        BisectState = _histories.UpdateBisectInfo();
 
                         if (!string.IsNullOrEmpty(_navigateToCommitDelayed))
                             NavigateToCommit(_navigateToCommitDelayed);
@@ -1813,24 +1713,6 @@ namespace SourceGit.ViewModels
                 ShowPopup(new MergeMultiple(this, branches));
         }
 
-        public void CreateNewTag()
-        {
-            if (_currentBranch == null)
-            {
-                SendNotification("Git cannot create a tag before your first commit.", true);
-                return;
-            }
-
-            if (CanCreatePopup())
-                ShowPopup(new CreateTag(this, _currentBranch));
-        }
-
-        public void DeleteTag(Models.Tag tag)
-        {
-            if (CanCreatePopup())
-                ShowPopup(new DeleteTag(this, tag));
-        }
-
         public void AddRemote()
         {
             if (CanCreatePopup())
@@ -1849,18 +1731,6 @@ namespace SourceGit.ViewModels
             var succ = await new Commands.Config(FullPath).SetAsync($"remote.{remote.Name.Quoted()}.disableautofetch", val);
             if (succ)
                 remote.DisableAutoFetch = !remote.DisableAutoFetch;
-        }
-
-        public void AddSubmodule()
-        {
-            if (CanCreatePopup())
-                ShowPopup(new AddSubmodule(this));
-        }
-
-        public void UpdateSubmodules()
-        {
-            if (CanCreatePopup())
-                ShowPopup(new UpdateSubmodules(this, null));
         }
 
         public async Task AutoUpdateSubmodulesAsync(Models.ICommandLog log)
@@ -1899,12 +1769,6 @@ namespace SourceGit.ViewModels
 
             var fullpath = Path.GetFullPath(Path.Combine(FullPath, submodule));
             App.GetLauncher().OpenSubRepository(selfPage, fullpath);
-        }
-
-        public void AddWorktree()
-        {
-            if (CanCreatePopup())
-                ShowPopup(new AddWorktree(this));
         }
 
         public Task PruneWorktreesAsync()
@@ -1953,61 +1817,6 @@ namespace SourceGit.ViewModels
             if (succ)
                 worktree.IsLocked = false;
             log.Complete();
-        }
-
-        public List<AI.Service> GetPreferredOpenAIServices()
-        {
-            var services = Preferences.Instance.OpenAIServices;
-            if (services == null || services.Count == 0)
-                return [];
-
-            if (services.Count == 1)
-                return [services[0]];
-
-            var preferred = _settings.PreferredOpenAIService;
-            var all = new List<AI.Service>();
-            foreach (var service in services)
-            {
-                if (service.Name.Equals(preferred, StringComparison.Ordinal))
-                    return [service];
-
-                all.Add(service);
-            }
-
-            return all;
-        }
-
-        public async Task<bool> SaveCommitAsPatchAsync(Models.Commit commit, string folder, int index = 0)
-        {
-            var ignoredChars = new HashSet<char> { '/', '\\', ':', ',', '*', '?', '\"', '<', '>', '|', '`', '$', '^', '%', '[', ']', '+', '-' };
-            var builder = new StringBuilder();
-            builder.Append(index.ToString("D4"));
-            builder.Append('-');
-
-            var chars = commit.Subject.ToCharArray();
-            var len = 0;
-            foreach (var c in chars)
-            {
-                if (!ignoredChars.Contains(c))
-                {
-                    if (c == ' ' || c == '\t')
-                        builder.Append('-');
-                    else
-                        builder.Append(c);
-
-                    len++;
-
-                    if (len >= 48)
-                        break;
-                }
-            }
-            builder.Append(".patch");
-
-            var saveTo = Path.Combine(folder, builder.ToString());
-            var log = CreateLog("Save Commit as Patch");
-            var succ = await new Commands.FormatPatch(FullPath, commit.SHA, saveTo).Use(log).ExecAsync();
-            log.Complete();
-            return succ;
         }
 
         internal LauncherPage GetOwnerPage()
@@ -2340,9 +2149,6 @@ namespace SourceGit.ViewModels
         private DateTime _lastWindowActivationRefreshUtc = DateTime.MinValue;
         private Models.OperationReconciliationReport _pendingReconciliation = null;
         private string _dismissedRecoveryKey = string.Empty;
-
-        private Models.BisectState _bisectState = Models.BisectState.None;
-        private bool _isBisectCommandRunning = false;
 
         private CancellationTokenSource _cancellationRefreshBranches = null;
         private CancellationTokenSource _cancellationRefreshTags = null;

@@ -127,30 +127,6 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
-        private async void SelectExecutableForCustomAction(object sender, RoutedEventArgs e)
-        {
-            var options = new FilePickerOpenOptions()
-            {
-                AllowMultiple = false,
-                FileTypeFilter = [new("Executable file(script)") { Patterns = ["*"] }]
-            };
-
-            var selected = await StorageProvider.OpenFilePickerAsync(options);
-            if (selected.Count == 1 && sender is Button { DataContext: Models.CustomAction action })
-                action.Executable = selected[0].Path.LocalPath;
-
-            e.Handled = true;
-        }
-
-        private async void EditCustomActionControls(object sender, RoutedEventArgs e)
-        {
-            if (sender is not Button { DataContext: Models.CustomAction act })
-                return;
-
-            await this.ShowDialogAsync(new ViewModels.ConfigureCustomActionControls(act.Controls));
-            e.Handled = true;
-        }
-
         private void OnNewCustomIssueTracker(object sender, RoutedEventArgs e)
         {
             if (DataContext is ViewModels.RepositoryConfigure vm)

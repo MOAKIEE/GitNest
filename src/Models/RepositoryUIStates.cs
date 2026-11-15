@@ -129,24 +129,6 @@ namespace SourceGit.Models
             set;
         } = false;
 
-        public bool CreateAnnotatedTag
-        {
-            get;
-            set;
-        } = true;
-
-        public bool PushToRemoteWhenCreateTag
-        {
-            get;
-            set;
-        } = true;
-
-        public bool PushToRemoteWhenDeleteTag
-        {
-            get;
-            set;
-        } = false;
-
         public bool CheckoutBranchOnCreateBranch
         {
             get;

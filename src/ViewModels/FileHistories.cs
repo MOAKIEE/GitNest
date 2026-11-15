@@ -202,17 +202,9 @@ namespace SourceGit.ViewModels
             ViewContent = new(_repo, new(_startPoint, _endPoint), _viewContent);
         }
 
-        public async Task<bool> SaveAsPatch(string saveTo)
-        {
-            return await Commands.SaveChangesAsPatch
-                .ProcessRevisionCompareChangesAsync(_repo, _changes, _startPoint.SHA, _endPoint.SHA, saveTo)
-                .ConfigureAwait(false);
-        }
-
         private string _repo = null;
         private Models.FileVersion _startPoint = null;
         private Models.FileVersion _endPoint = null;
-        private List<Models.Change> _changes = [];
         private DiffContext _viewContent = null;
     }
 

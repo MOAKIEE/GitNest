@@ -112,37 +112,6 @@ namespace SourceGit.Views
                 ev.Handled = true;
             };
 
-            var patch = new MenuItem();
-            patch.Header = App.Text("FileCM.SaveAsPatch");
-            patch.Icon = this.CreateMenuIcon("Icons.Save");
-            patch.Click += async (_, e) =>
-            {
-                var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
-                if (storageProvider == null)
-                    return;
-
-                var options = new FilePickerSaveOptions();
-                options.Title = App.Text("FileCM.SaveAsPatch");
-                options.DefaultExtension = ".patch";
-                options.FileTypeChoices = [new FilePickerFileType("Patch File") { Patterns = ["*.patch"] }];
-
-                try
-                {
-                    var storageFile = await storageProvider.SaveFilePickerAsync(options);
-                    if (storageFile != null)
-                    {
-                        var saveTo = storageFile.Path.LocalPath;
-                        await vm.SaveChangesAsPatchAsync([change], saveTo);
-                    }
-                }
-                catch (Exception exception)
-                {
-                    repo.SendNotification($"Failed to save as patch: {exception.Message}", true);
-                }
-
-                e.Handled = true;
-            };
-
             var menu = new ContextMenu();
             menu.Items.Add(openWith);
             menu.Items.Add(openWithMerger);
@@ -150,7 +119,6 @@ namespace SourceGit.Views
             menu.Items.Add(new MenuItem { Header = "-" });
             menu.Items.Add(history);
             menu.Items.Add(blame);
-            menu.Items.Add(patch);
             menu.Items.Add(new MenuItem { Header = "-" });
 
             if (!repo.IsBare)
@@ -243,33 +211,6 @@ namespace SourceGit.Views
                     menu.Items.Add(lfs);
                     menu.Items.Add(new MenuItem() { Header = "-" });
                 }
-            }
-
-            var actions = repo.GetCustomActions(Models.CustomActionScope.File);
-            if (actions.Count > 0)
-            {
-                var target = new Models.CustomActionTargetFile(change.Path, vm.Commit);
-                var custom = new MenuItem();
-                custom.Header = App.Text("FileCM.CustomAction");
-                custom.Icon = this.CreateMenuIcon("Icons.Action");
-
-                foreach (var action in actions)
-                {
-                    var (dup, label) = action;
-                    var item = new MenuItem();
-                    item.Icon = this.CreateMenuIcon("Icons.Action");
-                    item.Header = label;
-                    item.Click += async (_, e) =>
-                    {
-                        await repo.ExecCustomActionAsync(dup, target);
-                        e.Handled = true;
-                    };
-
-                    custom.Items.Add(item);
-                }
-
-                menu.Items.Add(custom);
-                menu.Items.Add(new MenuItem() { Header = "-" });
             }
 
             var copyPath = new MenuItem();

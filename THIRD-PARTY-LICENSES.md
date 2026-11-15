@@ -33,20 +33,6 @@ GitNest is based on SourceGit v2026.24 (MIT). The original copyright notice is r
 - **License**: MIT License
 - **License Link**: https://github.com/danipen/TextMateSharp/blob/master/LICENSE.md
 
-### OpenAI .NET SDK
-
-- **Source**: https://github.com/openai/openai-dotnet
-- **Version**: 2.10.0
-- **License**: MIT License
-- **License Link**: https://github.com/openai/openai-dotnet/blob/main/LICENSE
-
-### Azure.AI.OpenAI
-
-- **Source**: https://github.com/Azure/azure-sdk-for-net
-- **Version**: 2.9.0-beta.1
-- **License**: MIT License
-- **License Link**: https://github.com/Azure/azure-sdk-for-net/blob/main/LICENSE.txt
-
 ### CommunityToolkit.Mvvm
 
 - **Source**: https://github.com/CommunityToolkit/dotnet

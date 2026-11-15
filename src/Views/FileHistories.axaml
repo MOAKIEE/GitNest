@@ -187,7 +187,7 @@
 
           <DataTemplate DataType="vm:FileHistoriesCompareRevisions">
             <Grid RowDefinitions="Auto,*">
-              <Grid Grid.Row="0" Margin="4,6" ColumnDefinitions="*,32,*,Auto">
+              <Grid Grid.Row="0" Margin="4,6" ColumnDefinitions="*,32,*">
                 <Grid.DataTemplates>
                   <DataTemplate DataType="m:FileVersion">
                     <Grid RowDefinitions="Auto,*">
@@ -225,9 +225,6 @@
                   <ContentControl Content="{Binding EndPoint}"/>
                 </Border>
 
-                <Button Grid.Column="3" Classes="icon_button" Width="32" Click="OnSaveAsPatch" ToolTip.Tip="{DynamicResource Text.Diff.SaveAsPatch}">
-                  <Path Width="16" Height="16" Data="{DynamicResource Icons.Save}"/>
-                </Button>
               </Grid>
 
               <ContentControl Grid.Row="1" Margin="4,4,8,8" Content="{Binding ViewContent}">

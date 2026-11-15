@@ -458,18 +458,6 @@ namespace SourceGit.ViewModels
             set;
         } = [];
 
-        public AvaloniaList<Models.CustomAction> CustomActions
-        {
-            get;
-            set;
-        } = [];
-
-        public AvaloniaList<AI.Service> OpenAIServices
-        {
-            get;
-            set;
-        } = [];
-
         public double LastCheckUpdateTime
         {
             get => _lastCheckUpdateTime;

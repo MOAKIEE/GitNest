@@ -475,34 +475,6 @@ namespace SourceGit.Views
                         e.Handled = true;
                     };
 
-                    var patch = new MenuItem();
-                    patch.Header = App.Text("FileCM.SaveAsPatch");
-                    patch.Icon = this.CreateMenuIcon("Icons.Save");
-                    patch.Click += async (_, e) =>
-                    {
-                        var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
-                        if (storageProvider == null)
-                            return;
-
-                        var options = new FilePickerSaveOptions();
-                        options.Title = App.Text("FileCM.SaveAsPatch");
-                        options.DefaultExtension = ".patch";
-                        options.FileTypeChoices = [new FilePickerFileType("Patch File") { Patterns = ["*.patch"] }];
-
-                        try
-                        {
-                            var storageFile = await storageProvider.SaveFilePickerAsync(options);
-                            if (storageFile != null)
-                                await vm.SaveChangesToPatchAsync(changes, true, storageFile.Path.LocalPath);
-                        }
-                        catch (Exception exception)
-                        {
-                            repo.SendNotification($"Failed to save as patch: {exception.Message}", true);
-                        }
-
-                        e.Handled = true;
-                    };
-
                     var assumeUnchanged = new MenuItem();
                     assumeUnchanged.Header = App.Text("FileCM.AssumeUnchanged");
                     assumeUnchanged.Icon = this.CreateMenuIcon("Icons.File.Ignore");
@@ -532,7 +504,6 @@ namespace SourceGit.Views
                         };
                         menu.Items.Add(addTrackedToIgnore);
                     }
-                    menu.Items.Add(patch);
                     menu.Items.Add(assumeUnchanged);
                     menu.Items.Add(new MenuItem() { Header = "-" });
 
@@ -757,8 +728,6 @@ namespace SourceGit.Views
                     menu.Items.Add(new MenuItem() { Header = "-" });
                 }
 
-                TryToAddCustomActionsToContextMenu(repo, menu, change.Path);
-
                 var copy = new MenuItem();
                 copy.Header = App.Text("CopyPath");
                 copy.Icon = this.CreateMenuIcon("Icons.Copy");
@@ -875,40 +844,11 @@ namespace SourceGit.Views
                     e.Handled = true;
                 };
 
-                var patch = new MenuItem();
-                patch.Header = App.Text("FileCM.SaveAsPatch");
-                patch.Icon = this.CreateMenuIcon("Icons.Save");
-                patch.Click += async (_, e) =>
-                {
-                    var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
-                    if (storageProvider == null)
-                        return;
-
-                    var options = new FilePickerSaveOptions();
-                    options.Title = App.Text("FileCM.SaveAsPatch");
-                    options.DefaultExtension = ".patch";
-                    options.FileTypeChoices = [new FilePickerFileType("Patch File") { Patterns = ["*.patch"] }];
-
-                    try
-                    {
-                        var storageFile = await storageProvider.SaveFilePickerAsync(options);
-                        if (storageFile != null)
-                            await vm.SaveChangesToPatchAsync(changes, true, storageFile.Path.LocalPath);
-                    }
-                    catch (Exception exception)
-                    {
-                        repo.SendNotification($"Failed to save as patch: {exception.Message}", true);
-                    }
-
-                    e.Handled = true;
-                };
-
                 menu.Items.Add(stage);
                 menu.Items.Add(discard);
                 if (discardToHead != null)
                     menu.Items.Add(discardToHead);
                 menu.Items.Add(stash);
-                menu.Items.Add(patch);
 
                 if (selection.IsSingleFolder)
                 {
@@ -973,41 +913,6 @@ namespace SourceGit.Views
             var changes = selection.Changes;
             var menu = new ContextMenu();
 
-            MenuItem ai = null;
-            var services = repo.GetPreferredOpenAIServices();
-            if (services.Count > 0)
-            {
-                ai = new MenuItem();
-                ai.Icon = this.CreateMenuIcon("Icons.AIAssist");
-                ai.Header = App.Text("ChangeCM.GenerateCommitMessage");
-
-                if (services.Count == 1)
-                {
-                    ai.Click += (_, e) =>
-                    {
-                        DoOpenAIAssistant(repo, services[0], changes);
-                        e.Handled = true;
-                    };
-                }
-                else
-                {
-                    foreach (var service in services)
-                    {
-                        var dup = service;
-
-                        var item = new MenuItem();
-                        item.Header = service.Name;
-                        item.Click += (_, e) =>
-                        {
-                            DoOpenAIAssistant(repo, dup, changes);
-                            e.Handled = true;
-                        };
-
-                        ai.Items.Add(item);
-                    }
-                }
-            }
-
             if (changes.Count == 1)
             {
                 var change = changes[0];
@@ -1071,34 +976,6 @@ namespace SourceGit.Views
                     e.Handled = true;
                 };
 
-                var patch = new MenuItem();
-                patch.Header = App.Text("FileCM.SaveAsPatch");
-                patch.Icon = this.CreateMenuIcon("Icons.Save");
-                patch.Click += async (_, e) =>
-                {
-                    var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
-                    if (storageProvider == null)
-                        return;
-
-                    var options = new FilePickerSaveOptions();
-                    options.Title = App.Text("FileCM.SaveAsPatch");
-                    options.DefaultExtension = ".patch";
-                    options.FileTypeChoices = [new FilePickerFileType("Patch File") { Patterns = ["*.patch"] }];
-
-                    try
-                    {
-                        var storageFile = await storageProvider.SaveFilePickerAsync(options);
-                        if (storageFile != null)
-                            await vm.SaveChangesToPatchAsync(changes, false, storageFile.Path.LocalPath);
-                    }
-                    catch (Exception exception)
-                    {
-                        repo.SendNotification($"Failed to save as patch: {exception.Message}", true);
-                    }
-
-                    e.Handled = true;
-                };
-
                 var discardToHead = new MenuItem();
                 discardToHead.Header = App.Text("FileCM.DiscardToHead");
                 discardToHead.Icon = this.CreateMenuIcon("Icons.Reset");
@@ -1111,7 +988,6 @@ namespace SourceGit.Views
                 menu.Items.Add(unstage);
                 menu.Items.Add(discardToHead);
                 menu.Items.Add(stash);
-                menu.Items.Add(patch);
                 menu.Items.Add(new MenuItem() { Header = "-" });
 
                 if (!selection.HasFolder && File.Exists(path) && repo.IsLFSEnabled())
@@ -1182,12 +1058,6 @@ namespace SourceGit.Views
                     menu.Items.Add(new MenuItem() { Header = "-" });
                 }
 
-                if (ai != null)
-                {
-                    menu.Items.Add(ai);
-                    menu.Items.Add(new MenuItem() { Header = "-" });
-                }
-
                 if (selection.IsSingleFolder)
                 {
                     var history = new MenuItem();
@@ -1227,8 +1097,6 @@ namespace SourceGit.Views
                     menu.Items.Add(blame);
                     menu.Items.Add(new MenuItem() { Header = "-" });
                 }
-
-                TryToAddCustomActionsToContextMenu(repo, menu, change.Path);
 
                 var copyPath = new MenuItem();
                 copyPath.Header = App.Text("CopyPath");
@@ -1296,34 +1164,6 @@ namespace SourceGit.Views
                     e.Handled = true;
                 };
 
-                var patch = new MenuItem();
-                patch.Header = App.Text("FileCM.SaveAsPatch");
-                patch.Icon = this.CreateMenuIcon("Icons.Save");
-                patch.Click += async (_, e) =>
-                {
-                    var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
-                    if (storageProvider == null)
-                        return;
-
-                    var options = new FilePickerSaveOptions();
-                    options.Title = App.Text("FileCM.SaveAsPatch");
-                    options.DefaultExtension = ".patch";
-                    options.FileTypeChoices = [new FilePickerFileType("Patch File") { Patterns = ["*.patch"] }];
-
-                    try
-                    {
-                        var storageFile = await storageProvider.SaveFilePickerAsync(options);
-                        if (storageFile != null)
-                            await vm.SaveChangesToPatchAsync(changes, false, storageFile.Path.LocalPath);
-                    }
-                    catch (Exception exception)
-                    {
-                        repo.SendNotification($"Failed to save as patch: {exception.Message}", true);
-                    }
-
-                    e.Handled = true;
-                };
-
                 var discardToHead = new MenuItem();
                 discardToHead.Header = App.Text("FileCM.DiscardToHeadMulti", changes.Count);
                 discardToHead.Icon = this.CreateMenuIcon("Icons.Reset");
@@ -1336,13 +1176,6 @@ namespace SourceGit.Views
                 menu.Items.Add(unstage);
                 menu.Items.Add(discardToHead);
                 menu.Items.Add(stash);
-                menu.Items.Add(patch);
-
-                if (ai != null)
-                {
-                    menu.Items.Add(new MenuItem() { Header = "-" });
-                    menu.Items.Add(ai);
-                }
 
                 if (selection.IsSingleFolder)
                 {
@@ -1427,47 +1260,6 @@ namespace SourceGit.Views
                 }
             }
             menu.Items.Add(openWith);
-        }
-
-        private void TryToAddCustomActionsToContextMenu(ViewModels.Repository repo, ContextMenu menu, string path)
-        {
-            var actions = repo.GetCustomActions(Models.CustomActionScope.File);
-            if (actions.Count == 0)
-                return;
-
-            var target = new Models.CustomActionTargetFile(path, null);
-            var custom = new MenuItem();
-            custom.Header = App.Text("FileCM.CustomAction");
-            custom.Icon = this.CreateMenuIcon("Icons.Action");
-
-            foreach (var action in actions)
-            {
-                var (dup, label) = action;
-                var item = new MenuItem();
-                item.Icon = this.CreateMenuIcon("Icons.Action");
-                item.Header = label;
-                item.Click += async (_, e) =>
-                {
-                    await repo.ExecCustomActionAsync(dup, target);
-                    e.Handled = true;
-                };
-
-                custom.Items.Add(item);
-            }
-
-            menu.Items.Add(custom);
-            menu.Items.Add(new MenuItem() { Header = "-" });
-        }
-
-        private void DoOpenAIAssistant(ViewModels.Repository repo, AI.Service serivce, List<Models.Change> changes)
-        {
-            var owner = TopLevel.GetTopLevel(this) as Window;
-            if (owner == null)
-                return;
-
-            var assistant = new ViewModels.AIAssistant(repo, serivce, changes);
-            var view = new AIAssistant() { DataContext = assistant };
-            view.Show(owner);
         }
     }
 }

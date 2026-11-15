@@ -216,22 +216,6 @@ namespace SourceGit.ViewModels
             new Commands.DiffTool(_repo.FullPath, new Models.DiffOption(_commit, c)).Open();
         }
 
-        public async Task SaveChangesAsPatchAsync(List<Models.Change> changes, string saveTo)
-        {
-            if (_commit == null)
-                return;
-
-            var succ = await Commands.SaveChangesAsPatch.ProcessRevisionCompareChangesAsync(
-                _repo.FullPath,
-                changes,
-                _commit.FirstParentToCompare,
-                _commit.SHA,
-                saveTo);
-
-            if (succ)
-                _repo.SendNotification(App.Text("SaveAsPatchSuccess"));
-        }
-
         public async Task ResetToThisRevisionAsync(string path)
         {
             var c = _changes?.Find(x => x.Path.Equals(path, StringComparison.Ordinal));

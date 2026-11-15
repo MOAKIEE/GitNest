@@ -99,11 +99,6 @@ namespace SourceGit.ViewModels
             new Commands.DiffTool(_repo, new Models.DiffOption(_base.SHA, _to.SHA, change)).Open();
         }
 
-        public async Task<bool> SaveChangesAsPatchAsync(List<Models.Change> changes, string saveTo)
-        {
-            return await Commands.SaveChangesAsPatch.ProcessRevisionCompareChangesAsync(_repo, changes, _base.SHA, _to.SHA, saveTo);
-        }
-
         private void Refresh()
         {
             IsLoading = true;

@@ -94,12 +94,6 @@ namespace SourceGit.Native
             private set;
         } = new Version(0, 0, 0);
 
-        public static Models.GitFlowVersion GitFlowVersion
-        {
-            get;
-            private set;
-        } = Models.GitFlowVersion.None;
-
         public static string CredentialHelper
         {
             get;
@@ -425,7 +419,6 @@ namespace SourceGit.Native
             var executable = _gitExecutable;
             GitVersionString = string.Empty;
             GitVersion = new Version(0, 0, 0);
-            GitFlowVersion = Models.GitFlowVersion.None;
             GitInstallation = new Models.GitInstallation { Executable = executable ?? string.Empty };
             var installation = Models.GitInstallation.InspectAsync(executable).GetAwaiter().GetResult();
             if (generation == Volatile.Read(ref _gitInstallationGeneration))
@@ -437,42 +430,7 @@ namespace SourceGit.Native
             GitInstallation = installation;
             GitVersionString = GitInstallation.VersionText;
             GitVersion = GitInstallation.Version;
-            GitFlowVersion = Models.GitFlowVersion.None;
             GitInstallationChanged?.Invoke();
-
-            if (GitInstallation.IsReady)
-                Task.Run(() => UpdateGitFlowVersion(installation.Executable));
-        }
-
-        private static void UpdateGitFlowVersion(string executable)
-        {
-            var start = new ProcessStartInfo();
-            start.FileName = executable;
-            start.Arguments = "flow version";
-            start.UseShellExecute = false;
-            start.CreateNoWindow = true;
-            start.RedirectStandardOutput = true;
-            start.RedirectStandardError = true;
-            start.StandardOutputEncoding = Encoding.UTF8;
-            start.StandardErrorEncoding = Encoding.UTF8;
-
-            try
-            {
-                using var proc = Process.Start(start)!;
-                var rs = proc.StandardOutput.ReadToEnd();
-                proc.WaitForExit();
-                if (proc.ExitCode == 0 && !string.IsNullOrWhiteSpace(rs) && _gitExecutable == executable && GitInstallation.IsReady)
-                {
-                    if (rs.Contains("git-flow-next", StringComparison.Ordinal))
-                        GitFlowVersion = Models.GitFlowVersion.Next;
-                    else
-                        GitFlowVersion = Models.GitFlowVersion.Legacy;
-                }
-            }
-            catch
-            {
-                // Ignore errors
-            }
         }
 
         private static IBackend _backend = null;

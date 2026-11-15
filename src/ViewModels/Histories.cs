@@ -158,12 +158,6 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public Models.Bisect Bisect
-        {
-            get => _bisect;
-            private set => SetProperty(ref _bisect, value);
-        }
-
         public Models.Branch CurrentBranch
         {
             get => _currentBranch;
@@ -252,51 +246,6 @@ namespace SourceGit.ViewModels
             else
                 _repo.UIStates.HistoryShowFlags |= flag;
             _repo.RefreshCommits();
-        }
-
-        public Models.BisectState UpdateBisectInfo()
-        {
-            var test = Path.Combine(_repo.GitDir, "BISECT_START");
-            if (!File.Exists(test))
-            {
-                Bisect = null;
-                return Models.BisectState.None;
-            }
-
-            var head = new Commands.QueryRevisionByRefName(_repo.FullPath, "HEAD").GetResult();
-            var info = new Models.Bisect();
-            var markedHead = false;
-            var dir = Path.Combine(_repo.GitDir, "refs", "bisect");
-            if (Directory.Exists(dir))
-            {
-                var files = new DirectoryInfo(dir).GetFiles();
-                foreach (var file in files)
-                {
-                    var sha = File.ReadAllText(file.FullName).Trim();
-                    if (!markedHead)
-                        markedHead = head.Equals(sha, StringComparison.Ordinal);
-
-                    if (file.Name.StartsWith("bad"))
-                        info.Bads.Add(sha);
-                    else if (file.Name.StartsWith("good"))
-                        info.Goods.Add(sha);
-                    else if (file.Name.StartsWith("skip"))
-                        info.Skipped.Add(sha);
-                }
-            }
-
-            Bisect = info;
-
-            if (info.Bads.Count == 0)
-                return Models.BisectState.WaitingForFirstBad;
-
-            if (markedHead)
-                return Models.BisectState.WaitingForCheckoutAnother;
-
-            if (info.Goods.Count == 0)
-                return Models.BisectState.WaitingForFirstGood;
-
-            return Models.BisectState.WaitingForMark;
         }
 
         public void NavigateTo(string commitSHA)
@@ -440,32 +389,6 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public async Task CherryPickAsync(Models.Commit commit)
-        {
-            if (_repo.CanCreatePopup())
-            {
-                if (commit.Parents.Count <= 1)
-                {
-                    _repo.ShowPopup(new CherryPick(_repo, [commit]));
-                }
-                else
-                {
-                    var parents = new List<Models.Commit>();
-                    foreach (var sha in commit.Parents)
-                    {
-                        var parent = _commits.Find(x => x.SHA.Equals(sha, StringComparison.Ordinal));
-                        if (parent == null)
-                            parent = await new Commands.QuerySingleCommit(_repo.FullPath, sha).GetResultAsync();
-
-                        if (parent != null)
-                            parents.Add(parent);
-                    }
-
-                    _repo.ShowPopup(new CherryPick(_repo, commit, parents));
-                }
-            }
-        }
-
         public async Task<string> GetCommitFullMessageAsync(Models.Commit commit)
         {
             return await new Commands.QueryCommitFullMessage(_repo.FullPath, commit.SHA)
@@ -590,7 +513,6 @@ namespace SourceGit.ViewModels
         private List<Models.Commit> _commits = [];
         private Models.CommitGraph _graph = null;
         private List<Models.Commit> _selectedCommits = [];
-        private Models.Bisect _bisect = null;
         private object _detailContext = Models.Null.Instance;
         private bool _ignoreSelectionChange = false;
 

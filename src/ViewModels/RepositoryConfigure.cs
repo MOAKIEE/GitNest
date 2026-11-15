@@ -255,40 +255,6 @@ namespace SourceGit.ViewModels
             set => SetProperty(ref _selectedIssueTracker, value);
         }
 
-        public List<string> AvailableOpenAIServices
-        {
-            get
-            {
-                var services = Preferences.Instance.OpenAIServices;
-                var items = new List<string> { "---" };
-                foreach (var service in services)
-                    items.Add(service.Name);
-                return items;
-            }
-        }
-
-        public string PreferredOpenAIService
-        {
-            get => string.IsNullOrEmpty(_repo.Settings.PreferredOpenAIService) ? "---" : _repo.Settings.PreferredOpenAIService;
-            set
-            {
-                var actual = value == "---" ? string.Empty : value;
-                if (_repo.Settings.PreferredOpenAIService != actual)
-                {
-                    _repo.Settings.PreferredOpenAIService = actual;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        public AvaloniaList<Models.CustomAction> CustomActions => _repo.Settings.CustomActions;
-
-        public Models.CustomAction SelectedCustomAction
-        {
-            get => _selectedCustomAction;
-            set => SetProperty(ref _selectedCustomAction, value);
-        }
-
         public AvaloniaList<ConfigScopeOption> AvailableWriteScopes { get; } = [];
 
         public ConfigScopeOption SelectedScopeOption
@@ -945,29 +911,6 @@ namespace SourceGit.ViewModels
                 IssueTrackers.Remove(rule);
 
             SelectedIssueTracker = null;
-        }
-
-        public void AddNewCustomAction()
-        {
-            SelectedCustomAction = _repo.Settings.AddNewCustomAction();
-        }
-
-        public void RemoveSelectedCustomAction()
-        {
-            _repo.Settings.RemoveCustomAction(_selectedCustomAction);
-            SelectedCustomAction = null;
-        }
-
-        public void MoveSelectedCustomActionUp()
-        {
-            if (_selectedCustomAction != null)
-                _repo.Settings.MoveCustomActionUp(_selectedCustomAction);
-        }
-
-        public void MoveSelectedCustomActionDown()
-        {
-            if (_selectedCustomAction != null)
-                _repo.Settings.MoveCustomActionDown(_selectedCustomAction);
         }
 
         public async Task<ConfigSaveSummary> SaveAsync()
@@ -2560,8 +2503,6 @@ namespace SourceGit.ViewModels
         private List<Models.Branch> _pendingExternalBranches;
         private IReadOnlyList<Models.BranchProtectionStatus> _pendingExternalProtection;
         private readonly HashSet<string> _unreviewedConflictKeys = new(StringComparer.OrdinalIgnoreCase);
-
-        private Models.CustomAction _selectedCustomAction = null;
     }
 
     public sealed class BranchProtectionOptionItem : ObservableObject

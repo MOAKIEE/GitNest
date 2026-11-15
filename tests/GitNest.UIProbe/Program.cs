@@ -86,6 +86,10 @@ internal static partial class Program
             {
                 RunResetRewrite();
             }
+            else if (args.Contains("--trim-surface"))
+            {
+                RunTrimSurface();
+            }
             else
             {
                 RunOverview();
@@ -376,5 +380,6 @@ internal static partial class Program
     static partial void RunMergeRevert();
     static partial void RunStashDiscardIgnore();
     static partial void RunResetRewrite();
+    static partial void RunTrimSurface();
 
 }

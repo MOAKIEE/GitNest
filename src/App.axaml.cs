@@ -37,12 +37,7 @@ namespace SourceGit
 
             try
             {
-                if (TryLaunchAsRebaseTodoEditor(args, out int exitTodo))
-                    Environment.Exit(exitTodo);
-                else if (TryLaunchAsRebaseMessageEditor(args, out int exitMessage))
-                    Environment.Exit(exitMessage);
-                else
-                    BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+                BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
             }
             catch (Exception ex)
             {
@@ -279,65 +274,6 @@ namespace SourceGit
         #endregion
 
         #region Launch Ways
-        private static bool TryLaunchAsRebaseTodoEditor(string[] args, out int exitCode)
-        {
-            exitCode = -1;
-
-            if (args.Length <= 1 || !args[0].Equals("--rebase-todo-editor", StringComparison.Ordinal))
-                return false;
-
-            var file = args[1].Replace('\\', '/').Trim('\"').Trim();
-            var filename = Path.GetFileName(file);
-            if (!filename.Equals("git-rebase-todo", StringComparison.OrdinalIgnoreCase))
-                return true;
-
-            var dirInfo = new DirectoryInfo(Path.GetDirectoryName(file)!);
-            if (!dirInfo.Exists || !dirInfo.Name.Equals("rebase-merge", StringComparison.Ordinal))
-                return true;
-
-            var jobsFile = Path.Combine(dirInfo.Parent!.FullName, "gitnest.interactive_rebase");
-            if (!File.Exists(jobsFile))
-                return true;
-
-            using var stream = File.OpenRead(jobsFile);
-            var collection = JsonSerializer.Deserialize(stream, JsonCodeGen.Default.InteractiveRebaseJobCollection);
-            collection.WriteTodoList(file);
-            exitCode = 0;
-            return true;
-        }
-
-        private static bool TryLaunchAsRebaseMessageEditor(string[] args, out int exitCode)
-        {
-            exitCode = -1;
-
-            if (args.Length <= 1 || !args[0].Equals("--rebase-message-editor", StringComparison.Ordinal))
-                return false;
-
-            exitCode = 0;
-
-            var file = args[1].Replace('\\', '/').Trim('\"').Trim();
-            var filename = Path.GetFileName(file);
-            if (!filename.Equals("COMMIT_EDITMSG", StringComparison.OrdinalIgnoreCase))
-                return true;
-
-            var gitDir = Path.GetDirectoryName(file)!;
-            var origHeadFile = Path.Combine(gitDir, "rebase-merge", "orig-head");
-            var ontoFile = Path.Combine(gitDir, "rebase-merge", "onto");
-            var doneFile = Path.Combine(gitDir, "rebase-merge", "done");
-            var jobsFile = Path.Combine(gitDir, "gitnest.interactive_rebase");
-            if (!File.Exists(ontoFile) || !File.Exists(origHeadFile) || !File.Exists(doneFile) || !File.Exists(jobsFile))
-                return true;
-
-            var origHead = File.ReadAllText(origHeadFile).Trim();
-            var onto = File.ReadAllText(ontoFile).Trim();
-            using var stream = File.OpenRead(jobsFile);
-            var collection = JsonSerializer.Deserialize(stream, JsonCodeGen.Default.InteractiveRebaseJobCollection);
-            if (collection.Onto.StartsWith(onto, StringComparison.OrdinalIgnoreCase) && collection.OrigHead.StartsWith(origHead, StringComparison.OrdinalIgnoreCase))
-                collection.WriteCommitMessage(doneFile, file);
-
-            return true;
-        }
-
         private bool TryLaunchAsFileHistoryViewer(IClassicDesktopStyleApplicationLifetime desktop)
         {
             var args = desktop.Args;

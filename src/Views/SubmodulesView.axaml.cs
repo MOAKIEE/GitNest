@@ -196,67 +196,6 @@ namespace SourceGit.Views
                         ev.Handled = true;
                     };
 
-                    var update = new MenuItem();
-                    update.Header = App.Text("Submodule.Update");
-                    update.Icon = this.CreateMenuIcon("Icons.Loading");
-                    update.Click += (_, ev) =>
-                    {
-                        if (repo.CanCreatePopup())
-                            repo.ShowPopup(new ViewModels.UpdateSubmodules(repo, submodule));
-                        ev.Handled = true;
-                    };
-
-                    var move = new MenuItem();
-                    move.Header = App.Text("Submodule.Move");
-                    move.Icon = this.CreateMenuIcon("Icons.MoveTo");
-                    move.Click += (_, ev) =>
-                    {
-                        if (repo.CanCreatePopup())
-                            repo.ShowPopup(new ViewModels.MoveSubmodule(repo, submodule));
-                        ev.Handled = true;
-                    };
-
-                    var setURL = new MenuItem();
-                    setURL.Header = App.Text("Submodule.SetURL");
-                    setURL.Icon = this.CreateMenuIcon("Icons.Edit");
-                    setURL.Click += (_, ev) =>
-                    {
-                        if (repo.CanCreatePopup())
-                            repo.ShowPopup(new ViewModels.ChangeSubmoduleUrl(repo, submodule));
-                        ev.Handled = true;
-                    };
-
-                    var setBranch = new MenuItem();
-                    setBranch.Header = App.Text("Submodule.SetBranch");
-                    setBranch.Icon = this.CreateMenuIcon("Icons.Track");
-                    setBranch.Click += (_, ev) =>
-                    {
-                        if (repo.CanCreatePopup())
-                            repo.ShowPopup(new ViewModels.SetSubmoduleBranch(repo, submodule));
-                        ev.Handled = true;
-                    };
-
-                    var deinit = new MenuItem();
-                    deinit.Header = App.Text("Submodule.Deinit");
-                    deinit.Icon = this.CreateMenuIcon("Icons.Undo");
-                    deinit.IsEnabled = submodule.Status != Models.SubmoduleStatus.NotInited;
-                    deinit.Click += (_, ev) =>
-                    {
-                        if (repo.CanCreatePopup())
-                            repo.ShowPopup(new ViewModels.DeinitSubmodule(repo, submodule.Path));
-                        ev.Handled = true;
-                    };
-
-                    var rm = new MenuItem();
-                    rm.Header = App.Text("Submodule.Remove");
-                    rm.Icon = this.CreateMenuIcon("Icons.Clear");
-                    rm.Click += (_, ev) =>
-                    {
-                        if (repo.CanCreatePopup())
-                            repo.ShowPopup(new ViewModels.DeleteSubmodule(repo, submodule.Path));
-                        ev.Handled = true;
-                    };
-
                     var histories = new MenuItem();
                     histories.Header = App.Text("Submodule.Histories");
                     histories.Icon = this.CreateMenuIcon("Icons.Histories");
@@ -312,13 +251,6 @@ namespace SourceGit.Views
 
                     var menu = new ContextMenu();
                     menu.Items.Add(open);
-                    menu.Items.Add(new MenuItem() { Header = "-" });
-                    menu.Items.Add(update);
-                    menu.Items.Add(setURL);
-                    menu.Items.Add(setBranch);
-                    menu.Items.Add(move);
-                    menu.Items.Add(deinit);
-                    menu.Items.Add(rm);
                     menu.Items.Add(new MenuItem() { Header = "-" });
                     menu.Items.Add(histories);
                     menu.Items.Add(new MenuItem() { Header = "-" });
