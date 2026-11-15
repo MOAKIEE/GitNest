@@ -85,7 +85,7 @@ namespace SourceGit.ViewModels
         public Models.CommitAndPushSession ActiveTwoStepSession => _activeTwoStepSession;
 
         public bool HasInlineNoticeArea =>
-            HasPartialStagedFiles || HasCommitAlert || ShowIdentityPrompt || HasTwoStepStatus;
+            HasPartialStagedFiles || HasCommitAlert || ShowIdentityPrompt || HasTwoStepStatus || ShowExternalInProgressFooter;
 
         public async Task RefreshStagedSnapshotAsync(CancellationToken cancellationToken = default)
         {

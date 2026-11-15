@@ -55,7 +55,7 @@
                   MinWidth="24"
                   VerticalAlignment="Center">
             <TextBlock Text="{Binding Marker}"
-                       Foreground="White"
+                       Foreground="{DynamicResource Brush.Conflict.Foreground}"
                        FontWeight="Bold"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"
@@ -86,7 +86,7 @@
                     Background="{DynamicResource Brush.Conflict}">
               <TextBlock FontSize="11"
                          FontWeight="Bold"
-                         Foreground="White"
+                         Foreground="{DynamicResource Brush.Conflict.Foreground}"
                          VerticalAlignment="Center"
                          Text="{Binding OriginLabel, Mode=OneWay}"/>
             </Border>

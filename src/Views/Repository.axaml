@@ -189,86 +189,74 @@
                 </DataTemplate>
 
                 <DataTemplate DataType="vm:CherryPickInProgress">
-                  <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Grid.Column="0" Orientation="Horizontal">
-                      <TextBlock FontWeight="Bold" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="{DynamicResource Text.InProgress.CherryPick}"/>
-                      <TextBlock FontWeight="Bold" Margin="4,0,0,0" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="{DynamicResource Text.InProgress.CherryPick.Head}"/>
-                      <TextBlock FontWeight="Bold"
-                                 Margin="4,0,0,0"
-                                 Foreground="DarkOrange"
-                                 FontFamily="{DynamicResource Fonts.Monospace}"
-                                 Text="{Binding Head.SHA, Converter={x:Static c:StringConverters.ToShortSHA}}"
-                                 ToolTip.Tip="{Binding Head}"/>
-                    </StackPanel>
-
-                    <Button Grid.Column="1" Classes="flat" FontWeight="Regular" BorderThickness="0" Content="{DynamicResource Text.Repository.Skip}" Padding="8,2" Click="OnSkipInProgress"/>
-                  </Grid>
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock FontWeight="Bold" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="{DynamicResource Text.InProgress.CherryPick}"/>
+                    <TextBlock FontWeight="Bold" Margin="4,0,0,0" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="{DynamicResource Text.InProgress.CherryPick.Head}" IsVisible="{Binding HeadName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock FontWeight="Bold"
+                               Margin="4,0,0,0"
+                               Foreground="DarkOrange"
+                               FontFamily="{DynamicResource Fonts.Monospace}"
+                               Text="{Binding Head.SHA, Converter={x:Static c:StringConverters.ToShortSHA}}"
+                               IsVisible="{Binding HeadName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                               ToolTip.Tip="{Binding Head}"/>
+                  </StackPanel>
                 </DataTemplate>
 
                 <DataTemplate DataType="vm:RebaseInProgress">
-                  <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Grid.Column="0" Orientation="Horizontal">
-                      <TextBlock FontWeight="Bold" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="{DynamicResource Text.InProgress.Rebase}"/>
-                      <TextBlock FontWeight="Bold" Margin="4,0,0,0" Foreground="{DynamicResource Brush.Conflict.Foreground}"
-                                 Text="{DynamicResource Text.InProgress.Rebase.StoppedAt}"
-                                 IsVisible="{Binding StoppedAt, Converter={x:Static ObjectConverters.IsNotNull}}" />
-                      <TextBlock FontWeight="Bold"
-                                 Margin="4,0,0,0"
-                                 Foreground="DarkOrange"
-                                 Text="{Binding StoppedAt.SHA, Converter={x:Static c:StringConverters.ToShortSHA}}"
-                                 FontFamily="{DynamicResource Fonts.Monospace}"
-                                 IsVisible="{Binding StoppedAt, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                 ToolTip.Tip="{Binding StoppedAt}" />
-                    </StackPanel>
-
-                    <Button Grid.Column="1" Classes="flat" FontWeight="Regular" BorderThickness="0"
-                            Content="{DynamicResource Text.Repository.Skip}" Padding="8,2" Click="OnSkipInProgress"
-                            IsVisible="{Binding StoppedAt, Converter={x:Static ObjectConverters.IsNotNull}}" />
-                  </Grid>
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock FontWeight="Bold" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="{DynamicResource Text.InProgress.Rebase}"/>
+                    <TextBlock FontWeight="Bold" Margin="4,0,0,0" Foreground="{DynamicResource Brush.Conflict.Foreground}"
+                               Text="{DynamicResource Text.InProgress.Rebase.StoppedAt}"
+                               IsVisible="{Binding StoppedAt, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    <TextBlock FontWeight="Bold"
+                               Margin="4,0,0,0"
+                               Foreground="DarkOrange"
+                               Text="{Binding StoppedAt.SHA, Converter={x:Static c:StringConverters.ToShortSHA}}"
+                               FontFamily="{DynamicResource Fonts.Monospace}"
+                               IsVisible="{Binding StoppedAt, Converter={x:Static ObjectConverters.IsNotNull}}"
+                               ToolTip.Tip="{Binding StoppedAt}" />
+                  </StackPanel>
                 </DataTemplate>
 
                 <DataTemplate DataType="vm:RevertInProgress">
-                  <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Grid.Column="0" Orientation="Horizontal">
-                      <TextBlock FontWeight="Bold" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="{DynamicResource Text.InProgress.Revert}"/>
-                      <TextBlock FontWeight="Bold" Margin="4,0,0,0" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="{DynamicResource Text.InProgress.Revert.Head}"/>
-                      <TextBlock FontWeight="Bold"
-                                 Margin="4,0,0,0"
-                                 Foreground="DarkOrange"
-                                 FontFamily="{DynamicResource Fonts.Monospace}"
-                                 Text="{Binding Head.SHA, Converter={x:Static c:StringConverters.ToShortSHA}}"
-                                 ToolTip.Tip="{Binding Head}"/>
-                    </StackPanel>
-
-                    <Button Grid.Column="1" Classes="flat" FontWeight="Regular" BorderThickness="0" Content="{DynamicResource Text.Repository.Skip}" Padding="8,2" Click="OnSkipInProgress"/>
-                  </Grid>
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock FontWeight="Bold" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="{DynamicResource Text.InProgress.Revert}"/>
+                    <TextBlock FontWeight="Bold" Margin="4,0,0,0" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="{DynamicResource Text.InProgress.Revert.Head}" IsVisible="{Binding Head.SHA, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock FontWeight="Bold"
+                               Margin="4,0,0,0"
+                               Foreground="DarkOrange"
+                               FontFamily="{DynamicResource Fonts.Monospace}"
+                               Text="{Binding Head.SHA, Converter={x:Static c:StringConverters.ToShortSHA}}"
+                               IsVisible="{Binding Head.SHA, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                               ToolTip.Tip="{Binding Head}"/>
+                  </StackPanel>
                 </DataTemplate>
 
                 <DataTemplate DataType="vm:MergeInProgress">
                   <StackPanel Orientation="Horizontal">
                     <TextBlock FontWeight="Bold" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="{DynamicResource Text.InProgress.Merge}"/>
-                    <TextBlock FontWeight="Bold" Margin="4,0,0,0" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="{DynamicResource Text.InProgress.Merge.Operating}"/>
-                    <TextBlock FontWeight="Bold" Margin="4,0,0,0" Foreground="DarkOrange" Text="{Binding SourceName}" ToolTip.Tip="{Binding Source}"/>
-                    <TextBlock FontWeight="Bold" Margin="4,0,0,0" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="→"/>
-                    <TextBlock FontWeight="Bold" Margin="4,0,0,0" Foreground="DarkOrange" Text="{Binding Current}"/>
+                    <TextBlock FontWeight="Bold" Margin="4,0,0,0" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="{DynamicResource Text.InProgress.Merge.Operating}" IsVisible="{Binding SourceName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock FontWeight="Bold" Margin="4,0,0,0" Foreground="DarkOrange" Text="{Binding SourceName}" ToolTip.Tip="{Binding Source}" IsVisible="{Binding SourceName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock FontWeight="Bold" Margin="4,0,0,0" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="→" IsVisible="{Binding SourceName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    <TextBlock FontWeight="Bold" Margin="4,0,0,0" Foreground="DarkOrange" Text="{Binding Current}" IsVisible="{Binding SourceName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                   </StackPanel>
                 </DataTemplate>
 
                 <DataTemplate DataType="vm:AmInProgress">
-                  <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Grid.Column="0" Orientation="Horizontal">
-                      <TextBlock FontWeight="Bold" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="{DynamicResource Text.InProgress.Am}"/>
-                      <TextBlock FontWeight="Bold"
-                                 Margin="4,0,0,0"
-                                 Foreground="{DynamicResource Brush.Conflict.Foreground}"
-                                 FontFamily="{DynamicResource Fonts.Monospace}"
-                                 Text="{Binding Progress, Mode=OneWay}"/>
-                    </StackPanel>
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock FontWeight="Bold" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="{DynamicResource Text.InProgress.Am}"/>
+                    <TextBlock FontWeight="Bold"
+                               Margin="4,0,0,0"
+                               Foreground="{DynamicResource Brush.Conflict.Foreground}"
+                               FontFamily="{DynamicResource Fonts.Monospace}"
+                               Text="{Binding Progress, Mode=OneWay}"/>
+                  </StackPanel>
+                </DataTemplate>
 
-                    <Button Grid.Column="1" Classes="flat" FontWeight="Regular" BorderThickness="0"
-                            Content="{DynamicResource Text.Repository.Skip}" Padding="8,2" Click="OnSkipInProgress"
-                            IsVisible="{Binding CanSkip}" />
-                  </Grid>
+                <DataTemplate DataType="vm:BisectInProgress">
+                  <StackPanel Orientation="Horizontal">
+                    <TextBlock FontWeight="Bold" Foreground="{DynamicResource Brush.Conflict.Foreground}" Text="{DynamicResource Text.InProgress.Bisect}"/>
+                  </StackPanel>
                 </DataTemplate>
               </ContentControl.DataTemplates>
               </ContentControl>

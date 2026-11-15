@@ -530,50 +530,48 @@ namespace SourceGit.Views
             }
             else
             {
-                var menu = new ContextMenu();
-
-                if (branches.Count == 2)
-                {
-                    var compare = new MenuItem();
-                    compare.Header = App.Text("BranchCM.CompareTwo");
-                    compare.Icon = this.CreateMenuIcon("Icons.Compare");
-                    compare.Click += (_, ev) =>
-                    {
-                        this.ShowWindow(new ViewModels.Compare(repo, branches[0], branches[1]));
-                        ev.Handled = true;
-                    };
-                    menu.Items.Add(compare);
-                }
-
-                if (branches.Find(x => x.IsCurrent) == null)
-                {
-                    var mergeMulti = new MenuItem();
-                    mergeMulti.Header = App.Text("BranchCM.MergeMultiBranches", branches.Count);
-                    mergeMulti.Icon = this.CreateMenuIcon("Icons.Merge");
-                    mergeMulti.Click += (_, ev) =>
-                    {
-                        repo.MergeMultipleBranches(branches);
-                        ev.Handled = true;
-                    };
-
-                    var deleteMulti = new MenuItem();
-                    deleteMulti.Header = App.Text("BranchCM.DeleteMultiBranches", branches.Count);
-                    deleteMulti.Icon = this.CreateMenuIcon("Icons.Clear");
-                    deleteMulti.Tag = "Delete/Back";
-                    deleteMulti.Click += (_, ev) =>
-                    {
-                        repo.DeleteMultipleBranches(branches, branches[0].IsLocal);
-                        ev.Handled = true;
-                    };
-
-                    menu.Items.Add(mergeMulti);
-                    menu.Items.Add(new MenuItem() { Header = "-" });
-                    menu.Items.Add(deleteMulti);
-                }
-
+                var menu = CreateContextMenuForMultipleBranches(repo, branches);
                 if (menu.Items.Count > 0)
                     menu.Open(this);
             }
+        }
+
+        internal ContextMenu CreateContextMenuForMultipleBranches(ViewModels.Repository repo, List<Models.Branch> branches)
+        {
+            var menu = new ContextMenu();
+
+            if (branches.Count == 2)
+            {
+                var compare = new MenuItem();
+                compare.Header = App.Text("BranchCM.CompareTwo");
+                compare.Icon = this.CreateMenuIcon("Icons.Compare");
+                compare.Click += (_, ev) =>
+                {
+                    this.ShowWindow(new ViewModels.Compare(repo, branches[0], branches[1]));
+                    ev.Handled = true;
+                };
+                menu.Items.Add(compare);
+            }
+
+            if (branches.Find(x => x.IsCurrent) == null)
+            {
+                if (menu.Items.Count > 0)
+                    menu.Items.Add(new MenuItem() { Header = "-" });
+
+                var deleteMulti = new MenuItem();
+                deleteMulti.Header = App.Text("BranchCM.DeleteMultiBranches", branches.Count);
+                deleteMulti.Icon = this.CreateMenuIcon("Icons.Clear");
+                deleteMulti.Tag = "Delete/Back";
+                deleteMulti.Click += (_, ev) =>
+                {
+                    repo.DeleteMultipleBranches(branches, branches[0].IsLocal);
+                    ev.Handled = true;
+                };
+
+                menu.Items.Add(deleteMulti);
+            }
+
+            return menu;
         }
 
         private void OnTreeKeyDown(object _, KeyEventArgs e)
@@ -720,7 +718,7 @@ namespace SourceGit.Views
             }
         }
 
-        private ContextMenu CreateContextMenuForLocalBranch(ViewModels.Repository repo, Models.Branch branch)
+        internal ContextMenu CreateContextMenuForLocalBranch(ViewModels.Repository repo, Models.Branch branch)
         {
             var current = repo.CurrentBranch;
             var menu = new ContextMenu();
@@ -859,18 +857,7 @@ namespace SourceGit.Views
                         e.Handled = true;
                     };
 
-                    var rebase = new MenuItem();
-                    rebase.Header = App.Text("BranchCM.Rebase", current.Name, branch.Name);
-                    rebase.Icon = this.CreateMenuIcon("Icons.Rebase");
-                    rebase.Click += (_, e) =>
-                    {
-                        if (repo.CanCreatePopup())
-                            repo.ShowPopup(new ViewModels.Rebase(repo, current, branch));
-                        e.Handled = true;
-                    };
-
                     menu.Items.Add(merge);
-                    menu.Items.Add(rebase);
                     menu.Items.Add(new MenuItem() { Header = "-" });
                 }
 
@@ -1177,16 +1164,6 @@ namespace SourceGit.Views
                     e.Handled = true;
                 };
 
-                var rebase = new MenuItem();
-                rebase.Header = App.Text("BranchCM.Rebase", current.Name, name);
-                rebase.Icon = this.CreateMenuIcon("Icons.Rebase");
-                rebase.Click += (_, e) =>
-                {
-                    if (repo.CanCreatePopup())
-                        repo.ShowPopup(new ViewModels.Rebase(repo, current, branch));
-                    e.Handled = true;
-                };
-
                 var compareWithHead = new MenuItem();
                 compareWithHead.Header = App.Text("BranchCM.CompareWithHead");
                 compareWithHead.Icon = this.CreateMenuIcon("Icons.Compare");
@@ -1205,7 +1182,6 @@ namespace SourceGit.Views
 
                 menu.Items.Add(pull);
                 menu.Items.Add(merge);
-                menu.Items.Add(rebase);
                 menu.Items.Add(new MenuItem() { Header = "-" });
                 menu.Items.Add(compareWithHead);
                 menu.Items.Add(compareWith);

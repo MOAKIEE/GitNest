@@ -50,6 +50,8 @@
   <x:String x:Key="Text.Askpass.Passphrase" xml:space="preserve">请输入密码 ：</x:String>
   <x:String x:Key="Text.AssumeUnchanged" xml:space="preserve">不跟踪更改的文件</x:String>
   <x:String x:Key="Text.AssumeUnchanged.Empty" xml:space="preserve">没有不跟踪更改的文件</x:String>
+  <x:String x:Key="Text.AssumeUnchanged.RemoveTip" xml:space="preserve">取消“不跟踪更改”，恢复 Git 变更跟踪</x:String>
+  <x:String x:Key="Text.AssumeUnchanged.Tip" xml:space="preserve">仅展示已标记为“不跟踪更改”的文件；点击右侧按钮移除并恢复正常 Git 跟踪。</x:String>
   <x:String x:Key="Text.Avatar.Load" xml:space="preserve">加载本地图片</x:String>
   <x:String x:Key="Text.Avatar.Refetch" xml:space="preserve">重新加载</x:String>
   <x:String x:Key="Text.Blame" xml:space="preserve">逐行追溯(blame)</x:String>
@@ -71,11 +73,9 @@
   <x:String x:Key="Text.BranchCM.FastForward" xml:space="preserve">快进(fast-forward) 到 ${0}$</x:String>
   <x:String x:Key="Text.BranchCM.FetchInto" xml:space="preserve">拉取(fetch) ${0}$ 至 ${1}$...</x:String>
   <x:String x:Key="Text.BranchCM.Merge" xml:space="preserve">将【${0}$】的改动合并到【${1}$】...</x:String>
-  <x:String x:Key="Text.BranchCM.MergeMultiBranches" xml:space="preserve">合并(merge) {0} 个分支到当前分支...</x:String>
   <x:String x:Key="Text.BranchCM.Pull" xml:space="preserve">拉回(pull) ${0}$...</x:String>
   <x:String x:Key="Text.BranchCM.PullInto" xml:space="preserve">拉回(pull) ${0}$ 内容至 ${1}$...</x:String>
   <x:String x:Key="Text.BranchCM.Push" xml:space="preserve">推送(push) ${0}$...</x:String>
-  <x:String x:Key="Text.BranchCM.Rebase" xml:space="preserve">变基(rebase) ${0}$ 至 ${1}$...</x:String>
   <x:String x:Key="Text.BranchCM.Rename" xml:space="preserve">重命名 ${0}$...</x:String>
   <x:String x:Key="Text.BranchCM.ResetToSelectedCommit" xml:space="preserve">将分支 ${0}$ 回到此提交 ${1}$...</x:String>
   <x:String x:Key="Text.BranchCM.SwitchToWorktree" xml:space="preserve">切换到 ${0}$ (工作树)</x:String>
@@ -139,9 +139,7 @@
   <x:String x:Key="Text.CommitCM.CopyCommitterTime" xml:space="preserve">提交时间</x:String>
   <x:String x:Key="Text.CommitCM.CopySHA" xml:space="preserve">提交指纹</x:String>
   <x:String x:Key="Text.CommitCM.CopySubject" xml:space="preserve">主题</x:String>
-  <x:String x:Key="Text.CommitCM.MergeMultiple" xml:space="preserve">合并(merge)...</x:String>
   <x:String x:Key="Text.CommitCM.PushRevision" xml:space="preserve">推送(push) ${0}$ 到 ${1}$...</x:String>
-  <x:String x:Key="Text.CommitCM.Rebase" xml:space="preserve">变基(rebase) ${0}$ 到 ${1}$...</x:String>
   <x:String x:Key="Text.CommitCM.Reset" xml:space="preserve">回到此提交（${0}$ -> ${1}$）...</x:String>
   <x:String x:Key="Text.CommitCM.Revert" xml:space="preserve">撤销这次提交的改动（保留历史）...</x:String>
   <x:String x:Key="Text.CommitDetail.Changes" xml:space="preserve">变更对比</x:String>
@@ -473,7 +471,6 @@
   <x:String x:Key="Text.File.Binary" xml:space="preserve">二进制文件</x:String>
   <x:String x:Key="Text.File.HexViewer" xml:space="preserve">查看内容</x:String>
   <x:String x:Key="Text.File.HexViewer.GotoAddress" xml:space="preserve">定位地址...</x:String>
-  <x:String x:Key="Text.FileCM.AssumeUnchanged" xml:space="preserve">不跟踪此文件的更改</x:String>
   <x:String x:Key="Text.FileCM.CustomAction" xml:space="preserve">自定义操作</x:String>
   <x:String x:Key="Text.FileCM.Discard" xml:space="preserve">放弃更改...</x:String>
   <x:String x:Key="Text.FileCM.DiscardMulti" xml:space="preserve">放弃 {0} 个文件的更改...</x:String>
@@ -586,6 +583,7 @@
   <x:String x:Key="Text.Init.ErrorMessageTip" xml:space="preserve">打开本地仓库失败，原因：</x:String>
   <x:String x:Key="Text.Init.Path" xml:space="preserve">路径 ：</x:String>
   <x:String x:Key="Text.InProgress.Am" xml:space="preserve">应用补丁操作进行中</x:String>
+  <x:String x:Key="Text.InProgress.Bisect" xml:space="preserve">二分查找（Bisect）操作进行中。</x:String>
   <x:String x:Key="Text.InProgress.CherryPick" xml:space="preserve">挑选（Cherry-Pick）操作进行中。</x:String>
   <x:String x:Key="Text.InProgress.CherryPick.Head" xml:space="preserve">正在处理提交</x:String>
   <x:String x:Key="Text.InProgress.Merge" xml:space="preserve">合并操作进行中。</x:String>
@@ -641,10 +639,6 @@
   <x:String x:Key="Text.Merge.Test.UnknownError" xml:space="preserve">检测合并冲突时出现未知错误</x:String>
   <x:String x:Key="Text.Merge.Test.WillCauseConflicts" xml:space="preserve">合并操作将存在冲突文件</x:String>
   <x:String x:Key="Text.Merge.CloseResult" xml:space="preserve">关闭</x:String>
-  <x:String x:Key="Text.MergeMultiple" xml:space="preserve">合并（多目标）</x:String>
-  <x:String x:Key="Text.MergeMultiple.CommitChanges" xml:space="preserve">提交变化</x:String>
-  <x:String x:Key="Text.MergeMultiple.Strategy" xml:space="preserve">合并策略 ：</x:String>
-  <x:String x:Key="Text.MergeMultiple.Targets" xml:space="preserve">目标列表 ：</x:String>
   <x:String x:Key="Text.MoveRepositoryNode" xml:space="preserve">调整仓库分组</x:String>
   <x:String x:Key="Text.MoveRepositoryNode.Target" xml:space="preserve">请选择目标分组：</x:String>
   <x:String x:Key="Text.Name" xml:space="preserve">名称 ：</x:String>
@@ -777,14 +771,6 @@
   <x:String x:Key="Text.PushToNewBranch" xml:space="preserve">推送到新的分支</x:String>
   <x:String x:Key="Text.PushToNewBranch.Title" xml:space="preserve">输入新的远端分支名</x:String>
   <x:String x:Key="Text.Quit" xml:space="preserve">退出</x:String>
-  <x:String x:Key="Text.Rebase" xml:space="preserve">变基(rebase)操作</x:String>
-  <x:String x:Key="Text.Rebase.AutoStash" xml:space="preserve">自动贮藏并恢复本地变更</x:String>
-  <x:String x:Key="Text.Rebase.NoVerify" xml:space="preserve">绕过 pre-rebase 钩子</x:String>
-  <x:String x:Key="Text.Rebase.On" xml:space="preserve">目标提交 ：</x:String>
-  <x:String x:Key="Text.Rebase.Test" xml:space="preserve">检测变基冲突中...</x:String>
-  <x:String x:Key="Text.Rebase.Test.OK" xml:space="preserve">未检测到文件冲突</x:String>
-  <x:String x:Key="Text.Rebase.Test.UnknownError" xml:space="preserve">检测变基冲突时出现未知错误</x:String>
-  <x:String x:Key="Text.Rebase.Test.WillCauseConflicts" xml:space="preserve">检测到冲突文件</x:String>
   <x:String x:Key="Text.Remote.AddTitle" xml:space="preserve">添加远程仓库</x:String>
   <x:String x:Key="Text.Remote.EditTitle" xml:space="preserve">编辑远程仓库</x:String>
   <x:String x:Key="Text.Remote.Name" xml:space="preserve">远程名 ：</x:String>
@@ -898,7 +884,6 @@
   <x:String x:Key="Text.Repository.ShowLostCommits" xml:space="preserve">显示丢失引用的提交</x:String>
   <x:String x:Key="Text.Repository.ShowSubmodulesAsTree" xml:space="preserve">以树型结构展示</x:String>
   <x:String x:Key="Text.Repository.ShowTagsAsTree" xml:space="preserve">以树型结构展示</x:String>
-  <x:String x:Key="Text.Repository.Skip" xml:space="preserve">跳过此提交</x:String>
   <x:String x:Key="Text.Repository.Statistics" xml:space="preserve">提交统计</x:String>
   <x:String x:Key="Text.Repository.Submodules" xml:space="preserve">子模块列表</x:String>
   <x:String x:Key="Text.Repository.Tags" xml:space="preserve">标签列表</x:String>
@@ -1093,8 +1078,11 @@
   <x:String x:Key="Text.WorkingCopy.Conflicts.ExternalAbortDisabled" xml:space="preserve">检测到外部或已被外部继续修改的进行中状态，为防止覆盖外部修改，不会直接取消该操作；待外部处理完成后点击“刷新状态”。</x:String>
   <x:String x:Key="Text.WorkingCopy.DiscardAll" xml:space="preserve">放弃所有更改</x:String>
   <x:String x:Key="Text.WorkingCopy.ExpandSidebar" xml:space="preserve">显示左侧栏</x:String>
+  <x:String x:Key="Text.WorkingCopy.ExternalInProgressBlocked" xml:space="preserve">当前仓库存在进行中的 Git 状态或外部操作；请先在外部完成或中止并点击“刷新状态”后再提交。</x:String>
+  <x:String x:Key="Text.WorkingCopy.ExternalInProgressGuide" xml:space="preserve">检测到外部进行的 Git 操作（仅只读观察）；请在外部完成或中止后点击“刷新状态”。</x:String>
   <x:String x:Key="Text.WorkingCopy.FilterChanges" xml:space="preserve">查找变更...</x:String>
   <x:String x:Key="Text.WorkingCopy.IncludeUntracked" xml:space="preserve">显示未跟踪文件</x:String>
+  <x:String x:Key="Text.WorkingCopy.InProgress.DontCommitOrigin" xml:space="preserve">合并暂存待提交</x:String>
   <x:String x:Key="Text.WorkingCopy.NoCommitHistories" xml:space="preserve">没有提交信息记录</x:String>
   <x:String x:Key="Text.WorkingCopy.NoCommitTemplates" xml:space="preserve">没有可应用的提交信息模板</x:String>
   <x:String x:Key="Text.WorkingCopy.NoVerify" xml:space="preserve">跳过GIT钩子</x:String>

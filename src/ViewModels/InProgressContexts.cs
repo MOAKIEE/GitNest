@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace SourceGit.ViewModels
@@ -31,6 +32,21 @@ namespace SourceGit.ViewModels
             OnAborted();
         }
 
+        protected static string ReadTrimmedFileIfExists(string path)
+        {
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                return string.Empty;
+
+            try
+            {
+                return File.ReadAllText(path).Trim();
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
         protected virtual void OnAborted()
         {
         }
@@ -56,31 +72,18 @@ namespace SourceGit.ViewModels
         {
             Name = "Cherry-Pick";
 
-            _continueCmd = new Commands.Command
+            // External Cherry-Pick workflows are read-only inside GitNest.
+            var headSHA = ReadTrimmedFileIfExists(Path.Combine(repo.GitDir, "CHERRY_PICK_HEAD"));
+            if (!string.IsNullOrEmpty(headSHA))
             {
-                WorkingDirectory = repo.FullPath,
-                Context = repo.FullPath,
-                Editor = Commands.Command.EditorType.None,
-                Args = "-c core.commentChar=\"^\" -c core.commentString=\"±\" cherry-pick --continue",
-            };
-
-            _skipCmd = new Commands.Command
+                Head = new Commands.QuerySingleCommit(repo.FullPath, headSHA).GetResult() ?? new Models.Commit() { SHA = headSHA };
+                HeadName = Head.GetFriendlyName();
+            }
+            else
             {
-                WorkingDirectory = repo.FullPath,
-                Context = repo.FullPath,
-                Args = "cherry-pick --skip",
-            };
-
-            _abortCmd = new Commands.Command
-            {
-                WorkingDirectory = repo.FullPath,
-                Context = repo.FullPath,
-                Args = "cherry-pick --abort",
-            };
-
-            var headSHA = File.ReadAllText(Path.Combine(repo.GitDir, "CHERRY_PICK_HEAD")).Trim();
-            Head = new Commands.QuerySingleCommit(repo.FullPath, headSHA).GetResult() ?? new Models.Commit() { SHA = headSHA };
-            HeadName = Head.GetFriendlyName();
+                Head = new Models.Commit() { SHA = string.Empty };
+                HeadName = string.Empty;
+            }
         }
     }
 
@@ -108,67 +111,39 @@ namespace SourceGit.ViewModels
 
         public RebaseInProgress(Repository repo)
         {
-            _gitDir = repo.GitDir;
             Name = "Rebase";
 
-            _continueCmd = new Commands.Command
-            {
-                WorkingDirectory = repo.FullPath,
-                Context = repo.FullPath,
-                Editor = Commands.Command.EditorType.RebaseEditor,
-                Args = "-c core.commentChar=\"^\" -c core.commentString=\"±\" rebase --continue",
-            };
+            // Rebase initiation/continuation/abortion is outside GitNest; keep inspection strictly read-only.
+            var mergeDir = Path.Combine(repo.GitDir, "rebase-merge");
+            var applyDir = Path.Combine(repo.GitDir, "rebase-apply");
+            var stateDir = Directory.Exists(mergeDir) ? mergeDir : applyDir;
 
-            _skipCmd = new Commands.Command
-            {
-                WorkingDirectory = repo.FullPath,
-                Context = repo.FullPath,
-                Args = "rebase --skip",
-            };
-
-            _abortCmd = new Commands.Command
-            {
-                WorkingDirectory = repo.FullPath,
-                Context = repo.FullPath,
-                Args = "rebase --abort",
-                RaiseError = false,
-            };
-
-            HeadName = File.ReadAllText(Path.Combine(repo.GitDir, "rebase-merge", "head-name")).Trim();
+            HeadName = ReadTrimmedFileIfExists(Path.Combine(stateDir, "head-name"));
             if (HeadName.StartsWith("refs/heads/"))
                 HeadName = HeadName.Substring(11);
             else if (HeadName.StartsWith("refs/tags/"))
                 HeadName = HeadName.Substring(10);
 
-            var stoppedSHAPath = Path.Combine(repo.GitDir, "rebase-merge", "stopped-sha");
-            var stoppedSHA = File.Exists(stoppedSHAPath)
-                ? File.ReadAllText(stoppedSHAPath).Trim()
-                : new Commands.QueryRevisionByRefName(repo.FullPath, HeadName).GetResult();
+            var stoppedSHA = ReadTrimmedFileIfExists(Path.Combine(mergeDir, "stopped-sha"));
+            if (string.IsNullOrEmpty(stoppedSHA))
+                stoppedSHA = ReadTrimmedFileIfExists(Path.Combine(applyDir, "original-commit"));
+            if (string.IsNullOrEmpty(stoppedSHA) && !string.IsNullOrEmpty(HeadName))
+                stoppedSHA = new Commands.QueryRevisionByRefName(repo.FullPath, HeadName).GetResult();
 
             if (!string.IsNullOrEmpty(stoppedSHA))
                 StoppedAt = new Commands.QuerySingleCommit(repo.FullPath, stoppedSHA).GetResult() ?? new Models.Commit() { SHA = stoppedSHA };
 
-            var ontoSHA = File.ReadAllText(Path.Combine(repo.GitDir, "rebase-merge", "onto")).Trim();
-            Onto = new Commands.QuerySingleCommit(repo.FullPath, ontoSHA).GetResult() ?? new Models.Commit() { SHA = ontoSHA };
-            BaseName = Onto.GetFriendlyName();
+            var ontoSHA = ReadTrimmedFileIfExists(Path.Combine(stateDir, "onto"));
+            if (!string.IsNullOrEmpty(ontoSHA))
+            {
+                Onto = new Commands.QuerySingleCommit(repo.FullPath, ontoSHA).GetResult() ?? new Models.Commit() { SHA = ontoSHA };
+                BaseName = Onto.GetFriendlyName();
+            }
+            else
+            {
+                BaseName = string.Empty;
+            }
         }
-
-        protected override void OnAborted()
-        {
-            var rebaseMergeDir = Path.Combine(_gitDir, "rebase-merge");
-            if (Directory.Exists(rebaseMergeDir))
-                Directory.Delete(rebaseMergeDir, true);
-
-            var rebaseApplyDir = Path.Combine(_gitDir, "rebase-apply");
-            if (Directory.Exists(rebaseApplyDir))
-                Directory.Delete(rebaseApplyDir, true);
-
-            var jobFile = Path.Combine(_gitDir, "gitnest.interactive_rebase");
-            if (File.Exists(jobFile))
-                File.Delete(jobFile);
-        }
-
-        private readonly string _gitDir;
     }
 
     public class AmInProgress : InProgressContext
@@ -178,52 +153,16 @@ namespace SourceGit.ViewModels
             get;
         }
 
-        public bool CanSkip
-        {
-            get;
-        }
+        public bool CanSkip => false;
 
         public AmInProgress(Repository repo)
         {
-            _repo = repo;
             Name = "Apply Patch";
 
-            _continueCmd = new Commands.Command
-            {
-                WorkingDirectory = repo.FullPath,
-                Context = repo.FullPath,
-                Editor = Commands.Command.EditorType.None,
-                Args = "am --continue",
-            };
-
-            _skipCmd = new Commands.Command
-            {
-                WorkingDirectory = repo.FullPath,
-                Context = repo.FullPath,
-                Args = "am --skip",
-            };
-
-            _abortCmd = new Commands.Command
-            {
-                WorkingDirectory = repo.FullPath,
-                Context = repo.FullPath,
-                Args = "am --abort",
-            };
-
+            // External AM workflows are read-only inside GitNest; never modify or delete rebase-apply.
             var next = ReadIntFromFile(Path.Combine(repo.GitDir, "rebase-apply", "next"));
             var total = ReadIntFromFile(Path.Combine(repo.GitDir, "rebase-apply", "last"));
-            Progress = $"({next - 1}/{total})";
-            CanSkip = next < total;
-        }
-
-        protected override void OnAborted()
-        {
-            var rebaseApplyDir = Path.Combine(_repo.GitDir, "rebase-apply");
-            if (Directory.Exists(rebaseApplyDir))
-                Directory.Delete(rebaseApplyDir, true);
-
-            // Force update local changes.
-            _repo.MarkWorkingCopyDirtyManually();
+            Progress = total > 0 ? $"({Math.Max(0, next - 1)}/{total})" : string.Empty;
         }
 
         private int ReadIntFromFile(string file)
@@ -237,8 +176,14 @@ namespace SourceGit.ViewModels
 
             return 0;
         }
+    }
 
-        private readonly Repository _repo;
+    public class BisectInProgress : InProgressContext
+    {
+        public BisectInProgress()
+        {
+            Name = "Bisect";
+        }
     }
 
     public class RevertInProgress : InProgressContext
@@ -252,21 +197,6 @@ namespace SourceGit.ViewModels
         {
             Name = "Revert";
 
-            _continueCmd = new Commands.Command
-            {
-                WorkingDirectory = repo.FullPath,
-                Context = repo.FullPath,
-                Editor = Commands.Command.EditorType.None,
-                Args = "-c core.commentChar=\"^\" -c core.commentString=\"±\" revert --continue",
-            };
-
-            _skipCmd = new Commands.Command
-            {
-                WorkingDirectory = repo.FullPath,
-                Context = repo.FullPath,
-                Args = "revert --skip",
-            };
-
             _abortCmd = new Commands.Command
             {
                 WorkingDirectory = repo.FullPath,
@@ -274,8 +204,11 @@ namespace SourceGit.ViewModels
                 Args = "revert --abort",
             };
 
-            var headSHA = File.ReadAllText(Path.Combine(repo.GitDir, "REVERT_HEAD")).Trim();
-            Head = new Commands.QuerySingleCommit(repo.FullPath, headSHA).GetResult() ?? new Models.Commit() { SHA = headSHA };
+            var headSHA = ReadTrimmedFileIfExists(Path.Combine(repo.GitDir, "REVERT_HEAD"));
+            if (!string.IsNullOrEmpty(headSHA))
+                Head = new Commands.QuerySingleCommit(repo.FullPath, headSHA).GetResult() ?? new Models.Commit() { SHA = headSHA };
+            else
+                Head = new Models.Commit() { SHA = string.Empty };
         }
     }
 
@@ -317,9 +250,17 @@ namespace SourceGit.ViewModels
 
             Current = new Commands.QueryCurrentBranch(repo.FullPath).GetResult();
 
-            var sourceSHA = File.ReadAllText(Path.Combine(repo.GitDir, "MERGE_HEAD")).Trim();
-            Source = new Commands.QuerySingleCommit(repo.FullPath, sourceSHA).GetResult() ?? new Models.Commit() { SHA = sourceSHA };
-            SourceName = Source.GetFriendlyName();
+            var sourceSHA = ReadTrimmedFileIfExists(Path.Combine(repo.GitDir, "MERGE_HEAD"));
+            if (!string.IsNullOrEmpty(sourceSHA))
+            {
+                Source = new Commands.QuerySingleCommit(repo.FullPath, sourceSHA).GetResult() ?? new Models.Commit() { SHA = sourceSHA };
+                SourceName = Source.GetFriendlyName();
+            }
+            else
+            {
+                Source = new Models.Commit() { SHA = string.Empty };
+                SourceName = string.Empty;
+            }
         }
     }
 }

@@ -362,9 +362,11 @@ namespace SourceGit.Commands
                                     (mode == Models.MergeMode.Default || mode == Models.MergeMode.FastForward) &&
                                     string.Equals(afterHead, preflight.SourceResolvedSha, StringComparison.Ordinal);
 
-                        var msg = wasFf
-                            ? $"已快进合并：{preflight.DirectionSummary}（停留在 {preflight.TargetBranchName}，未自动推送）。"
-                            : $"已完成合并：{preflight.DirectionSummary}（停留在 {preflight.TargetBranchName}，未自动推送）。";
+                        var msg = mode == Models.MergeMode.DontCommit
+                            ? $"已完成不自动提交的合并预处理：{preflight.DirectionSummary}（已暂存待确认提交，未自动推送）。"
+                            : wasFf
+                                ? $"已快进合并：{preflight.DirectionSummary}（停留在 {preflight.TargetBranchName}，未自动推送）。"
+                                : $"已完成合并：{preflight.DirectionSummary}（停留在 {preflight.TargetBranchName}，未自动推送）。";
 
                         innerOutcome = new MergeInnerOutcome
                         {
@@ -858,11 +860,15 @@ namespace SourceGit.Commands
             var effectiveStore = journalStore ?? Models.OperationJournalStore.Instance;
             var recent = effectiveStore.GetByRepository(commonDir, 30);
             var matchingRecord = FindMatchingJournalRecord(recent, repoPath, kind, headSha, markerOid, markerLastWriteUtc, conflictedPaths.Count > 0);
+            var dontCommitRecord = kind == Models.GitInProgressKind.Merge && conflictedPaths.Count == 0
+                ? FindMatchingDontCommitMergeRecord(recent, repoPath, headSha, markerOid, markerLastWriteUtc)
+                : null;
 
             var origin = Models.ConflictOwnershipOrigin.ExternalOrUnknown;
             var originLabel = "外部操作进行中";
             var headline = BuildExternalHeadline(kind, conflictedPaths.Count);
-            var detail = "检测到非 GitNest 发起（或已被外部流程接管）的进行中状态。GitNest 已暂停保护类写入且绝不自动执行 --abort；请在外部工具/命令行完成或解决后点击刷新。";
+            var detail = "检测到非 GitNest 发起（或已被外部流程接管）的进行中状态。GitNest 已暂停保护类写入且绝不自动继续、中止或删除 Git 操作状态目录；请在外部工具/命令行完成或解决后点击刷新。";
+            var isDontCommit = false;
 
             if (matchingRecord != null)
             {
@@ -873,6 +879,14 @@ namespace SourceGit.Commands
                     ? detail
                     : matchingRecord.StepSummary;
             }
+            else if (dontCommitRecord != null)
+            {
+                origin = Models.ConflictOwnershipOrigin.GitNestOwnedClean;
+                originLabel = "合并暂存待提交";
+                headline = $"已准备好继续完成合并提交（{dontCommitRecord.Title}）";
+                detail = "当前为 GitNest 执行的无冲突 --no-commit 合并；请在工作区确认提交说明后继续完成合并提交。";
+                isDontCommit = true;
+            }
 
             return new Models.RepositoryInProgressInspection
             {
@@ -882,10 +896,11 @@ namespace SourceGit.Commands
                 MarkerTargetSha = markerOid,
                 ActiveMarkers = markers,
                 ConflictedPaths = conflictedPaths,
-                UnfinishedOperation = matchingRecord,
+                UnfinishedOperation = matchingRecord ?? dontCommitRecord,
                 Headline = headline,
                 Detail = detail,
                 CanOfferSafeAbort = false,
+                IsGitNestDontCommitMerge = isDontCommit,
             };
         }
 
@@ -1932,6 +1947,70 @@ namespace SourceGit.Commands
             }
 
             return null;
+        }
+
+        private static Models.GitOperationRecord FindMatchingDontCommitMergeRecord(
+            IReadOnlyList<Models.GitOperationRecord> recent,
+            string repoPath,
+            string headSha,
+            string markerTargetSha,
+            DateTime? markerLastWriteUtc)
+        {
+            if (recent == null || recent.Count == 0 || string.IsNullOrEmpty(headSha))
+                return null;
+
+            foreach (var rec in recent)
+            {
+                if (rec.Kind != Models.GitOperationKind.Merge ||
+                    rec.Stage != Models.GitOperationStage.Succeeded ||
+                    !HasDontCommitMergeFlags(rec.CommandSummary))
+                {
+                    continue;
+                }
+
+                if (!PathsEqual(rec.WorktreePath, repoPath))
+                    continue;
+
+                if (!string.Equals(rec.OriginalTipSha, headSha, StringComparison.Ordinal))
+                    continue;
+
+                if (!string.IsNullOrEmpty(markerTargetSha) &&
+                    !string.IsNullOrEmpty(rec.ExpectedPartnerSha) &&
+                    !string.Equals(rec.ExpectedPartnerSha, markerTargetSha, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (markerLastWriteUtc.HasValue && markerLastWriteUtc.Value > rec.UpdatedAtUtc)
+                    continue;
+
+                return rec;
+            }
+
+            return null;
+        }
+
+        private static bool HasDontCommitMergeFlags(string commandSummary)
+        {
+            if (string.IsNullOrWhiteSpace(commandSummary))
+                return false;
+
+            if (string.Equals(commandSummary, "git merge --no-ff --no-commit", StringComparison.Ordinal))
+                return true;
+
+            foreach (var rawLine in commandSummary.Split('\n'))
+            {
+                var line = rawLine.Trim();
+                if (!line.StartsWith("$ git ", StringComparison.Ordinal))
+                    continue;
+
+                var mergeIdx = line.IndexOf(" merge ", StringComparison.Ordinal);
+                var flagsIdx = line.IndexOf(" --no-ff --no-commit ", StringComparison.Ordinal);
+                if (mergeIdx >= 0 && flagsIdx > mergeIdx)
+                    return true;
+            }
+
+            return false;
         }
 
         private static string BuildExternalHeadline(Models.GitInProgressKind kind, int conflictCount)

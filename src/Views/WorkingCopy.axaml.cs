@@ -25,7 +25,8 @@ namespace SourceGit.Views
 
             var layout = ViewModels.Preferences.Instance.Layout;
             var width = grid.Bounds.Width;
-            var leftWidth = Math.Max(width - 304, 300);
+            var minLeft = width < 780 ? 200 : 300;
+            var leftWidth = Math.Max(width - 304, minLeft);
 
             if (layout.WorkingCopyLeftWidth.Value - leftWidth > 1.0)
                 layout.WorkingCopyLeftWidth = new GridLength(leftWidth, GridUnitType.Pixel);
@@ -358,7 +359,7 @@ namespace SourceGit.Views
             return refresh;
         }
 
-        private ContextMenu CreateContextMenuForUnstagedChanges(ViewModels.Repository repo, ViewModels.WorkingCopy vm, ViewModels.ChangeSelection selection)
+        internal ContextMenu CreateContextMenuForUnstagedChanges(ViewModels.Repository repo, ViewModels.WorkingCopy vm, ViewModels.ChangeSelection selection)
         {
             var changes = selection.Changes;
             var menu = new ContextMenu();
@@ -475,18 +476,6 @@ namespace SourceGit.Views
                         e.Handled = true;
                     };
 
-                    var assumeUnchanged = new MenuItem();
-                    assumeUnchanged.Header = App.Text("FileCM.AssumeUnchanged");
-                    assumeUnchanged.Icon = this.CreateMenuIcon("Icons.File.Ignore");
-                    assumeUnchanged.IsVisible = change.WorkTree != Models.ChangeState.Untracked;
-                    assumeUnchanged.Click += async (_, e) =>
-                    {
-                        var log = repo.CreateLog("Assume File Unchanged");
-                        await new Commands.AssumeUnchanged(repo.FullPath, change.Path, true).Use(log).ExecAsync();
-                        log.Complete();
-                        e.Handled = true;
-                    };
-
                     menu.Items.Add(stage);
                     menu.Items.Add(discard);
                     if (discardToHead != null)
@@ -504,7 +493,6 @@ namespace SourceGit.Views
                         };
                         menu.Items.Add(addTrackedToIgnore);
                     }
-                    menu.Items.Add(assumeUnchanged);
                     menu.Items.Add(new MenuItem() { Header = "-" });
 
                     var extension = Path.GetExtension(change.Path);

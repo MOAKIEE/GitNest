@@ -101,14 +101,6 @@ namespace SourceGit.Views
             }
         }
 
-        private async void OnSkipInProgress(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is ViewModels.Repository repo)
-                await repo.SkipMergeAsync();
-
-            e.Handled = true;
-        }
-
         private void OnResolveInProgress(object sender, RoutedEventArgs e)
         {
             if (DataContext is ViewModels.Repository repo)

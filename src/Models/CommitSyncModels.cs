@@ -14,6 +14,7 @@ namespace SourceGit.Models
         NothingStaged,
         DetachedHead,
         ConflictsPresent,
+        InProgressBlocked,
         HookRejected,
         SigningFailed,
         Canceled,

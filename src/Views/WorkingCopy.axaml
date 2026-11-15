@@ -10,9 +10,9 @@
              x:DataType="vm:WorkingCopy">
   <Grid SizeChanged="OnMainLayoutSizeChanged" Background="{DynamicResource Brush.SubPanel}">
     <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="{Binding Source={x:Static vm:Preferences.Instance}, Path=Layout.WorkingCopyLeftWidth, Mode=TwoWay}" MinWidth="300"/>
+      <ColumnDefinition Width="{Binding Source={x:Static vm:Preferences.Instance}, Path=Layout.WorkingCopyLeftWidth, Mode=TwoWay}" MinWidth="200"/>
       <ColumnDefinition Width="4"/>
-      <ColumnDefinition Width="*" MinWidth="470"/>
+      <ColumnDefinition Width="*" MinWidth="260"/>
     </Grid.ColumnDefinitions>
 
     <!-- Left -->
@@ -425,6 +425,25 @@
             </WrapPanel>
           </StackPanel>
         </Border>
+
+        <!-- External In-Progress Read-Only Notice -->
+        <Border Padding="8,6"
+                CornerRadius="4"
+                BorderThickness="1"
+                Background="{DynamicResource Brush.Window}"
+                BorderBrush="{DynamicResource Brush.Border2}"
+                IsVisible="{Binding ShowExternalInProgressFooter, Mode=OneWay}">
+          <Grid ColumnDefinitions="Auto,*">
+            <Path Grid.Column="0" Width="13" Height="13" Margin="0,2,8,0" VerticalAlignment="Top"
+                  Data="{StaticResource Icons.Info}"
+                  Fill="DarkOrange"/>
+            <TextBlock Grid.Column="1"
+                       FontSize="12"
+                       Foreground="{DynamicResource Brush.FG2}"
+                       Text="{DynamicResource Text.WorkingCopy.ExternalInProgressGuide}"
+                       TextWrapping="Wrap"/>
+          </Grid>
+        </Border>
       </StackPanel>
 
       <!-- Commit Options -->
@@ -454,6 +473,7 @@
                   Margin="12,0,0,0"
                   HorizontalAlignment="Left"
                   IsChecked="{Binding UseAmend, Mode=TwoWay}"
+                  IsEnabled="{Binding !HasInProgressBanner, Mode=OneWay}"
                   Content="{DynamicResource Text.WorkingCopy.Amend}"
                   ToolTip.Tip="--amend"
                   ToolTip.Placement="Top"
@@ -465,6 +485,7 @@
                   HorizontalAlignment="Left"
                   IsChecked="{Binding ResetAuthor, Mode=TwoWay}"
                   IsVisible="{Binding UseAmend}"
+                  IsEnabled="{Binding !HasInProgressBanner, Mode=OneWay}"
                   Content="{DynamicResource Text.WorkingCopy.ResetAuthor}"
                   ToolTip.Tip="--reset-author"
                   ToolTip.Placement="Top"
@@ -481,7 +502,7 @@
                      Margin="8,0,0,0"
                      Padding="8,0"
                      Click="OnContinue"
-                     IsVisible="{Binding InProgressContext, Converter={x:Static ObjectConverters.IsNotNull}}">
+                     IsVisible="{Binding CanContinueInProgress, Mode=OneWay}">
           <SplitButton.Styles>
             <Style Selector="SplitButton">
               <Setter Property="MinHeight" Value="24"/>
@@ -561,7 +582,7 @@
                 Padding="8,0"
                 Click="OnCommit"
                 HotKey="{OnPlatform Ctrl+Enter, macOS=⌘+Enter}"
-                IsVisible="{Binding InProgressContext, Converter={x:Static ObjectConverters.IsNull}}"
+                IsVisible="{Binding !HasInProgressBanner, Mode=OneWay}"
                 ToolTip.Placement="Top"
                 ToolTip.VerticalOffset="0">
           <ToolTip.Tip>
@@ -590,10 +611,12 @@
                 Width="0" Height="0"
                 Background="Transparent"
                 Click="OnCommitWithAutoStage"
+                IsVisible="{Binding InProgressContext, Converter={x:Static ObjectConverters.IsNull}}"
                 HotKey="{OnPlatform Ctrl+Shift+Enter, macOS=⌘+Shift+Enter}">
           <Button.IsEnabled>
             <MultiBinding Converter="{x:Static BoolConverters.And}">
               <Binding Path="IsCommitting" Converter="{x:Static BoolConverters.Not}"/>
+              <Binding Path="HasInProgressBanner" Converter="{x:Static BoolConverters.Not}" Mode="OneWay"/>
               <Binding Path="CommitMessage" Converter="{x:Static c:StringConverters.IsNotNullOrWhitespace}"/>
             </MultiBinding>
           </Button.IsEnabled>

@@ -134,6 +134,89 @@ internal static partial class Program
         Pump();
         Screenshot(window, "trim-repo-dark-narrow");
 
+        // Verify Batch 2 removed Rebase, MergeMultiple, and AssumeUnchanged add entries from context menus
+        Git(repoPath, "branch", "feat/menu-probe");
+        Git(repoPath, "update-ref", "refs/remotes/origin/main", "HEAD");
+        repo.MarkBranchesDirtyManually();
+        Await(() => repo.Branches.Any(b => b.Name == "feat/menu-probe") && repo.Branches.Any(b => !b.IsLocal));
+
+        var branchTreeView = window.GetVisualDescendants().OfType<Views.BranchTree>().FirstOrDefault();
+        var historiesView = window.GetVisualDescendants().OfType<Views.Histories>().FirstOrDefault();
+        repo.SelectedViewIndex = 1;
+        Pump();
+        var workingCopyView = window.GetVisualDescendants().OfType<Views.WorkingCopy>().FirstOrDefault();
+
+        var localOther = repo.Branches.First(b => b.IsLocal && !b.IsCurrent);
+        var remoteBranch = repo.Branches.First(b => !b.IsLocal);
+        var multiBranches = repo.Branches.Where(b => b.IsLocal).Take(2).ToList();
+        var localMenu = branchTreeView!.CreateContextMenuForLocalBranch(repo, localOther);
+        var remoteMenu = branchTreeView.CreateContextMenuForRemoteBranch(repo, remoteBranch);
+        var multiBranchMenu = branchTreeView.CreateContextMenuForMultipleBranches(repo, multiBranches);
+
+        static List<string> ExtractMenuHeaders(ContextMenu menu) =>
+            menu.Items.OfType<MenuItem>().Select(m => m.Header?.ToString() ?? string.Empty).ToList();
+
+        var localHeaders = ExtractMenuHeaders(localMenu);
+        var remoteHeaders = ExtractMenuHeaders(remoteMenu);
+        var multiBranchHeaders = ExtractMenuHeaders(multiBranchMenu);
+        Check(localHeaders.All(h => !h.Contains("Rebase", StringComparison.OrdinalIgnoreCase) && !h.Contains("变基", StringComparison.Ordinal)) &&
+              remoteHeaders.All(h => !h.Contains("Rebase", StringComparison.OrdinalIgnoreCase) && !h.Contains("变基", StringComparison.Ordinal)) &&
+              multiBranchHeaders.All(h => !h.Contains("Merge selected", StringComparison.OrdinalIgnoreCase) && !h.Contains("合并(merge)", StringComparison.Ordinal)),
+              "BranchTree context menus omit removed Rebase and MergeMultiple items");
+
+        var singleCommitMenu = historiesView!.CreateContextMenuForSingleCommit(repo, repo.Histories.Commits[0]);
+        var multiCommitMenu = historiesView.CreateContextMenuForMultipleCommits(repo.Histories.Commits.Take(2).ToList());
+        var singleCommitHeaders = ExtractMenuHeaders(singleCommitMenu);
+        var multiCommitHeaders = ExtractMenuHeaders(multiCommitMenu);
+        Check(singleCommitHeaders.All(h => !h.Contains("Rebase", StringComparison.OrdinalIgnoreCase) && !h.Contains("变基", StringComparison.Ordinal)) &&
+              multiCommitHeaders.All(h => !h.Equals("Merge...", StringComparison.OrdinalIgnoreCase) && !h.Contains("合并(merge)", StringComparison.Ordinal)),
+              "Histories context menus omit removed Rebase and MergeMultiple items");
+
+        var wcVm = (VM.WorkingCopy)workingCopyView!.DataContext!;
+        var unstagedSelection = new VM.ChangeSelection(new List<Change>
+        {
+            new Change { Path = "README.md", WorkTree = ChangeState.Modified }
+        });
+        var unstagedMenu = workingCopyView.CreateContextMenuForUnstagedChanges(repo, wcVm, unstagedSelection);
+        var unstagedHeaders = ExtractMenuHeaders(unstagedMenu);
+        Check(unstagedHeaders.All(h => !h.Contains("Assume unchanged", StringComparison.OrdinalIgnoreCase) && !h.Contains("不跟踪此文件的更改", StringComparison.Ordinal)),
+              "WorkingCopy unstaged context menu omits removed Assume unchanged item");
+
+        // Verify read-only AssumeUnchangedManager tip, list, and unmark restore
+        Git(repoPath, "update-index", "--assume-unchanged", "README.md");
+        File.AppendAllText(Path.Combine(repoPath, "README.md"), "edited while assumed\n");
+        var assumeVm = new VM.AssumeUnchangedManager(repo);
+        App.SetTheme("Light", "");
+        var assumeWin = new Views.AssumeUnchangedManager
+        {
+            DataContext = assumeVm,
+            Width = 620,
+            Height = 360,
+            ShowInTaskbar = false,
+            Title = "GitNest AssumeUnchanged 只读管理探针",
+        };
+        assumeWin.Show();
+        Await(() => assumeVm.Files.Count == 1);
+        var assumeTip = assumeWin.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == App.Text("AssumeUnchanged.Tip"));
+        var removeBtn = assumeWin.GetVisualDescendants().OfType<Button>().FirstOrDefault(b => Equals(ToolTip.GetTip(b), App.Text("AssumeUnchanged.RemoveTip")));
+        Check(assumeTip && removeBtn != null && assumeVm.Files[0] == "README.md",
+              "AssumeUnchangedManager displays read-only guidance tip, marked file, and remove tooltip");
+        Screenshot(assumeWin, "trim-assume-unchanged-light");
+        App.SetTheme("Dark", "");
+        assumeWin.Width = 500;
+        Pump();
+        Screenshot(assumeWin, "trim-assume-unchanged-dark-narrow");
+
+        removeBtn!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        Await(() => assumeVm.Files.Count == 0);
+        var lsAfter = Git(repoPath, "ls-files", "-v", "--", "README.md");
+        Check(lsAfter.TrimStart().StartsWith("H ", StringComparison.Ordinal),
+              "Removing file in AssumeUnchangedManager restores Git tracking");
+        assumeWin.Close();
+        App.SetTheme("Light", "");
+        repo.SelectedViewIndex = 0;
+        Pump();
+
         // RepositoryConfigure tab surface check
         App.SetTheme("Light", "");
         var cfgVm = new VM.RepositoryConfigure(repo);

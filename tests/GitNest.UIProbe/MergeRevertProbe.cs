@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
@@ -292,6 +293,141 @@ internal static partial class Program
             "Clicking Refresh Status in Conflict panel preserves external MERGE_HEAD and conflict markers safely");
 
         Screenshot(window, "external-conflict-readonly-light");
+
+        // 6. GitNest DontCommit paused merge vs external rebase (--merge / --apply) and bisect read-only states
+        RunGitAllowFailure(repoPath, "merge", "--abort");
+        RunGitAllowFailure(repoPath, "checkout", "-b", "feat/dc-clean");
+        File.WriteAllText(Path.Combine(repoPath, "dc-clean.txt"), "clean feature\n", utf8NoBom);
+        RunGitAllowFailure(repoPath, "add", "dc-clean.txt");
+        RunGitAllowFailure(repoPath, "commit", "-m", "clean feature for dontcommit");
+        RunGitAllowFailure(repoPath, "checkout", "main");
+
+        var dcPreflight = SourceGit.Commands.MergeRevertService.InspectMergeAsync(repoPath, "feat/dc-clean", "main", MergeSourceKind.LocalBranch).GetAwaiter().GetResult();
+        var dcExec = SourceGit.Commands.MergeRevertService.ExecuteMergeAsync(
+            repoPath,
+            new MergeExecutionOptions
+            {
+                SourceKind = MergeSourceKind.LocalBranch,
+                SourceRefOrSha = "feat/dc-clean",
+                TargetBranchName = "main",
+                Mode = MergeMode.DontCommit,
+                Preflight = dcPreflight,
+            },
+            OperationJournalStore.Instance).GetAwaiter().GetResult();
+        Check(dcExec.Succeeded, "UIProbe DontCommit clean merge pauses with MERGE_HEAD");
+
+        repo.MarkWorkingCopyDirtyManually();
+        repo.SelectedViewIndex = 1;
+        Await(() =>
+        {
+            var wc = window.GetVisualDescendants().OfType<Views.WorkingCopy>().FirstOrDefault()?.DataContext as VM.WorkingCopy;
+            return wc is { HasInProgressBanner: true, CanContinueInProgress: true, ShowExternalInProgressFooter: false, IsRefreshingInProgressOwnership: false } &&
+                   wc.InProgressInspection is { IsGitNestDontCommitMerge: true } &&
+                   repo.InProgressOriginLabel == App.Text("WorkingCopy.InProgress.DontCommitOrigin");
+        });
+        var wcView = window.GetVisualDescendants().OfType<Views.WorkingCopy>().First();
+        var wcVm = (VM.WorkingCopy)wcView.DataContext!;
+        var splitContinue = wcView.GetVisualDescendants().OfType<SplitButton>().FirstOrDefault(b => Equals(b.Content?.ToString(), App.Text("Repository.Continue")));
+        var amendCheck = wcView.GetVisualDescendants().OfType<CheckBox>().FirstOrDefault(c => Equals(c.Content?.ToString(), App.Text("WorkingCopy.Amend")));
+        Check(splitContinue != null &&
+              splitContinue.IsVisible &&
+              !wcVm.UseAmend &&
+              amendCheck != null &&
+              !amendCheck.IsEnabled,
+              "GitNest DontCommit merge enables Continue SplitButton and disables Amend checkbox");
+        Screenshot(window, "workingcopy-dontcommit-merge-light");
+        RunGitAllowFailure(repoPath, "merge", "--abort");
+
+        // External git rebase --merge conflict
+        RunGitAllowFailure(repoPath, "checkout", "-b", "feat/rm-probe");
+        File.WriteAllText(Path.Combine(repoPath, "rebase-conflict.txt"), "feature change\n", utf8NoBom);
+        RunGitAllowFailure(repoPath, "add", "rebase-conflict.txt");
+        RunGitAllowFailure(repoPath, "commit", "-m", "feat rebase conflict");
+        RunGitAllowFailure(repoPath, "checkout", "main");
+        File.WriteAllText(Path.Combine(repoPath, "rebase-conflict.txt"), "main change\n", utf8NoBom);
+        RunGitAllowFailure(repoPath, "add", "rebase-conflict.txt");
+        RunGitAllowFailure(repoPath, "commit", "-m", "main rebase conflict");
+        RunGitAllowFailure(repoPath, "checkout", "feat/rm-probe");
+        var (rmExit, _, _) = RunGitAllowFailure(repoPath, "rebase", "--merge", "main");
+        var rmDir = Path.Combine(repoPath, ".git", "rebase-merge");
+        Check(rmExit != 0 && Directory.Exists(rmDir), "External git rebase --merge stopped in conflict for UIProbe");
+
+        repo.MarkWorkingCopyDirtyManually();
+        Await(() =>
+            repo.InProgressContext is VM.RebaseInProgress &&
+            wcVm.HasInProgressBanner &&
+            wcVm.ShowExternalInProgressFooter &&
+            !wcVm.CanContinueInProgress &&
+            !wcVm.IsRefreshingInProgressOwnership &&
+            wcVm.InProgressInspection is { InProgressKind: GitInProgressKind.Rebase } &&
+            repo.InProgressOriginLabel == App.Text("WorkingCopy.Conflicts.Origin.External"));
+
+        var forbiddenInProgressActions = window.GetVisualDescendants()
+            .OfType<Button>()
+            .Where(b => b.IsEffectivelyVisible &&
+                        (string.Equals(b.Content?.ToString(), "SKIP", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(b.Content?.ToString(), "跳过此提交", StringComparison.Ordinal) ||
+                         string.Equals(b.Content?.ToString(), App.Text("Repository.Continue"), StringComparison.Ordinal) ||
+                         string.Equals(b.Content?.ToString(), App.Text("Repository.Abort"), StringComparison.Ordinal)))
+            .ToList();
+        var extGuideBlock = wcView.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(t => t.IsEffectivelyVisible && t.Text == App.Text("WorkingCopy.ExternalInProgressGuide"));
+        Check(forbiddenInProgressActions.Count == 0 &&
+              extGuideBlock != null &&
+              extGuideBlock.Bounds.Width > 0 &&
+              extGuideBlock.Bounds.Width <= wcView.Bounds.Width &&
+              (splitContinue == null || !splitContinue.IsVisible) &&
+              Directory.Exists(rmDir),
+              "External rebase --merge renders read-only banner and external footer without Skip/Continue/Abort buttons");
+        Screenshot(window, "external-rebase-readonly-light");
+
+        App.SetTheme("Dark", string.Empty);
+        window.Width = 860;
+        Pump();
+        var narrowExtGuideBlock = wcView.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(t => t.IsEffectivelyVisible && t.Text == App.Text("WorkingCopy.ExternalInProgressGuide"));
+        var wcRightInWindow = wcView.TranslatePoint(new Avalonia.Point(wcView.Bounds.Width, 0), window);
+        Check(narrowExtGuideBlock != null &&
+              narrowExtGuideBlock.Bounds.Width > 0 &&
+              narrowExtGuideBlock.Bounds.Width <= wcView.Bounds.Width &&
+              wcRightInWindow is { X: var wcRightX } &&
+              wcRightX <= window.Bounds.Width + 1.0,
+              "External rebase guide text wraps cleanly within narrow 860px Dark layout");
+        Screenshot(window, "external-rebase-readonly-dark-narrow");
+
+        App.SetTheme("Light", string.Empty);
+        window.Width = 1120;
+        RunGitAllowFailure(repoPath, "rebase", "--abort");
+
+        // External git rebase --apply conflict (no applying file -> never delete!)
+        var (raExit, _, _) = RunGitAllowFailure(repoPath, "rebase", "--apply", "main");
+        var raDir = Path.Combine(repoPath, ".git", "rebase-apply");
+        Check(raExit != 0 && Directory.Exists(raDir) && !File.Exists(Path.Combine(raDir, "applying")),
+              "External git rebase --apply stopped with .git/rebase-apply and no applying marker");
+        repo.MarkWorkingCopyDirtyManually();
+        Await(() =>
+            repo.InProgressContext is VM.RebaseInProgress &&
+            wcVm.ShowExternalInProgressFooter &&
+            !wcVm.IsRefreshingInProgressOwnership &&
+            wcVm.InProgressInspection is { InProgressKind: GitInProgressKind.Rebase });
+        Check(Directory.Exists(raDir), "UI refresh preserves external .git/rebase-apply without deleting it");
+        RunGitAllowFailure(repoPath, "rebase", "--abort");
+
+        // External git bisect (BISECT_LOG)
+        RunGitAllowFailure(repoPath, "checkout", "main");
+        RunGitAllowFailure(repoPath, "bisect", "start");
+        RunGitAllowFailure(repoPath, "bisect", "bad");
+        RunGitAllowFailure(repoPath, "bisect", "good", "HEAD~2");
+        repo.MarkWorkingCopyDirtyManually();
+        Await(() =>
+            repo.InProgressContext is VM.BisectInProgress &&
+            wcVm.ShowExternalInProgressFooter &&
+            !wcVm.IsRefreshingInProgressOwnership &&
+            wcVm.InProgressInspection is { InProgressKind: GitInProgressKind.Bisect } &&
+            repo.InProgressOriginLabel == App.Text("WorkingCopy.Conflicts.Origin.External"));
+        Check(File.Exists(Path.Combine(repoPath, ".git", "BISECT_LOG")) &&
+              window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.IsEffectivelyVisible && t.Text == App.Text("InProgress.Bisect")),
+              "External BISECT_LOG displays read-only BisectInProgress banner and blocks writes");
+        Screenshot(window, "external-bisect-readonly-light");
+        RunGitAllowFailure(repoPath, "bisect", "reset");
 
         window.Close();
         _window = null;

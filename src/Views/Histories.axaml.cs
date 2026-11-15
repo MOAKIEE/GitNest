@@ -801,7 +801,7 @@ namespace SourceGit.Views
 
             if (selected.Count > 1)
             {
-                var menu = CreateContextMenuForMultipleCommits(repo, commits);
+                var menu = CreateContextMenuForMultipleCommits(commits);
                 menu.Open(CommitListContainer);
             }
             else if (selected.Count == 1)
@@ -872,34 +872,9 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
-        private ContextMenu CreateContextMenuForMultipleCommits(ViewModels.Repository repo, List<Models.Commit> selected)
+        internal ContextMenu CreateContextMenuForMultipleCommits(List<Models.Commit> selected)
         {
-            var canMerge = true;
-
-            foreach (var c in selected)
-            {
-                if (c.IsMerged)
-                {
-                    canMerge = false;
-                }
-            }
-
             var menu = new ContextMenu();
-
-            if (!repo.IsBare && canMerge)
-            {
-                var merge = new MenuItem();
-                merge.Header = App.Text("CommitCM.MergeMultiple");
-                merge.Icon = this.CreateMenuIcon("Icons.Merge");
-                merge.Click += (_, e) =>
-                {
-                    if (repo.CanCreatePopup())
-                        repo.ShowPopup(new ViewModels.MergeMultiple(repo, selected));
-                    e.Handled = true;
-                };
-                menu.Items.Add(merge);
-                menu.Items.Add(new MenuItem() { Header = "-" });
-            }
 
             var copyInfos = new MenuItem();
             copyInfos.Header = App.Text("CommitCM.CopySHA") + " - " + App.Text("CommitCM.CopySubject");
@@ -969,7 +944,7 @@ namespace SourceGit.Views
             return menu;
         }
 
-        private ContextMenu CreateContextMenuForSingleCommit(ViewModels.Repository repo, Models.Commit commit)
+        internal ContextMenu CreateContextMenuForSingleCommit(ViewModels.Repository repo, Models.Commit commit)
         {
             var current = repo.CurrentBranch;
             var vm = DataContext as ViewModels.Histories;
@@ -1053,17 +1028,6 @@ namespace SourceGit.Views
 
                 if (!commit.IsMerged)
                 {
-                    var rebase = new MenuItem();
-                    rebase.Header = App.Text("CommitCM.Rebase", current.Name, target);
-                    rebase.Icon = this.CreateMenuIcon("Icons.Rebase");
-                    rebase.Click += (_, e) =>
-                    {
-                        if (repo.CanCreatePopup())
-                            repo.ShowPopup(new ViewModels.Rebase(repo, current, commit));
-                        e.Handled = true;
-                    };
-                    menu.Items.Add(rebase);
-
                     var merge = new MenuItem();
                     merge.Header = App.Text("BranchCM.Merge", target, current.Name);
                     merge.Icon = this.CreateMenuIcon("Icons.Merge");

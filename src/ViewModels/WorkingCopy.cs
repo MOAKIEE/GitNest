@@ -36,7 +36,16 @@ namespace SourceGit.ViewModels
         public bool HasUnsolvedConflicts
         {
             get => _hasUnsolvedConflicts;
-            set => SetProperty(ref _hasUnsolvedConflicts, value);
+            set
+            {
+                if (SetProperty(ref _hasUnsolvedConflicts, value))
+                {
+                    OnPropertyChanged(nameof(HasInProgressBanner));
+                    OnPropertyChanged(nameof(CanContinueInProgress));
+                    OnPropertyChanged(nameof(ShowExternalInProgressFooter));
+                    OnPropertyChanged(nameof(HasInlineNoticeArea));
+                }
+            }
         }
 
         public bool CanSwitchBranchDirectly
@@ -72,6 +81,9 @@ namespace SourceGit.ViewModels
 
                 if (_inProgressInspection == null)
                     return App.Text("WorkingCopy.Conflicts.Origin.External");
+
+                if (_inProgressInspection.IsGitNestDontCommitMerge)
+                    return App.Text("WorkingCopy.InProgress.DontCommitOrigin");
 
                 return _inProgressInspection.Origin switch
                 {
@@ -116,6 +128,14 @@ namespace SourceGit.ViewModels
         public bool CanAbortInProgressFromBanner =>
             _inProgressContext != null &&
             _inProgressInspection is { CanOfferSafeAbort: true };
+
+        public bool CanContinueInProgress =>
+            _inProgressContext is MergeInProgress &&
+            !_hasUnsolvedConflicts &&
+            _inProgressInspection is { IsGitNestDontCommitMerge: true };
+
+        public bool ShowExternalInProgressFooter =>
+            HasInProgressBanner && !CanContinueInProgress;
 
         public List<Models.Change> ConflictedChanges =>
             _cached.FindAll(static x => x.IsConflicted);
@@ -656,6 +676,12 @@ namespace SourceGit.ViewModels
         {
             if (_inProgressContext != null)
             {
+                if (!CanContinueInProgress)
+                {
+                    _repo.SendNotification(App.Text("WorkingCopy.Conflicts.ExternalAbortDisabled"), true);
+                    return;
+                }
+
                 using var lockWatcher = _repo.LockWatcher();
                 IsCommitting = true;
 
@@ -680,15 +706,8 @@ namespace SourceGit.ViewModels
         {
             if (_inProgressContext != null)
             {
-                using var lockWatcher = _repo.LockWatcher();
-                IsCommitting = true;
-
-                var log = _repo.CreateLog($"Skip {_inProgressContext.Name}");
-                await _inProgressContext.SkipAsync(log);
-                log.Complete();
-
-                CommitMessage = string.Empty;
-                IsCommitting = false;
+                _repo.SendNotification(App.Text("WorkingCopy.Conflicts.ExternalAbortDisabled"), true);
+                return;
             }
             else
             {
@@ -764,6 +783,13 @@ namespace SourceGit.ViewModels
             if (autoStage && HasUnsolvedConflicts)
             {
                 _repo.SendNotification("Repository has unsolved conflict(s). Auto-stage and commit is disabled!", true);
+                return;
+            }
+
+            if (_inProgressContext != null ||
+                Commands.CaptureOperationSnapshot.DetectInProgressKind(_repo.GitDir) != Models.GitInProgressKind.None)
+            {
+                SetCommitAlert(App.Text("WorkingCopy.ExternalInProgressBlocked"));
                 return;
             }
 
@@ -1018,12 +1044,16 @@ namespace SourceGit.ViewModels
                 InProgressContext = new CherryPickInProgress(_repo);
             else if (Directory.Exists(Path.Combine(_repo.GitDir, "rebase-merge")))
                 InProgressContext = new RebaseInProgress(_repo);
-            else if (Directory.Exists(Path.Combine(_repo.GitDir, "rebase-apply")) && File.Exists(Path.Combine(_repo.GitDir, "rebase-apply", "applying")))
-                InProgressContext = new AmInProgress(_repo);
+            else if (Directory.Exists(Path.Combine(_repo.GitDir, "rebase-apply")))
+                InProgressContext = File.Exists(Path.Combine(_repo.GitDir, "rebase-apply", "applying"))
+                    ? new AmInProgress(_repo)
+                    : new RebaseInProgress(_repo);
             else if (File.Exists(Path.Combine(_repo.GitDir, "REVERT_HEAD")))
                 InProgressContext = new RevertInProgress(_repo);
             else if (File.Exists(Path.Combine(_repo.GitDir, "MERGE_HEAD")))
                 InProgressContext = new MergeInProgress(_repo);
+            else if (File.Exists(Path.Combine(_repo.GitDir, "BISECT_LOG")))
+                InProgressContext = new BisectInProgress();
             else
                 InProgressContext = null;
 
@@ -1031,9 +1061,6 @@ namespace SourceGit.ViewModels
 
             if (_inProgressContext == null)
             {
-                if (Directory.Exists(Path.Combine(_repo.GitDir, "rebase-apply")))
-                    Directory.Delete(Path.Combine(_repo.GitDir, "rebase-apply"), true);
-
                 if (oldType != null && IsAutoLoadedCommitMessage())
                     CommitMessage = string.Empty;
                 else if (string.IsNullOrEmpty(_commitMessage))
@@ -1050,13 +1077,16 @@ namespace SourceGit.ViewModels
 
             if (_inProgressContext is RebaseInProgress rebasing)
             {
-                if (!LoadCommitMessageFromFile(Path.Combine(_repo.GitDir, "rebase-merge", "message")))
+                if (!LoadCommitMessageFromFile(Path.Combine(_repo.GitDir, "rebase-merge", "message")) &&
+                    !LoadCommitMessageFromFile(Path.Combine(_repo.GitDir, "rebase-apply", "msg")) &&
+                    rebasing.StoppedAt != null &&
+                    !string.IsNullOrEmpty(rebasing.StoppedAt.SHA))
                 {
                     var message = new Commands.QueryCommitFullMessage(_repo.FullPath, rebasing.StoppedAt.SHA).GetResult();
                     SetAutoLoadedCommitMessage(message);
                 }
             }
-            else if (_inProgressContext is AmInProgress applying)
+            else if (_inProgressContext is AmInProgress)
             {
                 LoadCommitMessageFromFile(Path.Combine(_repo.GitDir, "rebase-apply", "final-commit"));
             }
@@ -1195,8 +1225,25 @@ namespace SourceGit.ViewModels
         private string _filter = string.Empty;
         private string _commitMessage = string.Empty;
 
+        internal bool IsRefreshingInProgressOwnership => Volatile.Read(ref _inProgressOwnershipRefreshCount) > 0;
+
+        private Models.GitInProgressKind GetExpectedInProgressKind()
+        {
+            return _inProgressContext switch
+            {
+                CherryPickInProgress => Models.GitInProgressKind.CherryPick,
+                RebaseInProgress => Models.GitInProgressKind.Rebase,
+                AmInProgress => Models.GitInProgressKind.Am,
+                BisectInProgress => Models.GitInProgressKind.Bisect,
+                RevertInProgress => Models.GitInProgressKind.Revert,
+                MergeInProgress => Models.GitInProgressKind.Merge,
+                _ => Models.GitInProgressKind.None,
+            };
+        }
+
         private void UpdateInProgressOwnershipInspection()
         {
+            var expectedKind = GetExpectedInProgressKind();
             if (_inProgressContext == null && !_hasUnsolvedConflicts)
             {
                 Interlocked.Increment(ref _inProgressInspectionVersion);
@@ -1207,13 +1254,24 @@ namespace SourceGit.ViewModels
                 return;
             }
 
-            NotifyInProgressOwnershipChanged();
+            if (_inProgressInspection != null &&
+                expectedKind != Models.GitInProgressKind.None &&
+                _inProgressInspection.InProgressKind != expectedKind)
+            {
+                InProgressInspection = null;
+            }
+            else
+            {
+                NotifyInProgressOwnershipChanged();
+            }
+
             _ = RefreshInProgressInspectionAsync();
         }
 
         private async Task RefreshInProgressInspectionAsync()
         {
             var version = Interlocked.Increment(ref _inProgressInspectionVersion);
+            Interlocked.Increment(ref _inProgressOwnershipRefreshCount);
             try
             {
                 var inspection = await Commands.MergeRevertService
@@ -1230,6 +1288,10 @@ namespace SourceGit.ViewModels
                 if (version == _inProgressInspectionVersion)
                     NotifyInProgressOwnershipChanged();
             }
+            finally
+            {
+                Interlocked.Decrement(ref _inProgressOwnershipRefreshCount);
+            }
         }
 
         private void NotifyInProgressOwnershipChanged()
@@ -1239,6 +1301,9 @@ namespace SourceGit.ViewModels
             OnPropertyChanged(nameof(InProgressConflictBadgeText));
             OnPropertyChanged(nameof(InProgressBannerTooltip));
             OnPropertyChanged(nameof(CanAbortInProgressFromBanner));
+            OnPropertyChanged(nameof(CanContinueInProgress));
+            OnPropertyChanged(nameof(ShowExternalInProgressFooter));
+            OnPropertyChanged(nameof(HasInlineNoticeArea));
             OnPropertyChanged(nameof(ConflictedChanges));
 
             if (_detailContext is Conflict conflictVm)
@@ -1251,6 +1316,7 @@ namespace SourceGit.ViewModels
         private InProgressContext _inProgressContext = null;
         private Models.RepositoryInProgressInspection _inProgressInspection = null;
         private int _inProgressInspectionVersion;
+        private int _inProgressOwnershipRefreshCount;
         private string _autoLoadedCommitMessage = null;
     }
 }

@@ -137,12 +137,13 @@ namespace SourceGit.ViewModels
 
                 var (mine, theirs) = wc.InProgressContext switch
                 {
-                    CherryPickInProgress cherryPick => (_head, cherryPick.Head),
-                    RebaseInProgress rebase => (rebase.Onto, rebase.StoppedAt),
-                    AmInProgress => (_head, (object)"Patch"),
-                    RevertInProgress revert => (_head, revert.Head),
-                    MergeInProgress merge => (_head, merge.Source),
-                    _ => (_head, (object)"Stash or Patch"),
+                    CherryPickInProgress cherryPick => (_head, (object)(!string.IsNullOrEmpty(cherryPick.Head?.SHA) ? cherryPick.Head : "Cherry-Pick")),
+                    RebaseInProgress rebase => (rebase.Onto ?? (object)_head ?? "Onto", rebase.StoppedAt ?? (object)"Rebase"),
+                    AmInProgress => (_head ?? (object)"HEAD", (object)"Patch"),
+                    BisectInProgress => (_head ?? (object)"HEAD", (object)"Bisect"),
+                    RevertInProgress revert => (_head ?? (object)"HEAD", (object)(!string.IsNullOrEmpty(revert.Head?.SHA) ? revert.Head : "Revert")),
+                    MergeInProgress merge => (_head ?? (object)"HEAD", (object)(!string.IsNullOrEmpty(merge.Source?.SHA) ? merge.Source : "Merge")),
+                    _ => (_head ?? (object)"HEAD", (object)"Stash or Patch"),
                 };
 
                 if (theirs == null)

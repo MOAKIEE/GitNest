@@ -214,6 +214,19 @@ namespace SourceGit.Commands
                 };
             }
 
+            var inProgressKind = CaptureOperationSnapshot.DetectInProgressKind(currentSnapshot.GitDir);
+            if (inProgressKind != Models.GitInProgressKind.None)
+            {
+                return new Models.CommitExecutionResult
+                {
+                    Succeeded = false,
+                    FailureKind = Models.CommitFailureKind.InProgressBlocked,
+                    BranchName = currentSnapshot.CurrentBranchName,
+                    Summary = "检测到当前仓库存在进行中的 Git 流程（如 Rebase/Cherry-Pick/AM/Bisect/Merge/Revert），已阻止直接提交；请在外部工具或对应入口完成后再操作。",
+                    CurrentSnapshot = currentSnapshot,
+                };
+            }
+
             if (options.ExpectedSnapshot != null && !currentSnapshot.MatchesCommitBaseline(options.ExpectedSnapshot))
             {
                 return new Models.CommitExecutionResult
@@ -1071,6 +1084,7 @@ namespace SourceGit.Commands
                 Models.CommitFailureKind.SigningFailed => "提交签名失败，请检查 GPG/SSH 签名密钥或配置。",
                 Models.CommitFailureKind.HookRejected => "Git 提交钩子（hook）检查未通过，提交已中止。",
                 Models.CommitFailureKind.NothingStaged => "暂存区没有可提交的变更。",
+                Models.CommitFailureKind.InProgressBlocked => "仓库存在进行中的 Git 流程，已阻止直接提交。",
                 _ => FirstErrorLineOrDefault(diag, "本地提交失败。"),
             };
         }

@@ -1,4 +1,8 @@
-param()
+param(
+    [string[]]$Suite = @(),
+    [switch]$List,
+    [switch]$NoBuild
+)
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
@@ -9,7 +13,26 @@ if (-not (Test-Path $dotnet)) {
 
 Push-Location $repoRoot
 try {
-    & $dotnet run --project tests/GitNest.IntegrationTests/GitNest.IntegrationTests.csproj -c Release --no-launch-profile
+    $runArgs = @(
+        'run',
+        '--project', 'tests/GitNest.IntegrationTests/GitNest.IntegrationTests.csproj',
+        '-c', 'Release',
+        '--no-launch-profile'
+    )
+    if ($NoBuild) {
+        $runArgs += '--no-build'
+    }
+    if ($List) {
+        $runArgs += '--'
+        $runArgs += '--list-suites'
+    }
+    elseif ($Suite.Count -gt 0) {
+        $runArgs += '--'
+        $runArgs += '--suite'
+        $runArgs += ($Suite -join ',')
+    }
+
+    & $dotnet @runArgs
     if ($LASTEXITCODE -ne 0) { throw 'GitNest integration checks failed.' }
 }
 finally {

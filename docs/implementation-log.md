@@ -375,3 +375,11 @@
 - 清理 `src/Commands/Submodule.cs` 中无调用的 `AddAsync`、`SetURLAsync`、`DeleteAsync`，保留供克隆与子模块更新使用的 `UpdateAsync`。
 - 在 `tests/GitNest.IntegrationTests/NextStageTests.cs` 补充裁剪类型/方法断言及真实 Git 克隆初始化子模块测试。
 - 验证：Release 构建 0 警告 0 错误；`.\build\scripts\test-gitnest.ps1` 全量 **472 / 472** 通过（含工作树查询/删除/失效清理及克隆初始化子模块）。
+
+## 2026-11-15 · 下一阶段批次 2：移除 Rebase/多分支合并/Assume-unchanged 设置入口并收口外部只读保护
+
+- 前一批提交：`79575e89`（下一阶段批次 1：清理剩余无调用实现）。
+- 删除 9 个文件（`Commands/Rebase.cs`、`Commands/Replay.cs`、`Models/MergeStrategy.cs`、`ViewModels/Rebase.cs`、`ViewModels/MergeMultiple.cs`、`Views/Rebase.axaml(.cs)`、`Views/MergeMultiple.axaml(.cs)`）；清理 `BranchTree`、`Histories`、`WorkingCopy`、`Repository`、`Commands/Merge.cs`、`Commands/Command.cs`、`Models/GitVersions.cs` 与 `Icons.axaml` 中的 Rebase、多分支合并与“假设未修改”设置入口，仅保留历史 `AssumeUnchanged` 查看与清除能力（新增 `Text.AssumeUnchanged.Tip`、`Text.AssumeUnchanged.RemoveTip`）。
+- 修复 `MergeRevertService` 对多行命令日志中 `--no-ff --no-commit` 的识别，区分 GitNest `MergeMode.DontCommit`（启用“下一步”/禁用修补、显示 `Text.WorkingCopy.InProgress.DontCommitOrigin`）与外部 `git merge --no-commit`；清除 `ViewModels/InProgressContexts.cs` 中任何 `Directory.Delete`，补充外部 `.git/rebase-merge`、无 `applying` 标记的 `.git/rebase-apply` 与 `.git/BISECT_LOG`（`BisectInProgress`）只读识别、`Text.WorkingCopy.ExternalInProgressGuide` / `Blocked` 及异步所有权刷新同步等待（`IsRefreshingInProgressOwnership`）。
+- 优化 `WorkingCopy.axaml(.cs)` 与 `Conflict.axaml` 布局与主题适配：将外部操作提示纳入全宽提示栈并修正 `HasInlineNoticeArea` 通知联动，下调工作区列 `MinWidth` 以消除 `860px` 窄窗右侧截断，并将冲突标记与来源徽章前景改为 `Brush.Conflict.Foreground` 修复深色主题浅底白字问题；同时为 `build/scripts/test-gitnest.ps1` 与 `tests/GitNest.IntegrationTests` 增加 `-Suite` / `-List` / `-NoBuild` 分模块执行参数（默认保持全量）。
+- 末次改动后验证：`en_US.axaml` 与 `zh_CN.axaml` 各 `1402` 项对称（`0` 差异/重复）；`build-gitnest.ps1` **0** 警告 **0** 错误；`-Suite core,next-stage,merge-revert,commit-sync` 定向集成检查 **155 / 155** 通过（在最终 XAML 通知微调与拆分参数前全量 `test-gitnest.ps1` **528 / 528** 通过）；UI 探针 `-MergeRevert` **19 / 19**、`-TrimSurface` **32 / 32**、`-CommitSync` **11 / 11** 全部通过，并核对 `artifacts/probes/phase-3.4/` 下 `DontCommit`、`rebase --merge`（浅色与 `860px` 深色窄屏）及 `BISECT_LOG` 截图无裁剪重叠。

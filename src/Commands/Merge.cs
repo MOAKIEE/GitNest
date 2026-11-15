@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Text;
 
 namespace SourceGit.Commands
@@ -22,34 +21,6 @@ namespace SourceGit.Commands
             builder.Append(CommandArgumentHelper.Quote(safeSource));
 
             Args = builder.ToString();
-        }
-
-        public Merge(string repo, List<string> targets, bool autoCommit, string strategy)
-        {
-            WorkingDirectory = repo;
-            Context = repo;
-
-            var builder = new StringBuilder();
-            builder.Append("merge --progress ");
-            if (!string.IsNullOrWhiteSpace(strategy))
-            {
-                var safeStrategy = CommandArgumentHelper.ValidateNonOptionToken(strategy, nameof(strategy));
-                builder.Append("--strategy=").Append(CommandArgumentHelper.Quote(safeStrategy)).Append(' ');
-            }
-            if (!autoCommit)
-                builder.Append("--no-commit ");
-
-            if (targets != null)
-            {
-                foreach (var t in targets)
-                {
-                    var safeTarget = CommandArgumentHelper.ValidateNonOptionToken(t, nameof(targets));
-                    builder.Append(CommandArgumentHelper.Quote(safeTarget));
-                    builder.Append(' ');
-                }
-            }
-
-            Args = builder.ToString().TrimEnd();
         }
 
         private static string ValidateMergeModeArg(string mode)

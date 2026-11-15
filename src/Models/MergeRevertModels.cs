@@ -247,5 +247,6 @@ namespace SourceGit.Models
         public string Headline { get; init; } = string.Empty;
         public string Detail { get; init; } = string.Empty;
         public bool CanOfferSafeAbort { get; init; }
+        public bool IsGitNestDontCommitMerge { get; init; }
     }
 }

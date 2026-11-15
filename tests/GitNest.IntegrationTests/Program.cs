@@ -9,21 +9,90 @@ internal static partial class Program
 {
     private const string FakeModeVariable = "GITNEST_TEST_GIT_MODE";
     private static int _checks;
-    private static bool _reviewDiscardOnly;
-    private static bool _reviewRemoteOnly;
+    private static readonly HashSet<string> _selectedSuites = new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly string[] AllSuiteNames =
+    [
+        "core",
+        "review-discard",
+        "review-remote",
+        "worktree",
+        "comparison",
+        "config",
+        "commit-sync",
+        "operation-safety",
+        "branch-delete",
+        "worktree-delete",
+        "merge-revert",
+        "stash-discard",
+        "history-reset",
+        "phase37",
+        "phase41",
+        "phase43",
+        "update",
+        "next-stage",
+        "next-stage-1",
+        "next-stage-2",
+    ];
+
+    private static void AddRequestedSuites(string raw)
+    {
+        foreach (var token in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!AllSuiteNames.Contains(token, StringComparer.OrdinalIgnoreCase))
+                throw new ArgumentException($"Unknown suite '{token}'. Available: {string.Join(", ", AllSuiteNames)}");
+            _selectedSuites.Add(token);
+        }
+    }
+
+    private static bool ShouldRunSuite(string name)
+    {
+        if (_selectedSuites.Count == 0)
+            return true;
+        if (_selectedSuites.Contains(name))
+            return true;
+        if (name.StartsWith("next-stage-", StringComparison.OrdinalIgnoreCase) && _selectedSuites.Contains("next-stage"))
+            return true;
+        return false;
+    }
 
     public static async Task<int> Main(string[] args)
     {
-        if (args is ["--review-discard"])
+        var remaining = new List<string>(args.Length);
+        for (int i = 0; i < args.Length; i++)
         {
-            _reviewDiscardOnly = true;
-            args = [];
+            var arg = args[i];
+            if (arg == "--review-discard")
+            {
+                _selectedSuites.Add("core");
+                _selectedSuites.Add("review-discard");
+                continue;
+            }
+            if (arg == "--review-remote")
+            {
+                _selectedSuites.Add("core");
+                _selectedSuites.Add("review-remote");
+                continue;
+            }
+            if (arg == "--list-suites")
+            {
+                foreach (var suite in AllSuiteNames)
+                    Console.WriteLine(suite);
+                return 0;
+            }
+            if (arg == "--suite" && i + 1 < args.Length)
+            {
+                AddRequestedSuites(args[++i]);
+                continue;
+            }
+            if (arg.StartsWith("--suite=", StringComparison.Ordinal))
+            {
+                AddRequestedSuites(arg["--suite=".Length..]);
+                continue;
+            }
+            remaining.Add(arg);
         }
-        if (args is ["--review-remote"])
-        {
-            _reviewRemoteOnly = true;
-            args = [];
-        }
+        args = remaining.ToArray();
         if (args.Length > 0)
         {
             if (string.Equals(Environment.GetEnvironmentVariable(FakeModeVariable), "gpg-fail", StringComparison.Ordinal))
@@ -86,46 +155,52 @@ internal static partial class Program
         Directory.CreateDirectory(root);
         try
         {
-            var self = Environment.ProcessPath!;
-            Check(Path.GetFileName(self) == "GitNest.IntegrationTests.exe", "The process fixture runs through its own apphost");
-            var missing = Path.Combine(root, "missing-git.exe");
-            Check((await GitInstallation.InspectAsync(null)).Status == GitInstallationStatus.Missing, "No configured path is missing");
-            Check((await GitInstallation.InspectAsync(missing)).Status == GitInstallationStatus.Missing, "A missing file is rejected");
-            Check((await GitInstallation.InspectAsync("git.exe")).Status == GitInstallationStatus.Missing, "A relative path cannot silently use another executable");
-
-            var textFile = Path.Combine(root, "not-a-program.txt");
-            File.WriteAllText(textFile, "not an executable");
-            Check((await GitInstallation.InspectAsync(textFile)).Status == GitInstallationStatus.InvalidExecutable, "An existing non-program file is rejected");
-
-            async Task<GitInstallation> Probe(string mode, TimeSpan? timeout = null)
+            if (ShouldRunSuite("core"))
             {
-                Environment.SetEnvironmentVariable(FakeModeVariable, mode);
-                return await GitInstallation.InspectAsync(self, timeout);
+                var self = Environment.ProcessPath!;
+                Check(Path.GetFileName(self) == "GitNest.IntegrationTests.exe", "The process fixture runs through its own apphost");
+                var missing = Path.Combine(root, "missing-git.exe");
+                Check((await GitInstallation.InspectAsync(null)).Status == GitInstallationStatus.Missing, "No configured path is missing");
+                Check((await GitInstallation.InspectAsync(missing)).Status == GitInstallationStatus.Missing, "A missing file is rejected");
+                Check((await GitInstallation.InspectAsync("git.exe")).Status == GitInstallationStatus.Missing, "A relative path cannot silently use another executable");
+
+                var textFile = Path.Combine(root, "not-a-program.txt");
+                File.WriteAllText(textFile, "not an executable");
+                Check((await GitInstallation.InspectAsync(textFile)).Status == GitInstallationStatus.InvalidExecutable, "An existing non-program file is rejected");
+
+                async Task<GitInstallation> Probe(string mode, TimeSpan? timeout = null)
+                {
+                    Environment.SetEnvironmentVariable(FakeModeVariable, mode);
+                    return await GitInstallation.InspectAsync(self, timeout);
+                }
+
+                var valid = await Probe("valid");
+                Check(valid.IsReady && valid.Version == new System.Version(2, 45, 1) && valid.VersionText == "2.45.1.windows.1", "Git for Windows version and suffix are preserved");
+                var old = await Probe("old");
+                Check(old.Status == GitInstallationStatus.Unsupported && old.VersionText == "2.30.9", "An old version is displayed and blocked");
+                Check((await Probe("boundary")).IsReady, "The capability requirement is inclusive");
+                Check((await Probe("apple")).IsReady, "Apple Git output remains readable");
+                Check((await Probe("invalid")).Status == GitInstallationStatus.InvalidVersion, "Another program's version is rejected");
+                Check((await Probe("overflow")).Status == GitInstallationStatus.InvalidVersion, "Oversized numeric output is rejected without throwing");
+                Check((await Probe("nonzero")).Status == GitInstallationStatus.InvalidExecutable, "A failed process cannot pass with plausible stdout");
+                Check((await Probe("stderr")).IsReady, "Full stderr and stdout pipes are drained concurrently");
+
+                var timer = Stopwatch.StartNew();
+                Check((await Probe("timeout", TimeSpan.FromMilliseconds(250))).Status == GitInstallationStatus.TimedOut, "An unresponsive program times out");
+                Check(timer.Elapsed < TimeSpan.FromSeconds(5), "Timeout terminates the probe promptly");
+
+                NativeOS.UseGitInstallation(valid);
+                NativeOS.GitExecutable = missing;
+                Check(NativeOS.GitVersion == new System.Version(0, 0, 0) && NativeOS.GitVersionString.Length == 0, "An invalid replacement clears the previous version");
+                Check(!new SourceGit.ViewModels.Preferences().IsGitConfigured(), "Repository entry requires a validated executable");
             }
-
-            var valid = await Probe("valid");
-            Check(valid.IsReady && valid.Version == new System.Version(2, 45, 1) && valid.VersionText == "2.45.1.windows.1", "Git for Windows version and suffix are preserved");
-            var old = await Probe("old");
-            Check(old.Status == GitInstallationStatus.Unsupported && old.VersionText == "2.30.9", "An old version is displayed and blocked");
-            Check((await Probe("boundary")).IsReady, "The capability requirement is inclusive");
-            Check((await Probe("apple")).IsReady, "Apple Git output remains readable");
-            Check((await Probe("invalid")).Status == GitInstallationStatus.InvalidVersion, "Another program's version is rejected");
-            Check((await Probe("overflow")).Status == GitInstallationStatus.InvalidVersion, "Oversized numeric output is rejected without throwing");
-            Check((await Probe("nonzero")).Status == GitInstallationStatus.InvalidExecutable, "A failed process cannot pass with plausible stdout");
-            Check((await Probe("stderr")).IsReady, "Full stderr and stdout pipes are drained concurrently");
-
-            var timer = Stopwatch.StartNew();
-            Check((await Probe("timeout", TimeSpan.FromMilliseconds(250))).Status == GitInstallationStatus.TimedOut, "An unresponsive program times out");
-            Check(timer.Elapsed < TimeSpan.FromSeconds(5), "Timeout terminates the probe promptly");
-
-            NativeOS.UseGitInstallation(valid);
-            NativeOS.GitExecutable = missing;
-            Check(NativeOS.GitVersion == new System.Version(0, 0, 0) && NativeOS.GitVersionString.Length == 0, "An invalid replacement clears the previous version");
-            Check(!new SourceGit.ViewModels.Preferences().IsGitConfigured(), "Repository entry requires a validated executable");
 
             var realGit = Environment.GetEnvironmentVariable("GITNEST_TEST_GIT_EXECUTABLE") ?? NativeOS.FindGitExecutable();
             var installed = await GitInstallation.InspectAsync(realGit);
-            Check(installed.IsReady, "The installed Git for Windows passes the real probe");
+            if (!installed.IsReady)
+                throw new InvalidOperationException("Git executable is not ready: " + realGit);
+            if (ShouldRunSuite("core"))
+                Check(installed.IsReady, "The installed Git for Windows passes the real probe");
             NativeOS.UseGitInstallation(installed);
 
             Environment.SetEnvironmentVariable("GIT_DIR", null);
@@ -135,66 +210,81 @@ internal static partial class Program
             File.WriteAllText(global, string.Empty);
             Environment.SetEnvironmentVariable("GIT_CONFIG_GLOBAL", global);
 
-            var identity = await new SourceGit.Commands.Config(null).ReadCommitIdentityAsync();
-            Check(identity.IsReadable && !identity.IsComplete, "Unset identity is readable and does not block repository opening");
+            if (ShouldRunSuite("core"))
+            {
+                var identity = await new SourceGit.Commands.Config(null).ReadCommitIdentityAsync();
+                Check(identity.IsReadable && !identity.IsComplete, "Unset identity is readable and does not block repository opening");
 
-            var name = "AI 姓名 = 第一行\n第二行";
-            await GitAsync(realGit, "config", "--file", global, "user.name", name);
-            await GitAsync(realGit, "config", "--file", global, "user.email", "global@example.invalid");
-            var globalHash = Hash(global);
-            identity = await new SourceGit.Commands.Config(null).ReadCommitIdentityAsync();
-            Check(identity.IsComplete && identity.Name == name && identity.Email == "global@example.invalid", "Global identity preserves Unicode, equals signs and newlines");
-            Check(Hash(global) == globalHash, "Reading global identity does not rewrite the configuration");
+                var name = "AI 姓名 = 第一行\n第二行";
+                await GitAsync(realGit, "config", "--file", global, "user.name", name);
+                await GitAsync(realGit, "config", "--file", global, "user.email", "global@example.invalid");
+                var globalHash = Hash(global);
+                identity = await new SourceGit.Commands.Config(null).ReadCommitIdentityAsync();
+                Check(identity.IsComplete && identity.Name == name && identity.Email == "global@example.invalid", "Global identity preserves Unicode, equals signs and newlines");
+                Check(Hash(global) == globalHash, "Reading global identity does not rewrite the configuration");
 
-            var repo = Path.Combine(root, "中文 仓库 #1");
-            await GitAsync(realGit, "init", "-b", "main", repo);
-            await GitAsync(realGit, "-C", repo, "config", "user.name", "Repository identity");
-            var repoConfig = Path.Combine(repo, ".git", "config");
-            var repoHash = Hash(repoConfig);
-            identity = await new SourceGit.Commands.Config(repo).ReadCommitIdentityAsync();
-            Check(identity.Name == "Repository identity" && identity.Email == "global@example.invalid", "Repository identity inherits only the unset global fields");
-            Check(Hash(repoConfig) == repoHash && Hash(global) == globalHash, "Identity reads leave both repository and global configuration unchanged");
+                var repo = Path.Combine(root, "中文 仓库 #1");
+                await GitAsync(realGit, "init", "-b", "main", repo);
+                await GitAsync(realGit, "-C", repo, "config", "user.name", "Repository identity");
+                var repoConfig = Path.Combine(repo, ".git", "config");
+                var repoHash = Hash(repoConfig);
+                identity = await new SourceGit.Commands.Config(repo).ReadCommitIdentityAsync();
+                Check(identity.Name == "Repository identity" && identity.Email == "global@example.invalid", "Repository identity inherits only the unset global fields");
+                Check(Hash(repoConfig) == repoHash && Hash(global) == globalHash, "Identity reads leave both repository and global configuration unchanged");
 
-            var included = Path.Combine(root, "included.gitconfig");
-            File.WriteAllText(included, string.Empty);
-            await GitAsync(realGit, "config", "--file", included, "user.email", "included@example.invalid");
-            await GitAsync(realGit, "config", "--file", global, "include.path", included);
-            identity = await new SourceGit.Commands.Config(null).ReadCommitIdentityAsync();
-            Check(identity.Email == "included@example.invalid", "Existing global include files are honored");
+                var included = Path.Combine(root, "included.gitconfig");
+                File.WriteAllText(included, string.Empty);
+                await GitAsync(realGit, "config", "--file", included, "user.email", "included@example.invalid");
+                await GitAsync(realGit, "config", "--file", global, "include.path", included);
+                identity = await new SourceGit.Commands.Config(null).ReadCommitIdentityAsync();
+                Check(identity.Email == "included@example.invalid", "Existing global include files are honored");
 
-            await GitAsync(realGit, "-C", repo, "config", "user.name", string.Empty);
-            identity = await new SourceGit.Commands.Config(repo).ReadCommitIdentityAsync();
-            Check(!identity.IsComplete && identity.Name.Length == 0, "An explicit empty repository name is not replaced by an inherited value");
+                await GitAsync(realGit, "-C", repo, "config", "user.name", string.Empty);
+                identity = await new SourceGit.Commands.Config(repo).ReadCommitIdentityAsync();
+                Check(!identity.IsComplete && identity.Name.Length == 0, "An explicit empty repository name is not replaced by an inherited value");
 
-            File.WriteAllText(global, "[broken configuration");
-            identity = await new SourceGit.Commands.Config(null).ReadCommitIdentityAsync();
-            Check(!identity.IsReadable, "Invalid Git configuration is reported as a read failure");
+                File.WriteAllText(global, "[broken configuration");
+                identity = await new SourceGit.Commands.Config(null).ReadCommitIdentityAsync();
+                Check(!identity.IsReadable, "Invalid Git configuration is reported as a read failure");
+            }
 
             File.WriteAllText(global, string.Empty);
-            if (_reviewRemoteOnly)
-            {
+            if (ShouldRunSuite("review-discard"))
+                await RunReviewDiscardSafetyTestsAsync(realGit, root);
+            if (ShouldRunSuite("review-remote"))
                 await RunReviewRemoteSafetyTestsAsync(realGit, root);
-                return;
-            }
-            await RunReviewDiscardSafetyTestsAsync(realGit, root);
-            if (_reviewDiscardOnly)
-                return;
-            await RunReviewRemoteSafetyTestsAsync(realGit, root);
-            await RunWorktreeTestsAsync(realGit, root);
-            await RunComparisonTestsAsync(realGit, root);
-            await RunConfigTestsAsync(realGit, root);
-            await RunCommitSyncTestsAsync(realGit, root);
-            await RunOperationSafetyTestsAsync(realGit, root);
-            await RunBranchDeleteTestsAsync(realGit, root);
-            await RunWorktreeDeleteTestsAsync(realGit, root);
-            await RunMergeRevertTestsAsync(realGit, root);
-            await RunStashDiscardIgnoreTestsAsync(realGit, root);
-            await RunHistoryResetRewriteTestsAsync(realGit, root);
-            await RunPhase37SyncTestsAsync(realGit, root);
-            await RunPhase41TrimTestsAsync(realGit, root);
-            await RunPhase43AcceptanceTestsAsync(realGit, root);
-            await RunUpdateTestsAsync();
-            await RunNextStageTestsAsync(realGit, root);
+            if (ShouldRunSuite("worktree"))
+                await RunWorktreeTestsAsync(realGit, root);
+            if (ShouldRunSuite("comparison"))
+                await RunComparisonTestsAsync(realGit, root);
+            if (ShouldRunSuite("config"))
+                await RunConfigTestsAsync(realGit, root);
+            if (ShouldRunSuite("commit-sync"))
+                await RunCommitSyncTestsAsync(realGit, root);
+            if (ShouldRunSuite("operation-safety"))
+                await RunOperationSafetyTestsAsync(realGit, root);
+            if (ShouldRunSuite("branch-delete"))
+                await RunBranchDeleteTestsAsync(realGit, root);
+            if (ShouldRunSuite("worktree-delete"))
+                await RunWorktreeDeleteTestsAsync(realGit, root);
+            if (ShouldRunSuite("merge-revert"))
+                await RunMergeRevertTestsAsync(realGit, root);
+            if (ShouldRunSuite("stash-discard"))
+                await RunStashDiscardIgnoreTestsAsync(realGit, root);
+            if (ShouldRunSuite("history-reset"))
+                await RunHistoryResetRewriteTestsAsync(realGit, root);
+            if (ShouldRunSuite("phase37"))
+                await RunPhase37SyncTestsAsync(realGit, root);
+            if (ShouldRunSuite("phase41"))
+                await RunPhase41TrimTestsAsync(realGit, root);
+            if (ShouldRunSuite("phase43"))
+                await RunPhase43AcceptanceTestsAsync(realGit, root);
+            if (ShouldRunSuite("update"))
+                await RunUpdateTestsAsync();
+            if (ShouldRunSuite("next-stage") ||
+                ShouldRunSuite("next-stage-1") ||
+                ShouldRunSuite("next-stage-2"))
+                await RunNextStageTestsAsync(realGit, root);
         }
         finally
         {

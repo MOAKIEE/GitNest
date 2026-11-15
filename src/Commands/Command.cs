@@ -25,7 +25,6 @@ namespace SourceGit.Commands
         {
             None,
             CoreEditor,
-            RebaseEditor,
         }
 
         public string Context { get; set; } = string.Empty;
@@ -183,9 +182,6 @@ namespace SourceGit.Commands
             {
                 case EditorType.CoreEditor:
                     builder.Append($"""-c core.editor="\"{selfExecFile}\" --core-editor" """);
-                    break;
-                case EditorType.RebaseEditor:
-                    builder.Append($"""-c core.editor="\"{selfExecFile}\" --rebase-message-editor" -c sequence.editor="\"{selfExecFile}\" --rebase-todo-editor" -c rebase.abbreviateCommands=true """);
                     break;
                 default:
                     builder.Append("-c core.editor=true ");

@@ -1707,12 +1707,6 @@ namespace SourceGit.ViewModels
                 ShowPopup(new DeleteMultipleBranches(this, branches, isLocal));
         }
 
-        public void MergeMultipleBranches(List<Models.Branch> branches)
-        {
-            if (CanCreatePopup())
-                ShowPopup(new MergeMultiple(this, branches));
-        }
-
         public void AddRemote()
         {
             if (CanCreatePopup())
