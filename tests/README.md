@@ -22,6 +22,16 @@
 
 验证其他 Git for Windows 版本时，可将 `GITNEST_TEST_GIT_EXECUTABLE` 环境变量设为该版本 `git.exe` 的绝对路径，再运行同一集成检查命令。未设置时自动检测本机 Git。
 
+为加快局部迭代，集成测试脚本支持按套件拆分与复用已有编译产物（提交前仍运行无过滤完整套）：
+
+```powershell
+./build/scripts/test-gitnest.ps1 -List
+./build/scripts/test-gitnest.ps1 -Suite next-stage-6 -NoBuild
+./build/scripts/test-gitnest.ps1 -Suite core,config,commit-sync -NoBuild
+```
+
+当前内置全部套件（合计 636 项检查）：`core`、`review-discard`、`review-remote`、`worktree`、`comparison`、`config`、`commit-sync`、`operation-safety`、`branch-delete`、`worktree-delete`、`merge-revert`、`stash-discard`、`history-reset`、`phase37`、`phase41`、`phase43`、`update`、`next-stage`、`next-stage-1`、`next-stage-2`、`next-stage-3`、`next-stage-4`、`next-stage-5`、`next-stage-6`。
+
 ## 界面探针
 
 ```powershell
@@ -43,8 +53,8 @@
 | `-OperationRecovery` | 操作记录、未完成状态及恢复 | `phase-3.1` |
 | `-BranchDelete` | 保护分支、多地址阻断、删除与显式 lease | `phase-3.2` |
 | `-WorktreeDelete` | 工作树预检、删除、联动清理及部分失败 | `phase-3.3` |
-| `-MergeRevert` | 定向合并、撤销与冲突归属 | `phase-3.4` |
+| `-MergeRevert` | 定向合并、撤销、外部状态保护与冲突归属 | `phase-3.4` |
 | `-StashDiscardIgnore` | 暂存工作、丢弃恢复、回收与忽略规则 | `phase-3.5` |
 | `-ResetRewrite` | 本地撤回、远端改写、指定修订推送、保护与恢复 | `phase-3.6` |
-| `-TrimSurface` | 首版入口和资源裁剪 | `phase-4.1` |
+| `-TrimSurface` | 首版入口、资源裁剪、独立 Amend、单页设置与保留能力抽检 | `phase-4.1` |
 | `-HighDpi` | PE DPI 清单和 150%／200% 离屏布局渲染 | `phase-4.2` |

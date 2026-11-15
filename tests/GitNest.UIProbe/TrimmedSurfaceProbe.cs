@@ -693,5 +693,54 @@ internal static partial class Program
         Screenshot(updateWin, "gitnest-update-unavailable-dark");
         updateWin.Close();
         _window = null;
+
+        // Batch 6: Retained visual capability spot-checks (Statistics window & special image decoding)
+        var mediaDir = Path.Combine(_root, "retained-image-decoders");
+        Directory.CreateDirectory(mediaDir);
+        var tgaFile = Path.Combine(mediaDir, "sample.tga");
+        var tgaBytes = new byte[18 + 2 * 2 * 3];
+        tgaBytes[2] = 2;
+        tgaBytes[12] = 2;
+        tgaBytes[14] = 2;
+        tgaBytes[16] = 24;
+        File.WriteAllBytes(tgaFile, tgaBytes);
+
+        var tiffFile = Path.Combine(mediaDir, "sample.tif");
+        using (var tiffWriter = BitMiracle.LibTiff.Classic.Tiff.Open(tiffFile, "w"))
+        {
+            tiffWriter.SetField(BitMiracle.LibTiff.Classic.TiffTag.IMAGEWIDTH, 2);
+            tiffWriter.SetField(BitMiracle.LibTiff.Classic.TiffTag.IMAGELENGTH, 2);
+            tiffWriter.SetField(BitMiracle.LibTiff.Classic.TiffTag.SAMPLESPERPIXEL, 4);
+            tiffWriter.SetField(BitMiracle.LibTiff.Classic.TiffTag.BITSPERSAMPLE, 8);
+            tiffWriter.SetField(BitMiracle.LibTiff.Classic.TiffTag.PHOTOMETRIC, BitMiracle.LibTiff.Classic.Photometric.RGB);
+            tiffWriter.SetField(BitMiracle.LibTiff.Classic.TiffTag.PLANARCONFIG, BitMiracle.LibTiff.Classic.PlanarConfig.CONTIG);
+            tiffWriter.SetField(BitMiracle.LibTiff.Classic.TiffTag.COMPRESSION, BitMiracle.LibTiff.Classic.Compression.NONE);
+            tiffWriter.SetField(BitMiracle.LibTiff.Classic.TiffTag.ROWSPERSTRIP, 2);
+            var row = new byte[] { 255, 0, 0, 255, 0, 255, 0, 255 };
+            tiffWriter.WriteScanline(row, 0);
+            tiffWriter.WriteScanline(row, 1);
+            tiffWriter.FlushData();
+        }
+
+        var tgaTask = VM.ImageSource.FromFileAsync(tgaFile, ImageDecoder.Pfim);
+        var tiffTask = VM.ImageSource.FromFileAsync(tiffFile, ImageDecoder.Tiff);
+        Await(() => tgaTask.IsCompleted && tiffTask.IsCompleted);
+        var tgaSrc = tgaTask.GetAwaiter().GetResult();
+        var tiffSrc = tiffTask.GetAwaiter().GetResult();
+        Check(tgaSrc.Bitmap is { PixelSize: { Width: 2, Height: 2 } },
+              "ImageSource decodes real TGA (Pfim) bitmap in Avalonia runtime");
+        Check(tiffSrc.Bitmap is { PixelSize: { Width: 2, Height: 2 } },
+              "ImageSource decodes real TIFF (LibTiff) bitmap in Avalonia runtime");
+
+        var statsVm = new VM.Statistics(repoPath);
+        var statsWin = new Views.Statistics { DataContext = statsVm, ShowInTaskbar = false };
+        _window = statsWin;
+        statsWin.Show();
+        Await(() => !statsVm.IsLoading && statsVm.SelectedReport != null);
+        Pump();
+        Check(statsVm.SelectedReport is { Total: >= 1 },
+              "Retained Statistics window loads repository commit report");
+        statsWin.Close();
+        _window = null;
     }
 }

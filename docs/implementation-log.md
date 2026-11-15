@@ -411,3 +411,17 @@
   - 修复 `ViewModels/Popup.cs` 在 `Sure()` 返回 `false` 后将 `InProgress` 重置为 `false` 时未触发 `OnPropertyChanged(nameof(CanConfirm))` 导致主按钮保持视觉禁用的问题，并补充 `Models/Watcher.cs` 二次 `Dispose()` 空引用防护。
 - 在 `tests/GitNest.IntegrationTests/NextStageTests.cs` 新增 `next-stage-5` 用例并扩展 `TrimmedSurfaceProbe.cs`（含单页高级折叠区及浅色／680px 深色窄窗／部分失败重试截图校验），同步更新 `MergeRevertProbe.cs` 断言。
 - 末次改动后验证：`en_US.axaml` 与 `zh_CN.axaml` 各 `1431` 项对称（`uniqueDiff=0`）；`build-gitnest.ps1` **0** 警告 **0** 错误；`-Suite core,next-stage-3,next-stage-4,next-stage-5,config,commit-sync,history-reset,merge-revert,phase41 -NoBuild` 定向集成检查 **306 / 306** 通过；UI 探针 `-TrimSurface` **58 / 58**、`-Config` **13 / 13**、`-MergeRevert` **19 / 19**、`-CommitSync` **11 / 11** 全部通过，并核对 `artifacts/probes/phase-4.1/` 下 Batch 5 新生成截图无截断、错位与按钮状态异常。
+
+## 2026-11-15 · 下一阶段批次 6：资源瘦身、保留能力抽检、文档与全量验收
+
+- 前一批提交：`c0baa38d`（下一阶段批次 5：合并仓库配置页与独立化 Amend 流程）。
+- 审计并清理 `src/Resources/Icons.axaml` 中确认零引用的 5 个矢量图标（`Icons.ColorPicker`、`Icons.GitHub`、`Icons.Incoming`、`Icons.LightOn`、`Icons.Pattern`），以及 `src/Resources/Locales/en_US.axaml`、`zh_CN.axaml` 中确认零引用的 44 个失效文案键（保留被 `UIProbe` 负向界面断言引用的 5 个对比键），中英词条同步收敛至各 `1387` 项（`uniqueDiff=0`）。
+- 核查 `src/App.JsonCodeGen.cs`、`THIRD-PARTY-LICENSES.md`、`docs/dependency-inventory.md` 与 `NOTICE.md`，确认无已移除类型、孤立视图/模型文件或冗余依赖。
+- 在 `tests/GitNest.IntegrationTests/NextStageTests.cs` 新增 `next-stage-6`（并在 `Program.cs` 注册），并在 `tests/GitNest.UIProbe/TrimmedSurfaceProbe.cs` 新增运行时抽检，实测保留能力：`Commands.Statistics` / `Views.Statistics` 提交统计、`Commands.Archive` 导出 HEAD ZIP、`Preferences.UseGitHubStyleAvatar` 与 `AvatarManager` 接口，以及 `Pfim`（TGA/DDS）、`BitMiracle.LibTiff.NET`（TIFF）、`StbImageSharp`（PSD）解码与 Avalonia `Bitmap` 渲染。
+- 基于最终代码完成全量验收（Windows 11 x64 build 26300、Git `2.45.1.windows.1`、.NET SDK `10.0.404`）：
+  - 发布构建：`build-gitnest.ps1 -Publish` **0** 警告 **0** 错误，输出 `artifacts/windows-x64/GitNest.exe`；
+  - 完整无过滤集成检查：`test-gitnest.ps1 -NoBuild` **636 / 636** 通过；
+  - 全量 12 组 UI 探针依次执行合计 **228 / 228** 通过（`-Comparison` 30、`-Config` 13、`-ConfigRefresh` 4、`-CommitSync` 11、`-OperationRecovery` 13、`-BranchDelete` 16、`-WorktreeDelete` 20、`-MergeRevert` 19、`-StashDiscardIgnore` 15、`-ResetRewrite` 19、`-TrimSurface` 61、`-HighDpi` 7），并抽检 High-DPI 与主/工作区截图；
+  - 安装包与生命周期验证：`build-installer.ps1 -SkipPublish` 生成 `GitNest-Setup-0.1.0-dev-win-x64.exe`（`35.81 MB`，SHA-256 `B78DA5A1D3FB70CC75D7FF670345DF605F091C405F61EC0AC5BFB48302BE4E16`），`verify-installer.ps1` **38 / 38** 通过；
+  - 全仓 35 份 Markdown 本地相对链接检查 `broken=0`。
+- 更新 `README.md`、`tests/README.md`、`docs/design.md`、`docs/release-notes.md`、`docs/next-stage-plan.md` 与本记录。

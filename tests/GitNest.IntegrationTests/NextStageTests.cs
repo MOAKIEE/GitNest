@@ -26,6 +26,8 @@ internal static partial class Program
             await RunBatch4TestsAsync(realGit, stageRoot, utf8NoBom);
         if (ShouldRunSuite("next-stage-5"))
             await RunBatch5TestsAsync(realGit, stageRoot, utf8NoBom);
+        if (ShouldRunSuite("next-stage-6"))
+            await RunBatch6TestsAsync(realGit, stageRoot, utf8NoBom);
     }
 
     private static async Task RunBatch1TestsAsync(string realGit, string stageRoot, UTF8Encoding utf8NoBom)
@@ -1264,6 +1266,189 @@ internal static partial class Program
               remoteRetryTip == amendedHeadSha &&
               serverAheadSha.Length == 40,
               "RetryPushSessionAsync pushes already-amended HEAD with lease without re-amending");
+    }
+
+    private static async Task RunBatch6TestsAsync(string realGit, string stageRoot, UTF8Encoding utf8NoBom)
+    {
+        // Batch 6: Retained capability spot-checks (Statistics, Archive, Avatars, Image decoders)
+        // + final dead icon/locale cleanup & JsonCodeGen parity
+        var batchRoot = Path.Combine(stageRoot, "batch-6");
+        Directory.CreateDirectory(batchRoot);
+
+        // 1. Statistics & Archive export on a real repository
+        var statsRepo = Path.Combine(batchRoot, "stats-archive-repo");
+        await GitAsync(realGit, "init", "-b", "main", statsRepo);
+        await GitAsync(realGit, "-C", statsRepo, "config", "user.name", "Stats Author");
+        await GitAsync(realGit, "-C", statsRepo, "config", "user.email", "stats@example.invalid");
+        File.WriteAllText(Path.Combine(statsRepo, "hello.txt"), "one\n", utf8NoBom);
+        await GitAsync(realGit, "-C", statsRepo, "add", ".");
+        await GitAsync(realGit, "-C", statsRepo, "commit", "-m", "first stats commit");
+        File.WriteAllText(Path.Combine(statsRepo, "hello.txt"), "two\n", utf8NoBom);
+        await GitAsync(realGit, "-C", statsRepo, "add", ".");
+        await GitAsync(realGit, "-C", statsRepo, "commit", "-m", "second stats commit");
+
+        var statistics = await new SourceGit.Commands.Statistics(statsRepo, 100, null).ReadAsync();
+        Check(statistics.All.Total == 2 &&
+              statistics.All.Authors.Count == 1 &&
+              statistics.All.Authors[0].User.Name == "Stats Author" &&
+              statistics.All.Authors[0].Count == 2,
+              "Retained Commands.Statistics computes author and commit totals");
+
+        var archiveZip = Path.Combine(batchRoot, "export-head.zip");
+        var archiveOk = await new SourceGit.Commands.Archive(statsRepo, "HEAD", archiveZip).ExecAsync();
+        Check(archiveOk && File.Exists(archiveZip), "Retained Commands.Archive exports HEAD zip archive");
+        using (var zip = System.IO.Compression.ZipFile.OpenRead(archiveZip))
+        {
+            Check(zip.Entries.Any(e => e.FullName == "hello.txt"),
+                  "Exported Archive zip contains committed repository files");
+        }
+
+        // 2. Online Avatars retention metadata & Preferences setting
+        var prefs = new SourceGit.ViewModels.Preferences();
+        Check(prefs.UseGitHubStyleAvatar, "Preferences.UseGitHubStyleAvatar defaults to enabled");
+        var serializedPrefs = System.Text.Json.JsonSerializer.Serialize(prefs, JsonCodeGen.Default.Preferences);
+        var roundTrippedPrefs = System.Text.Json.JsonSerializer.Deserialize(serializedPrefs, JsonCodeGen.Default.Preferences);
+        Check(roundTrippedPrefs is { UseGitHubStyleAvatar: true },
+              "Preferences.UseGitHubStyleAvatar round-trips through JsonCodeGen");
+        Check(typeof(AvatarManager).GetMethod("Request") != null &&
+              typeof(AvatarManager).GetMethod("SetFromLocal") != null &&
+              typeof(AvatarManager).GetMethod("Subscribe") != null &&
+              typeof(AvatarManager).GetMethod("Unsubscribe") != null,
+              "Retained AvatarManager preserves cache & subscription API");
+
+        // 3. Special image decoder routing & codec execution (Pfim TGA/DDS, LibTiff TIFF, StbImageSharp PSD)
+        Check(SourceGit.ViewModels.ImageSource.GetDecoder("sprite.tga") == ImageDecoder.Pfim &&
+              SourceGit.ViewModels.ImageSource.GetDecoder("texture.dds") == ImageDecoder.Pfim &&
+              SourceGit.ViewModels.ImageSource.GetDecoder("scan.tiff") == ImageDecoder.Tiff &&
+              SourceGit.ViewModels.ImageSource.GetDecoder("layer.psd") == ImageDecoder.StbImage &&
+              SourceGit.ViewModels.ImageSource.GetDecoder("shot.png") == ImageDecoder.Builtin,
+              "ImageSource.GetDecoder preserves Pfim, Tiff, StbImage, and Builtin routing");
+
+        var tgaBytes = CreateMinimal2x2Tga();
+        using (var tgaStream = new MemoryStream(tgaBytes))
+        using (var pfimImage = Pfim.Pfimage.FromStream(tgaStream))
+        {
+            Check(pfimImage.Width == 2 && pfimImage.Height == 2,
+                  "Retained Pfim codec decodes 2x2 TGA image stream");
+        }
+
+        var tiffPath = Path.Combine(batchRoot, "sample.tif");
+        using (var writer = BitMiracle.LibTiff.Classic.Tiff.Open(tiffPath, "w"))
+        {
+            writer.SetField(BitMiracle.LibTiff.Classic.TiffTag.IMAGEWIDTH, 2);
+            writer.SetField(BitMiracle.LibTiff.Classic.TiffTag.IMAGELENGTH, 2);
+            writer.SetField(BitMiracle.LibTiff.Classic.TiffTag.SAMPLESPERPIXEL, 4);
+            writer.SetField(BitMiracle.LibTiff.Classic.TiffTag.BITSPERSAMPLE, 8);
+            writer.SetField(BitMiracle.LibTiff.Classic.TiffTag.PHOTOMETRIC, BitMiracle.LibTiff.Classic.Photometric.RGB);
+            writer.SetField(BitMiracle.LibTiff.Classic.TiffTag.PLANARCONFIG, BitMiracle.LibTiff.Classic.PlanarConfig.CONTIG);
+            var row = new byte[] { 255, 0, 0, 255, 0, 255, 0, 255 };
+            writer.WriteScanline(row, 0);
+            writer.WriteScanline(row, 1);
+            writer.FlushData();
+        }
+
+        using (var tiffReadStream = File.OpenRead(tiffPath))
+        using (var reader = BitMiracle.LibTiff.Classic.Tiff.ClientOpen("mem-read.tif", "r", tiffReadStream, new BitMiracle.LibTiff.Classic.TiffStream()))
+        {
+            Check(reader != null &&
+                  reader.GetField(BitMiracle.LibTiff.Classic.TiffTag.IMAGEWIDTH)[0].ToInt() == 2 &&
+                  reader.GetField(BitMiracle.LibTiff.Classic.TiffTag.IMAGELENGTH)[0].ToInt() == 2,
+                  "Retained BitMiracle.LibTiff.NET codec reads written 2x2 TIFF stream");
+        }
+
+        var psdBytes = CreateMinimal2x2Psd();
+        using (var psdStream = new MemoryStream(psdBytes))
+        {
+            var psdResult = StbImageSharp.ImageResult.FromStream(psdStream, StbImageSharp.ColorComponents.RedGreenBlueAlpha);
+            Check(psdResult.Width == 2 && psdResult.Height == 2 && psdResult.Data.Length == 16,
+                  "Retained StbImageSharp codec decodes 2x2 uncompressed PSD stream");
+        }
+
+        // 4. Batch 6 dead icons, dead locale keys, and JsonCodeGen parity
+        var repoRoot = LocateSourceRepositoryRoot();
+        Check(repoRoot != null, "Located source repository root for Batch 6 resource audit");
+
+        System.Xml.Linq.XNamespace xNs = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var iconDoc = System.Xml.Linq.XDocument.Load(Path.Combine(repoRoot!, "src", "Resources", "Icons.axaml"));
+        var iconKeys = iconDoc.Descendants()
+            .Select(e => e.Attribute(xNs + "Key")?.Value)
+            .Where(k => !string.IsNullOrEmpty(k))
+            .ToHashSet(StringComparer.Ordinal);
+        string[] removedDeadIcons = ["Icons.ColorPicker", "Icons.GitHub", "Icons.Incoming", "Icons.LightOn", "Icons.Pattern"];
+        Check(removedDeadIcons.All(k => !iconKeys.Contains(k)),
+              "Icons.axaml removes the 5 verified-unused Batch 6 icon entries");
+
+        static HashSet<string> LoadLocaleKeySet(string path, System.Xml.Linq.XNamespace x)
+        {
+            var doc = System.Xml.Linq.XDocument.Load(path);
+            return doc.Descendants()
+                .Select(e => e.Attribute(x + "Key")?.Value)
+                .Where(k => !string.IsNullOrEmpty(k))
+                .Select(k => k!)
+                .ToHashSet(StringComparer.Ordinal);
+        }
+
+        var enKeys = LoadLocaleKeySet(Path.Combine(repoRoot!, "src", "Resources", "Locales", "en_US.axaml"), xNs);
+        var zhKeys = LoadLocaleKeySet(Path.Combine(repoRoot!, "src", "Resources", "Locales", "zh_CN.axaml"), xNs);
+        Check(enKeys.SetEquals(zhKeys), $"Batch 6 en_US ({enKeys.Count}) and zh_CN ({zhKeys.Count}) locale key sets stay symmetric");
+
+        string[] removedDeadLocales =
+        [
+            "Text.About.ReleaseNotes",
+            "Text.Configure.OpenAI",
+            "Text.Configure.Scope.System",
+            "Text.DeleteMultiTags",
+            "Text.Discard.Warning",
+            "Text.FileCM.CustomAction",
+            "Text.FileCM.DiscardMulti",
+            "Text.WorkingCopy.TwoStepTitle",
+            "Text.WorkingCopy.Conflicts.MergeExternal",
+            "Text.Configure.Git.BranchProtectionReasonRemoteHead",
+        ];
+        Check(removedDeadLocales.All(k => !enKeys.Contains(k) && !zhKeys.Contains(k)),
+              "en_US and zh_CN exclude removed Batch 6 dead locale keys");
+
+        var jsonCodeGenText = File.ReadAllText(Path.Combine(repoRoot!, "src", "App.JsonCodeGen.cs"));
+        Check(!jsonCodeGenText.Contains("CommitTemplate", StringComparison.Ordinal) &&
+              !jsonCodeGenText.Contains("LFSLock", StringComparison.Ordinal),
+              "App.JsonCodeGen.cs excludes removed CommitTemplate and LFSLock types");
+    }
+
+    private static byte[] CreateMinimal2x2Tga()
+    {
+        var bytes = new byte[18 + 2 * 2 * 3];
+        bytes[2] = 2; // uncompressed true-color image
+        bytes[12] = 2; // width LSB
+        bytes[14] = 2; // height LSB
+        bytes[16] = 24; // bits per pixel
+        for (int i = 18; i < bytes.Length; i += 3)
+        {
+            bytes[i] = 0x20;
+            bytes[i + 1] = 0x80;
+            bytes[i + 2] = 0xE0;
+        }
+        return bytes;
+    }
+
+    private static byte[] CreateMinimal2x2Psd()
+    {
+        using var ms = new MemoryStream();
+        using var bw = new BinaryWriter(ms, Encoding.ASCII, leaveOpen: true);
+        bw.Write(Encoding.ASCII.GetBytes("8BPS"));
+        bw.Write((byte)0); bw.Write((byte)1); // version 1
+        bw.Write(new byte[6]); // reserved
+        bw.Write((byte)0); bw.Write((byte)4); // channels = 4 (RGBA)
+        bw.Write((byte)0); bw.Write((byte)0); bw.Write((byte)0); bw.Write((byte)2); // height = 2
+        bw.Write((byte)0); bw.Write((byte)0); bw.Write((byte)0); bw.Write((byte)2); // width = 2
+        bw.Write((byte)0); bw.Write((byte)8); // depth = 8
+        bw.Write((byte)0); bw.Write((byte)3); // color mode = RGB (3)
+        bw.Write(0); // color mode data length = 0
+        bw.Write(0); // image resources length = 0
+        bw.Write(0); // layer and mask info length = 0
+        bw.Write((byte)0); bw.Write((byte)0); // compression = 0 (raw)
+        bw.Write(new byte[4 * 4]); // 4 channels * (2*2) bytes (all RGBA pixels filled cleanly)
+        bw.Flush();
+        return ms.ToArray();
     }
 
     private static async Task<(int ExitCode, string StdOut, string StdErr)> GitAllowFailureAsync(string git, params string[] arguments)

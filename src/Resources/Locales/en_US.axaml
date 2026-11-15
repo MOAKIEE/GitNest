@@ -2,7 +2,6 @@
   <x:String x:Key="Text.About" xml:space="preserve">About</x:String>
   <x:String x:Key="Text.About.Menu" xml:space="preserve">About GitNest</x:String>
   <x:String x:Key="Text.About.ReleaseDate" xml:space="preserve">Build date: {0}</x:String>
-  <x:String x:Key="Text.About.ReleaseNotes" xml:space="preserve">Release Notes</x:String>
   <x:String x:Key="Text.About.SubTitle" xml:space="preserve">A Git client for AI coding workflows</x:String>
   <x:String x:Key="Text.GitNest.Repositories" xml:space="preserve">Repositories</x:String>
   <x:String x:Key="Text.GitNest.UnnamedWorkspace" xml:space="preserve">Unnamed workspace</x:String>
@@ -101,7 +100,6 @@
   <x:String x:Key="Text.Checkout.WithFastForward" xml:space="preserve">Checkout &amp; Fast-Forward</x:String>
   <x:String x:Key="Text.Checkout.WithFastForward.Upstream" xml:space="preserve">Fast-Forward to:</x:String>
   <x:String x:Key="Text.CheckoutBranchFromStash" xml:space="preserve">Checkout Branch From Stash</x:String>
-  <x:String x:Key="Text.CheckoutBranchFromStash.Branch" xml:space="preserve">New Branch:</x:String>
   <x:String x:Key="Text.CheckoutBranchFromStash.Stash" xml:space="preserve">Stash:</x:String>
   <x:String x:Key="Text.CheckoutDetached" xml:space="preserve">Checkout Commit or Tag</x:String>
   <x:String x:Key="Text.CheckoutDetached.Target" xml:space="preserve">Target:</x:String>
@@ -122,7 +120,6 @@
   <x:String x:Key="Text.CodeEditor" xml:space="preserve">Editor</x:String>
   <x:String x:Key="Text.CommandPalette.Branches" xml:space="preserve">Branches</x:String>
   <x:String x:Key="Text.CommandPalette.BranchesAndTags" xml:space="preserve">Branches &amp; Tags</x:String>
-  <x:String x:Key="Text.CommandPalette.RepositoryActions" xml:space="preserve">Repository Custom Actions</x:String>
   <x:String x:Key="Text.CommandPalette.RevisionFiles" xml:space="preserve">Revision Files</x:String>
   <x:String x:Key="Text.CommitCM.Checkout" xml:space="preserve">Checkout Commit...</x:String>
   <x:String x:Key="Text.CommitCM.CompareWithHead" xml:space="preserve">Compare with HEAD</x:String>
@@ -194,9 +191,6 @@
   <x:String x:Key="Text.Configure.IssueTracker.Share" xml:space="preserve">Share this rule in .issuetracker file</x:String>
   <x:String x:Key="Text.Configure.IssueTracker.URLTemplate" xml:space="preserve">Result URL:</x:String>
   <x:String x:Key="Text.Configure.IssueTracker.URLTemplate.Tip" xml:space="preserve">Please use $1, $2 to access regex groups values.</x:String>
-  <x:String x:Key="Text.Configure.OpenAI" xml:space="preserve">AI</x:String>
-  <x:String x:Key="Text.Configure.OpenAI.Preferred" xml:space="preserve">Preferred Service:</x:String>
-  <x:String x:Key="Text.Configure.OpenAI.Preferred.Tip" xml:space="preserve">If the 'Preferred Service' is set, GitNest will only use it in this repository. Otherwise, if there is more than one service available, a context menu to choose one of them will be shown.</x:String>
   <x:String x:Key="Text.Configure.Proxy" xml:space="preserve">HTTP Proxy</x:String>
   <x:String x:Key="Text.Configure.Proxy.Placeholder" xml:space="preserve">HTTP proxy used by this repository</x:String>
   <x:String x:Key="Text.Configure.User" xml:space="preserve">User Name</x:String>
@@ -205,16 +199,12 @@
   <x:String x:Key="Text.Configure.Scope.Local" xml:space="preserve">Repository (--local)</x:String>
   <x:String x:Key="Text.Configure.Scope.Worktree" xml:space="preserve">Current Worktree (--worktree)</x:String>
   <x:String x:Key="Text.Configure.Scope.Global" xml:space="preserve">User Global (--global)</x:String>
-  <x:String x:Key="Text.Configure.Scope.System" xml:space="preserve">System (Read-Only)</x:String>
-  <x:String x:Key="Text.Configure.Scope.Included" xml:space="preserve">Included (Read-Only)</x:String>
-  <x:String x:Key="Text.Configure.Scope.Runtime" xml:space="preserve">Runtime (Read-Only)</x:String>
   <x:String x:Key="Text.Configure.Scope.Unset" xml:space="preserve">Unset</x:String>
   <x:String x:Key="Text.Configure.Scope.LocalHint" xml:space="preserve">Writes to this repository config; multiple worktrees of the same repository share --local settings.</x:String>
   <x:String x:Key="Text.Configure.Scope.WorktreeHint" xml:space="preserve">extensions.worktreeConfig is enabled; edits apply only to this worktree.</x:String>
   <x:String x:Key="Text.Configure.Scope.WorktreeDisabledHint" xml:space="preserve">extensions.worktreeConfig is disabled; worktree-scoped writes are unavailable (never auto-enabled or migrated).</x:String>
   <x:String x:Key="Text.Configure.Scope.GlobalWarning" xml:space="preserve">Warning: User Global scope (--global) affects all Git repositories under this user account.</x:String>
   <x:String x:Key="Text.Configure.Field.InheritedHint" xml:space="preserve">Inherited from higher layer; edit or click Override Here to write into target scope.</x:String>
-  <x:String x:Key="Text.Configure.Field.TargetValuePresent" xml:space="preserve">Explicitly set in target scope.</x:String>
   <x:String x:Key="Text.Configure.Field.MultiValueReadOnly" xml:space="preserve">Target scope contains multiple entries; read-only to preserve multi-value layout.</x:String>
   <x:String x:Key="Text.Configure.Field.HigherOverrideHint" xml:space="preserve">Currently shadowed by higher priority ({0}); writing to target scope alone will not override effective value.</x:String>
   <x:String x:Key="Text.Configure.Field.PendingUnsetHint" xml:space="preserve">Pending: will --unset from target scope on save to restore inherited value.</x:String>
@@ -243,12 +233,10 @@
   <x:String x:Key="Text.Configure.Remotes.PendingRemoveBadge" xml:space="preserve">Pending Remove</x:String>
   <x:String x:Key="Text.Configure.Remotes.Empty" xml:space="preserve">No remotes configured in this repository.</x:String>
   <x:String x:Key="Text.Configure.Section.Upstream" xml:space="preserve">Current Branch Upstream</x:String>
-  <x:String x:Key="Text.Configure.Upstream.CurrentBranch" xml:space="preserve">Current Branch</x:String>
   <x:String x:Key="Text.Configure.Upstream.DetachedHead" xml:space="preserve">HEAD is detached; branch upstream tracking is unavailable.</x:String>
   <x:String x:Key="Text.Configure.Upstream.EffectiveMapping" xml:space="preserve">Actual Mapping</x:String>
   <x:String x:Key="Text.Configure.Upstream.NotSet" xml:space="preserve">No upstream configured</x:String>
   <x:String x:Key="Text.Configure.Upstream.UnfetchedNote" xml:space="preserve">(Configured in branch.*; matching refs/remotes tracking ref not fetched locally yet)</x:String>
-  <x:String x:Key="Text.Configure.Upstream.Remote" xml:space="preserve">Upstream Remote</x:String>
   <x:String x:Key="Text.Configure.Upstream.TargetBranch" xml:space="preserve">Target Branch</x:String>
   <x:String x:Key="Text.Configure.Upstream.TargetBranchPlaceholder" xml:space="preserve">e.g. main</x:String>
   <x:String x:Key="Text.Configure.Upstream.Clear" xml:space="preserve">Unset Upstream</x:String>
@@ -343,7 +331,6 @@
   <x:String x:Key="Text.DeleteBranch.Branch" xml:space="preserve">Branch:</x:String>
   <x:String x:Key="Text.DeleteBranch.DeleteAttachedWorktree" xml:space="preserve">Delete worktree for this branch</x:String>
   <x:String x:Key="Text.DeleteBranch.Force" xml:space="preserve">Force delete even if it contains unmerged commit(s)</x:String>
-  <x:String x:Key="Text.DeleteBranch.IsRemoteTip" xml:space="preserve">You are about to delete a remote branch!!!</x:String>
   <x:String x:Key="Text.DeleteBranch.WithTrackingRemote" xml:space="preserve">Also delete remote branch ${0}$</x:String>
   <x:String x:Key="Text.DeleteBranch.TitleLocal" xml:space="preserve">Delete Local Branch</x:String>
   <x:String x:Key="Text.DeleteBranch.TitleRemote" xml:space="preserve">Delete Remote Branch</x:String>
@@ -381,12 +368,8 @@
   <x:String x:Key="Text.DeleteBranch.RestoringTargetLabel" xml:space="preserve">Restore branch name:</x:String>
   <x:String x:Key="Text.DeleteMultiBranch" xml:space="preserve">Delete Multiple Branches</x:String>
   <x:String x:Key="Text.DeleteMultiBranch.Tip" xml:space="preserve">You are trying to delete multiple branches at one time. Be sure to double-check before taking action!</x:String>
-  <x:String x:Key="Text.DeleteMultiBranch.ResultHeader" xml:space="preserve">Batch branch deletion results:</x:String>
   <x:String x:Key="Text.DeleteMultiBranch.BtnDeleteLocal" xml:space="preserve">Delete Selected Local</x:String>
   <x:String x:Key="Text.DeleteMultiBranch.BtnDeleteRemote" xml:space="preserve">Delete Selected Remote</x:String>
-  <x:String x:Key="Text.DeleteMultiTags" xml:space="preserve">Delete Multiple Tags</x:String>
-  <x:String x:Key="Text.DeleteMultiTags.DeleteFromRemotes" xml:space="preserve">Delete them from remotes</x:String>
-  <x:String x:Key="Text.DeleteMultiTags.Tip" xml:space="preserve">You are trying to delete multiple tags at one time. Be sure to double-check before taking action!</x:String>
   <x:String x:Key="Text.DeleteRemote" xml:space="preserve">Delete Remote</x:String>
   <x:String x:Key="Text.DeleteRemote.Remote" xml:space="preserve">Remote:</x:String>
   <x:String x:Key="Text.DeleteRepositoryNode.Path" xml:space="preserve">Path:</x:String>
@@ -430,13 +413,6 @@
   <x:String x:Key="Text.DirtyState.HasPendingPullOrPush" xml:space="preserve">Mismatched with Upstream</x:String>
   <x:String x:Key="Text.DirtyState.UpToDate" xml:space="preserve">Already Up-To-Date</x:String>
   <x:String x:Key="Text.Discard" xml:space="preserve">Discard Changes</x:String>
-  <x:String x:Key="Text.Discard.All" xml:space="preserve">All local changes in working copy.</x:String>
-  <x:String x:Key="Text.Discard.Changes" xml:space="preserve">Changes:</x:String>
-  <x:String x:Key="Text.Discard.IncludeIgnored" xml:space="preserve">Include ignored files</x:String>
-  <x:String x:Key="Text.Discard.IncludeModified" xml:space="preserve">Include modified/deleted files</x:String>
-  <x:String x:Key="Text.Discard.IncludeUntracked" xml:space="preserve">Include untracked files</x:String>
-  <x:String x:Key="Text.Discard.Total" xml:space="preserve">{0} changes will be discarded</x:String>
-  <x:String x:Key="Text.Discard.Warning" xml:space="preserve">You can't undo this action!!!</x:String>
   <x:String x:Key="Text.EditBranchDescription" xml:space="preserve">Edit Branch's Description</x:String>
   <x:String x:Key="Text.EditBranchDescription.Target" xml:space="preserve">Target:</x:String>
   <x:String x:Key="Text.EditRepositoryNode.Bookmark" xml:space="preserve">Bookmark:</x:String>
@@ -453,19 +429,13 @@
   <x:String x:Key="Text.File.Binary" xml:space="preserve">BINARY FILE</x:String>
   <x:String x:Key="Text.File.HexViewer" xml:space="preserve">HEX VIEWER</x:String>
   <x:String x:Key="Text.File.HexViewer.GotoAddress" xml:space="preserve">Go to address...</x:String>
-  <x:String x:Key="Text.FileCM.CustomAction" xml:space="preserve">Custom Action</x:String>
   <x:String x:Key="Text.FileCM.Discard" xml:space="preserve">Discard...</x:String>
-  <x:String x:Key="Text.FileCM.DiscardMulti" xml:space="preserve">Discard {0} files...</x:String>
-  <x:String x:Key="Text.FileCM.ResolveUsing" xml:space="preserve">Resolve Using ${0}$</x:String>
-  <x:String x:Key="Text.FileCM.SaveAsPatch" xml:space="preserve">Save as Patch...</x:String>
   <x:String x:Key="Text.FileCM.Stage" xml:space="preserve">Stage</x:String>
   <x:String x:Key="Text.FileCM.StageMulti" xml:space="preserve">Stage {0} files</x:String>
   <x:String x:Key="Text.FileCM.Stash" xml:space="preserve">Stash...</x:String>
   <x:String x:Key="Text.FileCM.StashMulti" xml:space="preserve">Stash {0} files...</x:String>
   <x:String x:Key="Text.FileCM.Unstage" xml:space="preserve">Unstage</x:String>
   <x:String x:Key="Text.FileCM.UnstageMulti" xml:space="preserve">Unstage {0} files</x:String>
-  <x:String x:Key="Text.FileCM.UseMine" xml:space="preserve">Use Mine (checkout --ours)</x:String>
-  <x:String x:Key="Text.FileCM.UseTheirs" xml:space="preserve">Use Theirs (checkout --theirs)</x:String>
   <x:String x:Key="Text.FileHistory" xml:space="preserve">File History</x:String>
   <x:String x:Key="Text.FileHistory.FileChange" xml:space="preserve">CHANGE</x:String>
   <x:String x:Key="Text.FileHistory.FileContent" xml:space="preserve">CONTENT</x:String>
@@ -692,7 +662,6 @@
   <x:String x:Key="Text.Preferences.Git.Email.Placeholder" xml:space="preserve">Global git user email</x:String>
   <x:String x:Key="Text.Preferences.Git.EnablePruneOnFetch" xml:space="preserve">Prune dead branches after fetching</x:String>
   <x:String x:Key="Text.Preferences.Git.IgnoreCRAtEOLInDiff" xml:space="preserve">Ignore CR at end-of-line in text diff</x:String>
-  <x:String x:Key="Text.Preferences.Git.Invalid" xml:space="preserve">A working Git 2.31.0 or newer is required</x:String>
   <x:String x:Key="Text.Preferences.Git.Path" xml:space="preserve">Install Path</x:String>
   <x:String x:Key="Text.Preferences.Git.SSLVerify" xml:space="preserve">Enable HTTP SSL Verify</x:String>
   <x:String x:Key="Text.Preferences.Git.UseLibsecret" xml:space="preserve">Use git-credential-libsecret instead of git-credential-manager</x:String>
@@ -721,7 +690,6 @@
   <x:String x:Key="Text.PruneWorktrees.ConfirmBtn" xml:space="preserve">Confirm Prune Stale Records</x:String>
   <x:String x:Key="Text.PruneWorktrees.MultiExpireWarning" xml:space="preserve">Multiple stale records detected. Locked or active linked worktrees remain untouched.</x:String>
   <x:String x:Key="Text.PruneWorktrees.RetainedLockedTitle" xml:space="preserve">Locked records retained (will not be pruned):</x:String>
-  <x:String x:Key="Text.PruneWorktrees.Tip" xml:space="preserve">Prune worktree information in `$GIT_COMMON_DIR/worktrees`</x:String>
   <x:String x:Key="Text.Pull" xml:space="preserve">Pull</x:String>
   <x:String x:Key="Text.Pull.Branch" xml:space="preserve">Remote Branch:</x:String>
   <x:String x:Key="Text.Pull.Into" xml:space="preserve">Into:</x:String>
@@ -868,8 +836,6 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.Repository.ViewLogs" xml:space="preserve">View Logs</x:String>
   <x:String x:Key="Text.Repository.Visit" xml:space="preserve">Visit '{0}' in Browser</x:String>
   <x:String x:Key="Text.Repository.Worktrees" xml:space="preserve">WORKTREES</x:String>
-  <x:String x:Key="Text.Repository.Worktrees.Prune" xml:space="preserve">Prune</x:String>
-  <x:String x:Key="Text.RepositoryURL" xml:space="preserve">Git Repository URL</x:String>
   <x:String x:Key="Text.Reset" xml:space="preserve">Return Current Branch to Commit</x:String>
   <x:String x:Key="Text.Reset.Mode" xml:space="preserve">Reset Mode:</x:String>
   <x:String x:Key="Text.Reset.MoveTo" xml:space="preserve">Move To:</x:String>
@@ -940,7 +906,6 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.Stash.Message.Placeholder" xml:space="preserve">Optional. Message of this stash</x:String>
   <x:String x:Key="Text.Stash.Mode" xml:space="preserve">Mode:</x:String>
   <x:String x:Key="Text.Stash.OnlyStagedChanges" xml:space="preserve">Only staged files</x:String>
-  <x:String x:Key="Text.Stash.TipForSelectedFiles" xml:space="preserve">Both staged and unstaged changes of selected file(s) will be stashed!!!</x:String>
   <x:String x:Key="Text.Stash.Title" xml:space="preserve">Stash Local Changes</x:String>
   <x:String x:Key="Text.StashCM.Apply" xml:space="preserve">Apply</x:String>
   <x:String x:Key="Text.StashCM.ApplyFileChanges" xml:space="preserve">Apply Changes</x:String>
@@ -948,7 +913,6 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.StashCM.CopyMessage" xml:space="preserve">Copy Message</x:String>
   <x:String x:Key="Text.StashCM.Drop" xml:space="preserve">Drop</x:String>
   <x:String x:Key="Text.StashDropConfirm" xml:space="preserve">Drop Stash</x:String>
-  <x:String x:Key="Text.StashDropConfirm.Label" xml:space="preserve">Drop:</x:String>
   <x:String x:Key="Text.Stashes" xml:space="preserve">Stashes</x:String>
   <x:String x:Key="Text.Stashes.Changes" xml:space="preserve">CHANGES</x:String>
   <x:String x:Key="Text.Stashes.Stashes" xml:space="preserve">STASHES</x:String>
@@ -1023,7 +987,6 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.WorkingCopy.AddToGitIgnore.InFolder" xml:space="preserve">Ignore untracked files in this folder</x:String>
   <x:String x:Key="Text.WorkingCopy.AddToGitIgnore.SingleFile" xml:space="preserve">Ignore this file only</x:String>
   <x:String x:Key="Text.WorkingCopy.AddToGitIgnore.UntrackedInSameFolder" xml:space="preserve">Ignore all untracked files in the same folder</x:String>
-  <x:String x:Key="Text.WorkingCopy.CanStageTip" xml:space="preserve">You can stage this file now.</x:String>
   <x:String x:Key="Text.WorkingCopy.ClearCommitHistories" xml:space="preserve">Clear History</x:String>
   <x:String x:Key="Text.WorkingCopy.ClearCommitHistories.Confirm" xml:space="preserve">Are you sure you want to clear all commit message history? This action cannot be undone.</x:String>
   <x:String x:Key="Text.WorkingCopy.CollapseSidebar" xml:space="preserve">Hide Sidebar</x:String>
@@ -1039,9 +1002,6 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.WorkingCopy.ConfirmCommitWithFilter">You have staged {0} file(s) but only {1} file(s) displayed ({2} files are filtered out). Do you want to continue?</x:String>
   <x:String x:Key="Text.WorkingCopy.Conflicts" xml:space="preserve">CONFLICTS DETECTED</x:String>
   <x:String x:Key="Text.WorkingCopy.Conflicts.Merge" xml:space="preserve">MERGE</x:String>
-  <x:String x:Key="Text.WorkingCopy.Conflicts.MergeExternal" xml:space="preserve">Merge with External Tool</x:String>
-  <x:String x:Key="Text.WorkingCopy.Conflicts.OpenExternalMergeToolAllConflicts" xml:space="preserve">OPEN ALL CONFLICTS IN EXTERNAL MERGETOOL</x:String>
-  <x:String x:Key="Text.WorkingCopy.Conflicts.Resolved" xml:space="preserve">FILE CONFLICTS ARE RESOLVED</x:String>
   <x:String x:Key="Text.WorkingCopy.Conflicts.UseMine" xml:space="preserve">USE MINE</x:String>
   <x:String x:Key="Text.WorkingCopy.Conflicts.UseTheirs" xml:space="preserve">USE THEIRS</x:String>
   <x:String x:Key="Text.WorkingCopy.Conflicts.Origin.External" xml:space="preserve">External Operation In Progress</x:String>
@@ -1156,7 +1116,6 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.Push.ConfirmOverwriteExistingRemote" xml:space="preserve">Remote branch '{0}/{1}' already exists even though this branch has no upstream. Confirm explicitly before pushing.</x:String>
   <x:String x:Key="Text.Push.ConfirmExistingRemoteTarget" xml:space="preserve">Confirm pushing to existing remote branch {0}/{1}</x:String>
 
-  <x:String x:Key="Text.WorkingCopy.PartialStageBadge" xml:space="preserve">PARTIAL</x:String>
   <x:String x:Key="Text.WorkingCopy.PartialCommitHint" xml:space="preserve">Some files are partially staged: ordinary commit records only the staged snapshot and preserves remaining edits on disk.</x:String>
   <x:String x:Key="Text.WorkingCopy.PartialFullStageConfirm" xml:space="preserve">The following file(s) already contain partial staged changes ({0}). Staging from Unstaged will replace their staged split with the full working tree content. Continue?</x:String>
   <x:String x:Key="Text.WorkingCopy.SnapshotStaleBanner" xml:space="preserve">Staged snapshot or current branch changed externally before commit. Please review and commit again.</x:String>
@@ -1165,7 +1124,6 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.WorkingCopy.IdentityName" xml:space="preserve">Author Name (user.name)</x:String>
   <x:String x:Key="Text.WorkingCopy.IdentityEmail" xml:space="preserve">Author Email (user.email)</x:String>
   <x:String x:Key="Text.WorkingCopy.SaveIdentityAndContinue" xml:space="preserve">SAVE LOCAL IDENTITY</x:String>
-  <x:String x:Key="Text.WorkingCopy.TwoStepTitle" xml:space="preserve">Commit &amp; Push Two-Step Status</x:String>
   <x:String x:Key="Text.WorkingCopy.StepCommitSucceeded" xml:space="preserve">Step 1 · Local commit succeeded ({0})</x:String>
   <x:String x:Key="Text.WorkingCopy.StepPushSucceeded" xml:space="preserve">Step 2 · Single-branch push succeeded ({0})</x:String>
   <x:String x:Key="Text.WorkingCopy.StepPushFailed" xml:space="preserve">Step 2 · Push failed (local commit {0} is preserved):</x:String>
@@ -1394,7 +1352,6 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.RewriteRemote.ProtectionHint" xml:space="preserve">Protected branch rules block rewriting remote history. Unlock this branch for this repository under Repository Settings -&gt; Git if intended.</x:String>
   <x:String x:Key="Text.RewriteRemote.CommitsToRemove" xml:space="preserve">Commits to be removed from remote ({0}):</x:String>
   <x:String x:Key="Text.RewriteRemote.ResultTitle" xml:space="preserve">Remote History Rewrite Result</x:String>
-  <x:String x:Key="Text.RewriteRemote.NoUpstreamHint" xml:space="preserve">No configured upstream remote branch found for this local branch.</x:String>
 
   <x:String x:Key="Text.ResetWithoutCheckout.Confirm" xml:space="preserve">UPDATE BRANCH POINTER</x:String>
   <x:String x:Key="Text.ResetWithoutCheckout.Loading" xml:space="preserve">Checking worktree locks, branch protection, and commit ancestry...</x:String>
@@ -1412,7 +1369,6 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.Configure.Git.BranchProtectionEmpty" xml:space="preserve">No default protected local branches detected in this repository.</x:String>
   <x:String x:Key="Text.Configure.Git.BranchProtectionUnlock" xml:space="preserve">Allow deletion or history rewrite in this repo</x:String>
   <x:String x:Key="Text.Configure.Git.BranchProtectionReasonDefault" xml:space="preserve">Default protected branch name</x:String>
-  <x:String x:Key="Text.Configure.Git.BranchProtectionReasonRemoteHead" xml:space="preserve">Remote default branch target</x:String>
   <x:String x:Key="Text.Configure.Git.BranchProtectionSaved" xml:space="preserve">Branch protection override settings updated.</x:String>
 
   <x:String x:Key="Text.OperationRecovery.VerifyRemoteSelected" xml:space="preserve">Verify Remote State Online</x:String>
