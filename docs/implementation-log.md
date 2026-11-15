@@ -366,3 +366,12 @@
 - 普通推送、显式 lease 删除和历史改写统一使用进程内临时远端，推送目标仍固定到已确认地址；跟踪引用继续按获取地址及确认旧值显式更新，不落盘临时配置。
 - 新增 2 项分离地址推送／历史改写回归，测试支持通过 `GITNEST_TEST_GIT_EXECUTABLE` 指定 Git 版本。Git 2.56.1 全量 461/461、Git 2.45.1 定向 53/53 通过，Release 构建 0 警告 0 错误，自包含发布与安装包构建通过。
 - 安装包 SHA-256 更新为 `701DB7868A1C53766627F2C170BE9962C565A17D3B5E2FCF8F650B76CC9922E5`；复现与验证日志位于 `artifacts/logs/git256-*.log` 和 `git245-remote-tests.log`。
+
+## 2026-11-15 · 下一阶段批次 1：清理剩余无调用实现
+
+- 前一批提交：`4f1b2e0a`（Git 2.56.1 推送兼容修复）。
+- 复核全部源码、XAML、JSON 源生成与测试引用后，删除无调用的 `src/Commands/Am.cs`、`src/Commands/Clean.cs` 与 `src/Models/CleanMode.cs`（已送入系统回收站）；保留 `Models.GitInProgressKind.Am` 用于外部补丁应用状态只读识别。
+- 清理 `src/Commands/Worktree.cs` 中无调用的 `AddAsync`、`PruneAsync`、`RemoveAsync`，保留 `ReadAllAsync`、`LockAsync`、`UnlockAsync`；工作树删除与失效记录清理继续走 `WorktreeDeletionService`。
+- 清理 `src/Commands/Submodule.cs` 中无调用的 `AddAsync`、`SetURLAsync`、`DeleteAsync`，保留供克隆与子模块更新使用的 `UpdateAsync`。
+- 在 `tests/GitNest.IntegrationTests/NextStageTests.cs` 补充裁剪类型/方法断言及真实 Git 克隆初始化子模块测试。
+- 验证：Release 构建 0 警告 0 错误；`.\build\scripts\test-gitnest.ps1` 全量 **472 / 472** 通过（含工作树查询/删除/失效清理及克隆初始化子模块）。

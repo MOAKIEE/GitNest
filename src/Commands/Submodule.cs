@@ -12,27 +12,6 @@ namespace SourceGit.Commands
             Context = repo;
         }
 
-        public async Task<bool> AddAsync(string url, string relativePath, bool recursive)
-        {
-            Args = $"-c protocol.file.allow=always submodule add {url.Quoted()} {relativePath.Quoted()}";
-
-            var succ = await ExecAsync().ConfigureAwait(false);
-            if (!succ)
-                return false;
-
-            if (recursive)
-                Args = $"submodule update --init --recursive -- {relativePath.Quoted()}";
-            else
-                Args = $"submodule update --init -- {relativePath.Quoted()}";
-            return await ExecAsync().ConfigureAwait(false);
-        }
-
-        public async Task<bool> SetURLAsync(string path, string url)
-        {
-            Args = $"submodule set-url -- {path.Quoted()} {url.Quoted()}";
-            return await ExecAsync().ConfigureAwait(false);
-        }
-
         public async Task<bool> UpdateAsync(List<string> modules, bool init, bool recursive, bool useRemote)
         {
             var builder = new StringBuilder();
@@ -52,12 +31,6 @@ namespace SourceGit.Commands
             }
 
             Args = builder.ToString();
-            return await ExecAsync().ConfigureAwait(false);
-        }
-
-        public async Task<bool> DeleteAsync(string module)
-        {
-            Args = $"rm -rf {module.Quoted()}";
             return await ExecAsync().ConfigureAwait(false);
         }
     }

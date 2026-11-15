@@ -73,22 +73,6 @@ namespace SourceGit.Commands
             return worktrees;
         }
 
-        public async Task<bool> AddAsync(string fullpath, string name)
-        {
-            if (string.IsNullOrEmpty(name))
-                Args = $"worktree add {fullpath.Quoted()}";
-            else
-                Args = $"worktree add -b {name} {fullpath.Quoted()}";
-
-            return await ExecAsync().ConfigureAwait(false);
-        }
-
-        public async Task<bool> PruneAsync()
-        {
-            Args = "worktree prune -v";
-            return await ExecAsync().ConfigureAwait(false);
-        }
-
         public async Task<bool> LockAsync(string fullpath)
         {
             Args = $"worktree lock {fullpath.Quoted()}";
@@ -98,16 +82,6 @@ namespace SourceGit.Commands
         public async Task<bool> UnlockAsync(string fullpath)
         {
             Args = $"worktree unlock {fullpath.Quoted()}";
-            return await ExecAsync().ConfigureAwait(false);
-        }
-
-        public async Task<bool> RemoveAsync(string fullpath, bool force)
-        {
-            if (force)
-                Args = $"worktree remove -f {fullpath.Quoted()}";
-            else
-                Args = $"worktree remove {fullpath.Quoted()}";
-
             return await ExecAsync().ConfigureAwait(false);
         }
     }

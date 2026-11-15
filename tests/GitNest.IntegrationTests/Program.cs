@@ -194,6 +194,7 @@ internal static partial class Program
             await RunPhase41TrimTestsAsync(realGit, root);
             await RunPhase43AcceptanceTestsAsync(realGit, root);
             await RunUpdateTestsAsync();
+            await RunNextStageTestsAsync(realGit, root);
         }
         finally
         {
