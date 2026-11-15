@@ -318,3 +318,15 @@
 - 新增 [verify-installer.ps1](../build/scripts/verify-installer.ps1)（38 项检查：全新静默安装、PE `RT_MANIFEST` 检测、`PATH` 不变性、无 `git.exe`/`OpenAI*.dll`/`Azure*.dll` 检查、冷启动冒烟、高版本 `0.1.1-test` 覆盖升级、完整静默卸载及保留 `%APPDATA%\GitNest` 与用户仓库，测试残留自动进回收站）与 `tests/GitNest.UIProbe/HighDpiProbe.cs`（接入 `probe-gitnest.ps1 -HighDpi`；在首次核图发现 `DeleteBranch` 预检态瞬时截屏后改为等待 `!delVm.IsLoadingPreflight` 并重新出图复核）。
 - 末次代码改动后验证：`.\build\scripts\build-gitnest.ps1 -Publish`（**0** 警告 **0** 错误，产出 `artifacts/windows-x64/GitNest.exe`）、`.\build\scripts\probe-gitnest.ps1 -HighDpi`（**7 / 7** 通过，视觉核对 `artifacts/probes/phase-4.2/` 下 150%/200% DPI 共 4 张浅色/暗黑/弹窗截图无裁剪重叠）、`.\build\scripts\build-installer.ps1 -SkipPublish` 编译生成 `artifacts/installer/GitNest-Setup-0.1.0-dev-win-x64.exe`（`35.95 MB`，SHA-256 `02734FF669A34742A3BFA80CE147A52D2063C589E704F989F7230687EDDE2EE3`），以及 `.\build\scripts\verify-installer.ps1`（**38 / 38** 通过）；详情见 [phase-4.2.md](verification/phase-4.2.md)。
 - 批次 4.2 完成；接续进入批次 4.3（按设计第 10 节完成全量真实 Git 集成验收与发行记录）。
+
+## 2026-11-15 · 批次 4.3：第 10 节全量真实 Git 集成验收、清理与发行记录
+
+- 前一批提交：`88e81cb8`（批次 4.2：Windows x64 Inno Setup 单用户安装包、升级/卸载与 PerMonitorV2 高 DPI 验证）。
+- 对照 [design.md](design.md) 第 10 节逐条审计测试覆盖范围，新增 [Phase43AcceptanceTests.cs](../tests/GitNest.IntegrationTests/Phase43AcceptanceTests.cs) 并接入 [Program.cs](../tests/GitNest.IntegrationTests/Program.cs)：补全缺失/损坏/非 Git 可执行文件检测及恢复就绪验证、unborn 空仓库只读查询、`git fast-import` 真实 650 条大量历史记录查询与搜索、`CompareRevisions`/`IsBinary`/`Diff` 对中文特殊路径文本差异与 NUL 字节二进制文件识别、`core.sshCommand` 模拟 `ASKPASS_CANCELLED` 与本地回环 `TcpListener` 返回 `HTTP 401` 的真实推送认证失败反馈及未污染提交/清洁工作区状态保留，同时核实远端 token 与 `http.extraheader` 敏感凭据绝不进入错误摘要、诊断信息或持久化操作日志。
+- 末次代码改动后顺序跑完全套终验：
+  - `.\build\scripts\build-gitnest.ps1 -Publish`（**0** 警告 **0** 错误，产出 `artifacts/windows-x64/GitNest.exe`）；
+  - `.\build\scripts\test-gitnest.ps1`（**388 / 388** 通过）；
+  - 全量 12 组具名 UI 探针依次全部通过：`-Comparison`（**30/30**）、`-Config`（**13/13**）、`-ConfigRefresh`（**4/4**）、`-CommitSync`（**11/11**）、`-OperationRecovery`（**13/13**）、`-BranchDelete`（**13/13**）、`-WorktreeDelete`（**20/20**）、`-MergeRevert`（**11/11**）、`-StashDiscardIgnore`（**15/15**）、`-ResetRewrite`（**14/14**）、`-TrimSurface`（**24/24**）、`-HighDpi`（**7/7**）；
+  - `.\build\scripts\build-installer.ps1 -SkipPublish` 生成最终安装包 `artifacts/installer/GitNest-Setup-0.1.0-dev-win-x64.exe`（`35.95 MB`，SHA-256 `2072815A74402B908A2340AAD605F115B93E4081E5CCD39F236DD41D8B53BEDF`）；
+  - `.\build\scripts\verify-installer.ps1` 全流程 **38 / 38** 通过，并将 `%TEMP%\*GitNest*` 与阶段二遗留 `artifacts/smoke/` 送入系统回收站（`0` 残留测试目录，唯一本地 `main` 分支与单主工作树）。
+- 撰写总验报告 [phase-4.3.md](verification/phase-4.3.md) 与 [发行记录](release-notes.md)，阶段一至阶段四全部批次完成。

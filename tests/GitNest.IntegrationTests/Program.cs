@@ -171,6 +171,7 @@ internal static partial class Program
             await RunHistoryResetRewriteTestsAsync(realGit, root);
             await RunPhase37SyncTestsAsync(realGit, root);
             await RunPhase41TrimTestsAsync(realGit, root);
+            await RunPhase43AcceptanceTestsAsync(realGit, root);
         }
         finally
         {
