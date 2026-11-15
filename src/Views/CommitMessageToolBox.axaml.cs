@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Text;
 
 using Avalonia;
@@ -492,129 +491,11 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
-        private async void OnOpenCommitMessagePicker(object sender, RoutedEventArgs e)
+        private void OnOpenCommitMessagePicker(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && DataContext is ViewModels.WorkingCopy vm && _showAdvancedOptions)
             {
-                var repo = vm.Repository;
-                var foreground = this.FindResource("Brush.FG1") as IBrush;
-                var menu = new ContextMenu() { MaxWidth = 480 };
-
-                var gitTemplate = await new Commands.Config(repo.FullPath).GetAsync("commit.template");
-                var templateCount = repo.Settings.CommitTemplates.Count;
-                if (templateCount == 0 && string.IsNullOrEmpty(gitTemplate))
-                {
-                    menu.Items.Add(new MenuItem()
-                    {
-                        Header = App.Text("WorkingCopy.NoCommitTemplates"),
-                        Icon = this.CreateMenuIcon("Icons.Code"),
-                        IsEnabled = false
-                    });
-                }
-                else
-                {
-                    for (int i = 0; i < templateCount; i++)
-                    {
-                        var icon = this.CreateMenuIcon("Icons.Code");
-                        icon.Fill = foreground;
-
-                        var template = repo.Settings.CommitTemplates[i];
-                        var item = new MenuItem();
-                        item.Header = App.Text("WorkingCopy.UseCommitTemplate", template.Name);
-                        item.Icon = icon;
-                        item.Click += (_, ev) =>
-                        {
-                            vm.ApplyCommitMessageTemplate(template);
-                            ev.Handled = true;
-                        };
-                        menu.Items.Add(item);
-                    }
-
-                    if (!string.IsNullOrEmpty(gitTemplate))
-                    {
-                        if (!Path.IsPathRooted(gitTemplate))
-                            gitTemplate = Native.OS.GetAbsPath(repo.FullPath, gitTemplate);
-
-                        var friendlyName = gitTemplate;
-                        if (!OperatingSystem.IsWindows())
-                        {
-                            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                            var prefixLen = home.EndsWith('/') ? home.Length - 1 : home.Length;
-                            if (gitTemplate.StartsWith(home, StringComparison.Ordinal))
-                                friendlyName = $"~{gitTemplate.AsSpan(prefixLen)}";
-                        }
-
-                        var icon = this.CreateMenuIcon("Icons.Code");
-                        icon.Fill = foreground;
-
-                        var gitTemplateItem = new MenuItem();
-                        gitTemplateItem.Header = App.Text("WorkingCopy.UseCommitTemplate", friendlyName);
-                        gitTemplateItem.Icon = icon;
-                        gitTemplateItem.Click += (_, ev) =>
-                        {
-                            if (File.Exists(gitTemplate))
-                                vm.CommitMessage = File.ReadAllText(gitTemplate);
-                            ev.Handled = true;
-                        };
-                        menu.Items.Add(gitTemplateItem);
-                    }
-                }
-
-                menu.Items.Add(new MenuItem() { Header = "-" });
-
-                var historiesCount = repo.UIStates.RecentCommitMessages.Count;
-                if (historiesCount == 0)
-                {
-                    menu.Items.Add(new MenuItem()
-                    {
-                        Header = App.Text("WorkingCopy.NoCommitHistories"),
-                        Icon = this.CreateMenuIcon("Icons.Histories"),
-                        IsEnabled = false
-                    });
-                }
-                else
-                {
-                    for (int i = 0; i < historiesCount; i++)
-                    {
-                        var dup = repo.UIStates.RecentCommitMessages[i].Trim();
-                        var header = new TextBlock()
-                        {
-                            Text = dup.ReplaceLineEndings(" "),
-                            VerticalAlignment = VerticalAlignment.Center,
-                            TextTrimming = TextTrimming.CharacterEllipsis
-                        };
-
-                        var icon = this.CreateMenuIcon("Icons.Histories");
-                        icon.Fill = foreground;
-
-                        var item = new MenuItem();
-                        item.Header = header;
-                        item.Icon = icon;
-                        item.Click += (_, ev) =>
-                        {
-                            vm.CommitMessage = dup;
-                            ev.Handled = true;
-                        };
-
-                        menu.Items.Add(item);
-                    }
-
-                    menu.Items.Add(new MenuItem() { Header = "-" });
-
-                    var clearIcon = this.CreateMenuIcon("Icons.Clear");
-                    clearIcon.Fill = foreground;
-
-                    var clearHistoryItem = new MenuItem();
-                    clearHistoryItem.Header = App.Text("WorkingCopy.ClearCommitHistories");
-                    clearHistoryItem.Icon = clearIcon;
-                    clearHistoryItem.Click += async (_, ev) =>
-                    {
-                        await vm.ClearCommitMessageHistoryAsync();
-                        ev.Handled = true;
-                    };
-
-                    menu.Items.Add(clearHistoryItem);
-                }
+                var menu = CreateCommitMessagePickerMenu(vm);
 
                 button.IsEnabled = false;
                 menu.Placement = PlacementMode.TopEdgeAlignedLeft;
@@ -625,6 +506,69 @@ namespace SourceGit.Views
             }
 
             e.Handled = true;
+        }
+
+        internal ContextMenu CreateCommitMessagePickerMenu(ViewModels.WorkingCopy vm)
+        {
+            var repo = vm.Repository;
+            var foreground = this.FindResource("Brush.FG1") as IBrush;
+            var menu = new ContextMenu() { MaxWidth = 480 };
+
+            var historiesCount = repo.UIStates.RecentCommitMessages.Count;
+            if (historiesCount == 0)
+            {
+                menu.Items.Add(new MenuItem()
+                {
+                    Header = App.Text("WorkingCopy.NoCommitHistories"),
+                    Icon = this.CreateMenuIcon("Icons.Histories"),
+                    IsEnabled = false
+                });
+            }
+            else
+            {
+                for (int i = 0; i < historiesCount; i++)
+                {
+                    var dup = repo.UIStates.RecentCommitMessages[i].Trim();
+                    var header = new TextBlock()
+                    {
+                        Text = dup.ReplaceLineEndings(" "),
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TextTrimming = TextTrimming.CharacterEllipsis
+                    };
+
+                    var icon = this.CreateMenuIcon("Icons.Histories");
+                    icon.Fill = foreground;
+
+                    var item = new MenuItem();
+                    item.Header = header;
+                    item.Icon = icon;
+                    item.Click += (_, ev) =>
+                    {
+                        vm.CommitMessage = dup;
+                        ev.Handled = true;
+                    };
+
+                    menu.Items.Add(item);
+                }
+
+                menu.Items.Add(new MenuItem() { Header = "-" });
+
+                var clearIcon = this.CreateMenuIcon("Icons.Clear");
+                clearIcon.Fill = foreground;
+
+                var clearHistoryItem = new MenuItem();
+                clearHistoryItem.Header = App.Text("WorkingCopy.ClearCommitHistories");
+                clearHistoryItem.Icon = clearIcon;
+                clearHistoryItem.Click += async (_, ev) =>
+                {
+                    await vm.ClearCommitMessageHistoryAsync();
+                    ev.Handled = true;
+                };
+
+                menu.Items.Add(clearHistoryItem);
+            }
+
+            return menu;
         }
 
         private void OnOpenConventionalCommitHelper(object _, RoutedEventArgs e)

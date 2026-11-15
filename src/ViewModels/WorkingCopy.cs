@@ -757,11 +757,6 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public void ApplyCommitMessageTemplate(Models.CommitTemplate tmpl)
-        {
-            CommitMessage = tmpl.Apply(_repo.CurrentBranch, _staged);
-        }
-
         public async Task ClearCommitMessageHistoryAsync()
         {
             var sure = await App.AskConfirmAsync(App.Text("WorkingCopy.ClearCommitHistories.Confirm"));

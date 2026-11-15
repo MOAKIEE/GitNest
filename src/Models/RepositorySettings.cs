@@ -4,9 +4,6 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
-
-using Avalonia.Collections;
 
 namespace SourceGit.Models
 {
@@ -42,12 +39,6 @@ namespace SourceGit.Models
             set;
         } = false;
 
-        public AvaloniaList<CommitTemplate> CommitTemplates
-        {
-            get;
-            set;
-        } = [];
-
         public static RepositorySettings Get(string gitCommonDir)
         {
             var fileInfo = new FileInfo(Path.Combine(gitCommonDir, "gitnest.settings"));
@@ -55,6 +46,7 @@ namespace SourceGit.Models
             if (_cache.TryGetValue(fullpath, out var setting))
                 return setting;
 
+            var hasLegacyCommitTemplates = false;
             if (!File.Exists(fullpath))
             {
                 setting = new();
@@ -63,8 +55,20 @@ namespace SourceGit.Models
             {
                 try
                 {
-                    using var stream = File.OpenRead(fullpath);
-                    setting = JsonSerializer.Deserialize(stream, JsonCodeGen.Default.RepositorySettings);
+                    var rawBytes = File.ReadAllBytes(fullpath);
+                    setting = JsonSerializer.Deserialize(rawBytes, JsonCodeGen.Default.RepositorySettings) ?? new();
+                    using var doc = JsonDocument.Parse(rawBytes);
+                    if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                    {
+                        foreach (var prop in doc.RootElement.EnumerateObject())
+                        {
+                            if (string.Equals(prop.Name, "CommitTemplates", StringComparison.OrdinalIgnoreCase))
+                            {
+                                hasLegacyCommitTemplates = true;
+                                break;
+                            }
+                        }
+                    }
                 }
                 catch
                 {
@@ -72,15 +76,11 @@ namespace SourceGit.Models
                 }
             }
 
-            // Serialize setting again to make sure there are no unnecessary whitespaces.
-            Task.Run(() =>
-            {
-                var formatted = JsonSerializer.Serialize(setting, JsonCodeGen.Default.RepositorySettings);
-                setting._orgHash = HashContent(formatted);
-            });
-
+            var formatted = JsonSerializer.Serialize(setting, JsonCodeGen.Default.RepositorySettings);
+            setting._orgHash = HashContent(formatted);
+            setting._pendingLegacyTemplateMigration = hasLegacyCommitTemplates;
             setting._file = fullpath;
-            _cache.Add(fullpath, setting);
+            _cache[fullpath] = setting;
             return setting;
         }
 
@@ -90,17 +90,47 @@ namespace SourceGit.Models
             {
                 var content = JsonSerializer.Serialize(this, JsonCodeGen.Default.RepositorySettings);
                 var hash = HashContent(content);
-                if (!hash.Equals(_orgHash, StringComparison.Ordinal))
+                if (!hash.Equals(_orgHash, StringComparison.Ordinal) || _pendingLegacyTemplateMigration)
                 {
+                    if (_pendingLegacyTemplateMigration && File.Exists(_file))
+                    {
+                        var backupFile = GetLegacyBackupPath(_file);
+                        File.Copy(_file, backupFile, false);
+                    }
+
                     var tmpfile = $"{_file}.tmp";
                     File.WriteAllText(tmpfile, content);
                     File.Move(tmpfile, _file, true);
                     _orgHash = hash;
+                    _pendingLegacyTemplateMigration = false;
                 }
             }
             catch
             {
                 // Ignore save errors
+            }
+        }
+
+        internal static void ClearCacheForRepository(string gitCommonDir)
+        {
+            if (string.IsNullOrWhiteSpace(gitCommonDir))
+                return;
+
+            var fullpath = new FileInfo(Path.Combine(gitCommonDir, "gitnest.settings")).FullName;
+            _cache.Remove(fullpath);
+        }
+
+        private static string GetLegacyBackupPath(string settingsFile)
+        {
+            var candidate = settingsFile + ".bak";
+            if (!File.Exists(candidate))
+                return candidate;
+
+            for (int i = 1; ; i++)
+            {
+                var alt = $"{settingsFile}.legacy-{i}.bak";
+                if (!File.Exists(alt))
+                    return alt;
             }
         }
 
@@ -144,5 +174,6 @@ namespace SourceGit.Models
         private static Dictionary<string, RepositorySettings> _cache = new();
         private string _file = string.Empty;
         private string _orgHash = string.Empty;
+        private bool _pendingLegacyTemplateMigration = false;
     }
 }

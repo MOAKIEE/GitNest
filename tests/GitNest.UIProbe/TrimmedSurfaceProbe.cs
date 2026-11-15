@@ -182,6 +182,44 @@ internal static partial class Program
         Check(unstagedHeaders.All(h => !h.Contains("Assume unchanged", StringComparison.OrdinalIgnoreCase) && !h.Contains("不跟踪此文件的更改", StringComparison.Ordinal)),
               "WorkingCopy unstaged context menu omits removed Assume unchanged item");
 
+        // Verify Batch 3 removed custom CommitTemplates and git commit.template from CommitMessageToolBox picker while retaining recent history
+        var toolBox = workingCopyView.GetVisualDescendants().OfType<Views.CommitMessageToolBox>().FirstOrDefault();
+        var pickerHelperBtn = toolBox?.GetVisualDescendants()
+            .OfType<Button>()
+            .FirstOrDefault(b => (ToolTip.GetTip(b)?.ToString() ?? string.Empty).Equals(App.Text("WorkingCopy.CommitMessageHelper"), StringComparison.Ordinal));
+        var tmplFile = Path.Combine(repoPath, ".git-commit-template.txt");
+        File.WriteAllText(tmplFile, "chore: unused template\n");
+        Git(repoPath, "config", "--local", "commit.template", tmplFile);
+        repo.UIStates.AddRecentCommitMessage("feat: recent probe commit");
+        var populatedPickerMenu = toolBox!.CreateCommitMessagePickerMenu(wcVm);
+        static List<string> ExtractPickerTexts(ContextMenu menu)
+        {
+            var texts = new List<string>();
+            foreach (var item in menu.Items.OfType<MenuItem>())
+            {
+                if (item.Header is TextBlock tb)
+                    texts.Add(tb.Text ?? string.Empty);
+                else if (item.Header is string s)
+                    texts.Add(s);
+            }
+            return texts;
+        }
+        var pickerTexts = ExtractPickerTexts(populatedPickerMenu);
+        var helperTip = ToolTip.GetTip(pickerHelperBtn!)?.ToString() ?? string.Empty;
+        Check(pickerHelperBtn != null &&
+              !helperTip.Contains("Template", StringComparison.OrdinalIgnoreCase) &&
+              !helperTip.Contains("模板", StringComparison.Ordinal) &&
+              pickerTexts.Any(t => t.Contains("feat: recent probe commit", StringComparison.Ordinal)) &&
+              pickerTexts.Any(t => t.Equals(App.Text("WorkingCopy.ClearCommitHistories"), StringComparison.Ordinal)) &&
+              pickerTexts.All(t => !t.StartsWith("Template:", StringComparison.OrdinalIgnoreCase) && !t.StartsWith("模板：", StringComparison.Ordinal)),
+              "CommitMessageToolBox picker omits templates and commit.template while preserving recent commit history and clear action");
+
+        repo.UIStates.RecentCommitMessages.Clear();
+        var emptyPickerTexts = ExtractPickerTexts(toolBox.CreateCommitMessagePickerMenu(wcVm));
+        Check(emptyPickerTexts.Any(t => t.Equals(App.Text("WorkingCopy.NoCommitHistories"), StringComparison.Ordinal)) &&
+              emptyPickerTexts.All(t => !t.Contains("模板", StringComparison.Ordinal) && !t.Contains("Template", StringComparison.OrdinalIgnoreCase)),
+              "CommitMessageToolBox picker displays empty-history state without template placeholders");
+
         // Verify read-only AssumeUnchangedManager tip, list, and unmark restore
         Git(repoPath, "update-index", "--assume-unchanged", "README.md");
         File.AppendAllText(Path.Combine(repoPath, "README.md"), "edited while assumed\n");
@@ -234,9 +272,19 @@ internal static partial class Program
         Await(() => !cfgVm.IsLoading);
 
         var cfgTabControl = cfgWin.GetVisualDescendants().OfType<TabControl>().First();
-        Check(cfgTabControl.Items.Count == 3,
-              $"RepositoryConfigure exposes exactly 3 tabs after removing CustomAction and OpenAI (actual={cfgTabControl.Items.Count})");
+        var cfgTabHeaders = cfgTabControl.Items
+            .OfType<TabItem>()
+            .Select(t => (t.Header as TextBlock)?.Text ?? t.Header?.ToString() ?? string.Empty)
+            .ToList();
+        Check(cfgTabControl.Items.Count == 2 &&
+              cfgTabHeaders.All(h => !h.Contains("模板", StringComparison.Ordinal) && !h.Contains("Template", StringComparison.OrdinalIgnoreCase)),
+              $"RepositoryConfigure exposes exactly 2 tabs after removing CommitTemplate, CustomAction, and OpenAI (actual={cfgTabControl.Items.Count})");
         Screenshot(cfgWin, "trim-config-tabs-light");
+        App.SetTheme("Dark", "");
+        cfgWin.Width = 680;
+        Pump();
+        Screenshot(cfgWin, "trim-config-tabs-dark-narrow");
+        App.SetTheme("Light", "");
         cfgWin.Close();
 
         // Preferences tab surface check

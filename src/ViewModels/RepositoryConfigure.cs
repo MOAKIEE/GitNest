@@ -239,14 +239,6 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public AvaloniaList<Models.CommitTemplate> CommitTemplates => _repo.Settings.CommitTemplates;
-
-        public Models.CommitTemplate SelectedCommitTemplate
-        {
-            get => _selectedCommitTemplate;
-            set => SetProperty(ref _selectedCommitTemplate, value);
-        }
-
         public AvaloniaList<Models.IssueTracker> IssueTrackers { get; } = [];
 
         public Models.IssueTracker SelectedIssueTracker
@@ -864,20 +856,6 @@ namespace SourceGit.ViewModels
             if (!HttpProxyField.HasTargetScopeEntry)
                 HttpProxyField.EditText = string.Empty;
             OnPropertyChanged(nameof(HttpProxy));
-        }
-
-        public void AddCommitTemplate()
-        {
-            var template = new Models.CommitTemplate { Name = "New Template" };
-            _repo.Settings.CommitTemplates.Add(template);
-            SelectedCommitTemplate = template;
-        }
-
-        public void RemoveSelectedCommitTemplate()
-        {
-            if (_selectedCommitTemplate != null)
-                _repo.Settings.CommitTemplates.Remove(_selectedCommitTemplate);
-            SelectedCommitTemplate = null;
         }
 
         public List<string> GetRemoteVisitUrls()
@@ -2085,7 +2063,6 @@ namespace SourceGit.ViewModels
         private int _pendingChangesCount;
         private ConfigSaveSummary _saveFeedback = new();
         private bool _syncingOptions;
-        private Models.CommitTemplate _selectedCommitTemplate = null;
         private Models.IssueTracker _selectedIssueTracker = null;
         private void ApplyProtectedBranches(IReadOnlyList<Models.BranchProtectionStatus> candidates)
         {

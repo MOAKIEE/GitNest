@@ -20,6 +20,8 @@ internal static partial class Program
             await RunBatch1TestsAsync(realGit, stageRoot, utf8NoBom);
         if (ShouldRunSuite("next-stage-2"))
             await RunBatch2TestsAsync(realGit, stageRoot, utf8NoBom);
+        if (ShouldRunSuite("next-stage-3"))
+            await RunBatch3TestsAsync(realGit, stageRoot, utf8NoBom);
     }
 
     private static async Task RunBatch1TestsAsync(string realGit, string stageRoot, UTF8Encoding utf8NoBom)
@@ -374,6 +376,179 @@ internal static partial class Program
         var statusAfter = await GitAsync(realGit, "-C", rmRepo, "status", "--porcelain", "--", "step2.txt");
         Check(cleared && assumedAfter.Count == 0 && statusAfter.Contains("step2.txt", StringComparison.Ordinal),
               "AssumeUnchanged(false) removes assume-unchanged flag and restores normal Git working-tree tracking");
+    }
+
+    private static async Task RunBatch3TestsAsync(string realGit, string stageRoot, UTF8Encoding utf8NoBom)
+    {
+        var appAssembly = typeof(App).Assembly;
+        string[] batch3RemovedTypes =
+        [
+            "SourceGit.Models.CommitTemplate",
+            "SourceGit.Models.TemplateEngine",
+        ];
+        foreach (var typeName in batch3RemovedTypes)
+            Check(appAssembly.GetType(typeName) == null, $"Batch 3 removed type '{typeName}'");
+
+        Check(typeof(SourceGit.ViewModels.WorkingCopy).GetMethod("ApplyCommitMessageTemplate") == null,
+              "WorkingCopy omits removed ApplyCommitMessageTemplate");
+        Check(typeof(RepositorySettings).GetProperty("CommitTemplates") == null,
+              "RepositorySettings omits removed CommitTemplates property");
+        var cfgVmType = typeof(SourceGit.ViewModels.RepositoryConfigure);
+        Check(cfgVmType.GetProperty("CommitTemplates") == null &&
+              cfgVmType.GetProperty("SelectedCommitTemplate") == null &&
+              cfgVmType.GetMethod("AddCommitTemplate") == null &&
+              cfgVmType.GetMethod("RemoveSelectedCommitTemplate") == null,
+              "RepositoryConfigure omits removed CommitTemplates, SelectedCommitTemplate, AddCommitTemplate, and RemoveSelectedCommitTemplate");
+
+        Check(appAssembly.GetType("SourceGit.Models.ConventionalCommitType") != null &&
+              typeof(RepositoryUIStates).GetProperty("RecentCommitMessages") != null &&
+              typeof(SourceGit.ViewModels.WorkingCopy).GetMethod("ClearCommitMessageHistoryAsync") != null,
+              "Retained conventional commit helper and recent commit history remain available");
+
+        var sourceRoot = LocateSourceRepositoryRoot();
+        var iconsText = await File.ReadAllTextAsync(Path.Combine(sourceRoot, "src", "Resources", "Icons.axaml"), utf8NoBom);
+        Check(!iconsText.Contains("x:Key=\"Icons.Code\"", StringComparison.Ordinal),
+              "Icons.axaml omits removed Icons.Code");
+
+        var enText = await File.ReadAllTextAsync(Path.Combine(sourceRoot, "src", "Resources", "Locales", "en_US.axaml"), utf8NoBom);
+        var zhText = await File.ReadAllTextAsync(Path.Combine(sourceRoot, "src", "Resources", "Locales", "zh_CN.axaml"), utf8NoBom);
+        string[] removedKeys =
+        [
+            "Text.Configure.CommitMessageTemplate",
+            "Text.Configure.CommitMessageTemplate.BuiltinVars",
+            "Text.Configure.CommitMessageTemplate.Content",
+            "Text.Configure.CommitMessageTemplate.Name",
+            "Text.WorkingCopy.NoCommitTemplates",
+            "Text.WorkingCopy.UseCommitTemplate",
+        ];
+        foreach (var key in removedKeys)
+        {
+            Check(!enText.Contains($"x:Key=\"{key}\"", StringComparison.Ordinal) &&
+                  !zhText.Contains($"x:Key=\"{key}\"", StringComparison.Ordinal),
+                  $"Locales omit removed Batch 3 key '{key}'");
+        }
+
+        Check(enText.Contains("x:Key=\"Text.WorkingCopy.CommitMessageHelper\"", StringComparison.Ordinal) &&
+              zhText.Contains("x:Key=\"Text.WorkingCopy.CommitMessageHelper\"", StringComparison.Ordinal) &&
+              !enText.Contains("Template/History", StringComparison.Ordinal) &&
+              !zhText.Contains("历史输入/模板", StringComparison.Ordinal),
+              "Text.WorkingCopy.CommitMessageHelper remains symmetric without advertising templates");
+
+        // Legacy gitnest.settings migration + backup before first write
+        var batch3Root = Path.Combine(stageRoot, "batch3");
+        Directory.CreateDirectory(batch3Root);
+        var legacyRepo = Path.Combine(batch3Root, "legacy-settings-repo");
+        await GitAsync(realGit, "init", "-b", "main", legacyRepo);
+        var legacyGitDir = Path.Combine(legacyRepo, ".git");
+        var settingsPath = Path.Combine(legacyGitDir, "gitnest.settings");
+        var backupPath = settingsPath + ".bak";
+        var legacyJson = """
+            {
+              "DefaultRemote": "upstream",
+              "PreferredMergeMode": 1,
+              "ConventionalTypesOverride": "feat,fix,docs",
+              "EnableRecursiveWhenAutoUpdatingSubmodules": false,
+              "AskBeforeAutoUpdatingSubmodules": false,
+              "CommitTemplates": [
+                {
+                  "Name": "BranchFiles",
+                  "Content": "${branch_name}: ${files:2}"
+                }
+              ],
+              "UnprotectedBranches": [
+                "feat/legacy"
+              ]
+            }
+            """;
+        await File.WriteAllTextAsync(settingsPath, legacyJson, utf8NoBom);
+        var legacyRawBytes = await File.ReadAllBytesAsync(settingsPath);
+
+        RepositorySettings.ClearCacheForRepository(legacyGitDir);
+        var loadedSettings = RepositorySettings.Get(legacyGitDir);
+        Check(loadedSettings.DefaultRemote == "upstream" &&
+              loadedSettings.PreferredMergeMode == 1 &&
+              loadedSettings.ConventionalTypesOverride == "feat,fix,docs" &&
+              !loadedSettings.EnableRecursiveWhenAutoUpdatingSubmodules &&
+              loadedSettings.IsBranchProtectionDisabled("feat/legacy"),
+              "Legacy gitnest.settings preserves all non-template settings on load");
+        var bytesAfterReadOnlyLoad = await File.ReadAllBytesAsync(settingsPath);
+        Check(legacyRawBytes.SequenceEqual(bytesAfterReadOnlyLoad) && !File.Exists(backupPath),
+              "Read-only loading of legacy gitnest.settings leaves file untouched and writes no backup eagerly");
+
+        loadedSettings.Save();
+        Check(File.Exists(backupPath) && (await File.ReadAllBytesAsync(backupPath)).SequenceEqual(legacyRawBytes),
+              "First migration write creates byte-identical backup of legacy gitnest.settings");
+        using (var migratedDoc = System.Text.Json.JsonDocument.Parse(await File.ReadAllBytesAsync(settingsPath)))
+        {
+            var hasTemplatesProp = migratedDoc.RootElement.TryGetProperty("CommitTemplates", out _);
+            var preservedRemote = migratedDoc.RootElement.GetProperty("DefaultRemote").GetString();
+            var preservedMode = migratedDoc.RootElement.GetProperty("PreferredMergeMode").GetInt32();
+            var preservedConv = migratedDoc.RootElement.GetProperty("ConventionalTypesOverride").GetString();
+            Check(!hasTemplatesProp &&
+                  preservedRemote == "upstream" &&
+                  preservedMode == 1 &&
+                  preservedConv == "feat,fix,docs",
+                  "Migrated gitnest.settings strips CommitTemplates while preserving other repository settings");
+        }
+
+        var bakBytesAfterFirstSave = await File.ReadAllBytesAsync(backupPath);
+        loadedSettings.Save();
+        Check((await File.ReadAllBytesAsync(backupPath)).SequenceEqual(bakBytesAfterFirstSave),
+              "Subsequent Save calls do not overwrite initial migration backup");
+
+        RepositorySettings.ClearCacheForRepository(legacyGitDir);
+        var reloadedSettings = RepositorySettings.Get(legacyGitDir);
+        Check(reloadedSettings.DefaultRemote == "upstream" &&
+              reloadedSettings.PreferredMergeMode == 1 &&
+              reloadedSettings.ConventionalTypesOverride == "feat,fix,docs" &&
+              reloadedSettings.IsBranchProtectionDisabled("feat/legacy"),
+              "Cleared and reloaded migrated gitnest.settings preserves all settings cleanly");
+
+        // Second legacy migration when .bak already exists avoids overwriting prior backup
+        await File.WriteAllTextAsync(settingsPath, legacyJson, utf8NoBom);
+        RepositorySettings.ClearCacheForRepository(legacyGitDir);
+        var secondMigration = RepositorySettings.Get(legacyGitDir);
+        secondMigration.Save();
+        var altBackupPath = settingsPath + ".legacy-1.bak";
+        Check(File.Exists(altBackupPath) &&
+              (await File.ReadAllBytesAsync(altBackupPath)).SequenceEqual(legacyRawBytes) &&
+              (await File.ReadAllBytesAsync(backupPath)).SequenceEqual(bakBytesAfterFirstSave),
+              "Legacy migration uses unique alternate backup filename when .bak already exists");
+
+        // Git commit.template config & template file stay untouched during real commits + recent history reuse
+        var commitRepo = Path.Combine(batch3Root, "commit-template-untouched-repo");
+        await GitAsync(realGit, "init", "-b", "main", commitRepo);
+        await GitAsync(realGit, "-C", commitRepo, "config", "--local", "user.name", "Batch3 User");
+        await GitAsync(realGit, "-C", commitRepo, "config", "--local", "user.email", "batch3@example.invalid");
+        var templateFile = Path.Combine(commitRepo, ".git-commit-template.txt");
+        await File.WriteAllTextAsync(templateFile, "# preserved user template\n", utf8NoBom);
+        await GitAsync(realGit, "-C", commitRepo, "config", "--local", "commit.template", templateFile);
+        var templateFileBefore = await File.ReadAllBytesAsync(templateFile);
+        var templateCfgBefore = (await GitAsync(realGit, "-C", commitRepo, "config", "--local", "--get", "commit.template")).Trim();
+
+        await File.WriteAllTextAsync(Path.Combine(commitRepo, "feature.txt"), "hello batch3\n", utf8NoBom);
+        await GitAsync(realGit, "-C", commitRepo, "add", "feature.txt");
+        var snap = await QueryStagedSnapshot.CaptureAsync(commitRepo);
+        var journal = new OperationJournalStore(Path.Combine(batch3Root, "journal.json"));
+        var manualMessage = "feat: manual commit ignoring template";
+        var commitRes = await GitSyncService.CommitAsync(
+            commitRepo,
+            new CommitExecutionOptions { Message = manualMessage, ExpectedSnapshot = snap },
+            journalStore: journal);
+        var headMsg = (await GitAsync(realGit, "-C", commitRepo, "log", "-1", "--pretty=%B")).Trim();
+        var uiStates = RepositoryUIStates.Load(Path.Combine(commitRepo, ".git"));
+        uiStates.AddRecentCommitMessage(manualMessage);
+        uiStates.Save();
+        var reloadedUiStates = RepositoryUIStates.Load(Path.Combine(commitRepo, ".git"));
+        var templateFileAfter = await File.ReadAllBytesAsync(templateFile);
+        var templateCfgAfter = (await GitAsync(realGit, "-C", commitRepo, "config", "--local", "--get", "commit.template")).Trim();
+        Check(commitRes.Succeeded &&
+              headMsg == manualMessage &&
+              reloadedUiStates.RecentCommitMessages.Count == 1 &&
+              reloadedUiStates.RecentCommitMessages[0] == manualMessage &&
+              templateFileBefore.SequenceEqual(templateFileAfter) &&
+              templateCfgBefore == templateCfgAfter,
+              "Normal commit + recent history reuse succeed while preserving Git commit.template config and file untouched");
     }
 
     private static async Task<(int ExitCode, string StdOut, string StdErr)> GitAllowFailureAsync(string git, params string[] arguments)
