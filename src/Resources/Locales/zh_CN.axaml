@@ -112,7 +112,7 @@
   <x:String x:Key="Text.BranchCM.Push" xml:space="preserve">推送(push) ${0}$...</x:String>
   <x:String x:Key="Text.BranchCM.Rebase" xml:space="preserve">变基(rebase) ${0}$ 至 ${1}$...</x:String>
   <x:String x:Key="Text.BranchCM.Rename" xml:space="preserve">重命名 ${0}$...</x:String>
-  <x:String x:Key="Text.BranchCM.ResetToSelectedCommit" xml:space="preserve">重置(reset) ${0}$ 到 ${1}$...</x:String>
+  <x:String x:Key="Text.BranchCM.ResetToSelectedCommit" xml:space="preserve">将分支 ${0}$ 回到此提交 ${1}$...</x:String>
   <x:String x:Key="Text.BranchCM.SwitchToWorktree" xml:space="preserve">切换到 ${0}$ (工作树)</x:String>
   <x:String x:Key="Text.BranchCM.Tracking" xml:space="preserve">切换上游分支...</x:String>
   <x:String x:Key="Text.BranchTree.Ahead" xml:space="preserve">领先 {0} 个提交</x:String>
@@ -207,7 +207,7 @@
   <x:String x:Key="Text.CommitCM.MergeMultiple" xml:space="preserve">合并(merge)...</x:String>
   <x:String x:Key="Text.CommitCM.PushRevision" xml:space="preserve">推送(push) ${0}$ 到 ${1}$...</x:String>
   <x:String x:Key="Text.CommitCM.Rebase" xml:space="preserve">变基(rebase) ${0}$ 到 ${1}$...</x:String>
-  <x:String x:Key="Text.CommitCM.Reset" xml:space="preserve">重置(reset) ${0}$ 到 ${1}$...</x:String>
+  <x:String x:Key="Text.CommitCM.Reset" xml:space="preserve">回到此提交（${0}$ -> ${1}$）...</x:String>
   <x:String x:Key="Text.CommitCM.Revert" xml:space="preserve">撤销这次提交的改动（保留历史）...</x:String>
   <x:String x:Key="Text.CommitCM.SaveAsPatch" xml:space="preserve">另存为补丁...</x:String>
   <x:String x:Key="Text.CommitDetail.Changes" xml:space="preserve">变更对比</x:String>
@@ -1108,11 +1108,11 @@
   <x:String x:Key="Text.Repository.Worktrees.Add" xml:space="preserve">新增工作树</x:String>
   <x:String x:Key="Text.Repository.Worktrees.Prune" xml:space="preserve">清理</x:String>
   <x:String x:Key="Text.RepositoryURL" xml:space="preserve">远程仓库地址</x:String>
-  <x:String x:Key="Text.Reset" xml:space="preserve">重置(reset)当前分支到指定版本</x:String>
+  <x:String x:Key="Text.Reset" xml:space="preserve">回到指定提交</x:String>
   <x:String x:Key="Text.Reset.Mode" xml:space="preserve">重置模式 ：</x:String>
-  <x:String x:Key="Text.Reset.MoveTo" xml:space="preserve">提交 ：</x:String>
+  <x:String x:Key="Text.Reset.MoveTo" xml:space="preserve">目标提交 ：</x:String>
   <x:String x:Key="Text.Reset.Target" xml:space="preserve">当前分支 ：</x:String>
-  <x:String x:Key="Text.ResetWithoutCheckout" xml:space="preserve">重置所选分支（非当前分支）</x:String>
+  <x:String x:Key="Text.ResetWithoutCheckout" xml:space="preserve">移动未检出分支到指定提交</x:String>
   <x:String x:Key="Text.ResetWithoutCheckout.MoveTo" xml:space="preserve">重置点 ：</x:String>
   <x:String x:Key="Text.ResetWithoutCheckout.Target" xml:space="preserve">操作分支 ：</x:String>
   <x:String x:Key="Text.RevealFile" xml:space="preserve">在文件浏览器中查看</x:String>
@@ -1601,4 +1601,73 @@
   <x:String x:Key="Text.AddToIgnore.TrackedWarning" xml:space="preserve">注意：已纳入 Git 跟踪的文件写入 .gitignore 后仍会被继续跟踪，不会自动停止同步，也不会自动执行 git rm --cached。</x:String>
   <x:String x:Key="Text.AddToIgnore.ResultTitle" xml:space="preserve">忽略规则处理结果</x:String>
   <x:String x:Key="Text.AddToIgnore.FailedFallback" xml:space="preserve">写入忽略规则失败。</x:String>
+
+  <x:String x:Key="Text.CommitCM.RewriteRemoteHistory" xml:space="preserve">改写远程分支历史（${0}$）...</x:String>
+  <x:String x:Key="Text.BranchCM.RewriteRemoteHistory" xml:space="preserve">改写远程分支历史（${0}$ -&gt; ${1}$）...</x:String>
+
+  <x:String x:Key="Text.Reset.Confirm" xml:space="preserve">确认回到此提交</x:String>
+  <x:String x:Key="Text.Reset.ConfirmWithRemote" xml:space="preserve">撤回并改写远程历史</x:String>
+  <x:String x:Key="Text.Reset.LoadingPreflight" xml:space="preserve">正在预检工作区状态、第一父提交链、文件冲突与远程引用...</x:String>
+  <x:String x:Key="Text.Reset.Mode.Mixed" xml:space="preserve">保留代码改动（回到未暂存状态，--mixed，推荐）</x:String>
+  <x:String x:Key="Text.Reset.Mode.MixedDesc" xml:space="preserve">保留目标提交之后的修改并取消暂存，方便重新审阅、筛选或重新提交。</x:String>
+  <x:String x:Key="Text.Reset.Mode.Hard" xml:space="preserve">彻底丢弃改动（清空工作区与暂存区，--hard，高风险）</x:String>
+  <x:String x:Key="Text.Reset.Mode.HardDesc" xml:space="preserve">将索引和已跟踪文件直接还原到目标提交并丢失本地更改；执行前仍会保留本地备份引用。</x:String>
+  <x:String x:Key="Text.Reset.CommitsToRemove" xml:space="preserve">即将撤出当前分支的提交（{0} 条）：</x:String>
+  <x:String x:Key="Text.Reset.CrossMergeNotice" xml:space="preserve">此次回退跨越合并节点（{0} 条主线提交，{1} 条已并入侧分支提交），请确认不再需要这些历史节点。</x:String>
+  <x:String x:Key="Text.Reset.OtherAuthorsWarning" xml:space="preserve">以下受影响提交包含其他协作者的署名，若已推送共享请务必先确认团队状态：</x:String>
+  <x:String x:Key="Text.Reset.CollisionTitle" xml:space="preserve">以下未跟踪或被忽略文件将被目标提交覆盖，已阻止执行：</x:String>
+  <x:String x:Key="Text.Reset.ProtectionBadge" xml:space="preserve">受保护分支</x:String>
+  <x:String x:Key="Text.Reset.ProtectionLockedHint" xml:space="preserve">main / master / develop 及远程默认分支受保护策略限制，默认禁止改写远程历史；如需例外，请到“仓库配置 -&gt; Git”中显式为此仓库解锁。</x:String>
+  <x:String x:Key="Text.Reset.ProtectionUnlockedHint" xml:space="preserve">当前已在仓库配置中为此仓库临时解除该受保护分支的改写限制。</x:String>
+  <x:String x:Key="Text.Reset.RemoteSectionTitle" xml:space="preserve">上游与多远端跟踪状态</x:String>
+  <x:String x:Key="Text.Reset.RemoteProbeOffline" xml:space="preserve">联网查询远端失败，当前远端状态未知；为安全起见，本次不允许同步改写远程分支历史。</x:String>
+  <x:String x:Key="Text.Reset.AlsoRewriteRemote" xml:space="preserve">同时改写远程分支历史（使用租约锁定 --force-with-lease=&lt;ref&gt;:{0}）</x:String>
+  <x:String x:Key="Text.Reset.NoUpstreamRemote" xml:space="preserve">当前分支未关联任何上游远程分支，本次仅在本地执行撤回。</x:String>
+  <x:String x:Key="Text.Reset.BackupNote" xml:space="preserve">改写指针前将自动保存隐藏本地备份引用（refs/gitnest/backups/...），可随时通过“操作与恢复日志”安全找回。</x:String>
+  <x:String x:Key="Text.Reset.Result.SuccessTitle" xml:space="preserve">本地分支已安全回到目标提交</x:String>
+  <x:String x:Key="Text.Reset.Result.PartialTitle" xml:space="preserve">本地已撤回，远端未更新</x:String>
+  <x:String x:Key="Text.Reset.Result.UncertainTitle" xml:space="preserve">本地已撤回 — 远端状态待核实</x:String>
+  <x:String x:Key="Text.Reset.Result.FailedTitle" xml:space="preserve">撤回操作未能完成</x:String>
+  <x:String x:Key="Text.Reset.Result.CollaboratorHint" xml:space="preserve">已完整保留远端上的协作者新提交，租约校验已阻止覆盖他人成果。</x:String>
+  <x:String x:Key="Text.Reset.Result.BackupRefLabel" xml:space="preserve">本地备份引用 ：</x:String>
+  <x:String x:Key="Text.Reset.Result.OpenRecoveryLogs" xml:space="preserve">打开操作与恢复日志</x:String>
+
+  <x:String x:Key="Text.RewriteRemote.Title" xml:space="preserve">改写远程分支历史</x:String>
+  <x:String x:Key="Text.RewriteRemote.Confirm" xml:space="preserve">确认改写远程历史</x:String>
+  <x:String x:Key="Text.RewriteRemote.Loading" xml:space="preserve">正在向远端实时核对提交树与租约期望值...</x:String>
+  <x:String x:Key="Text.RewriteRemote.LocalBranch" xml:space="preserve">本地分支 ：</x:String>
+  <x:String x:Key="Text.RewriteRemote.TargetTip" xml:space="preserve">目标提交 ：</x:String>
+  <x:String x:Key="Text.RewriteRemote.RemoteTarget" xml:space="preserve">远程分支 ：</x:String>
+  <x:String x:Key="Text.RewriteRemote.LiveRemoteTip" xml:space="preserve">远端最新 ：</x:String>
+  <x:String x:Key="Text.RewriteRemote.PinnedLeaseNote" xml:space="preserve">将严格使用显式租约校验：--force-with-lease=refs/heads/{0}:{1}</x:String>
+  <x:String x:Key="Text.RewriteRemote.ProtectionHint" xml:space="preserve">受保护分支默认禁止改写远程历史；如需本仓库例外操作，请先在“仓库配置 -&gt; Git”解锁。</x:String>
+  <x:String x:Key="Text.RewriteRemote.CommitsToRemove" xml:space="preserve">即将从远程分支移除的提交（{0} 条）：</x:String>
+  <x:String x:Key="Text.RewriteRemote.ResultTitle" xml:space="preserve">改写远程分支历史结果</x:String>
+  <x:String x:Key="Text.RewriteRemote.NoUpstreamHint" xml:space="preserve">当前分支未配置可改写的上游远程分支。</x:String>
+
+  <x:String x:Key="Text.ResetWithoutCheckout.Confirm" xml:space="preserve">确认移动分支指针</x:String>
+  <x:String x:Key="Text.ResetWithoutCheckout.Loading" xml:space="preserve">正在检查工作树占用、受保护分支策略与提交链关系...</x:String>
+  <x:String x:Key="Text.ResetWithoutCheckout.CommitsPreview" xml:space="preserve">即将被移出分支历史的提交（{0} 条）：</x:String>
+  <x:String x:Key="Text.ResetWithoutCheckout.FastForwardBadge" xml:space="preserve">安全快进移动（无提交被丢弃）</x:String>
+  <x:String x:Key="Text.ResetWithoutCheckout.ResultTitle" xml:space="preserve">移动分支指针结果</x:String>
+
+  <x:String x:Key="Text.Push.Revision.ForceLeaseWarning" xml:space="preserve">开启强制推送将先执行联网租约核对并受分支保护策略限制。</x:String>
+  <x:String x:Key="Text.Push.Revision.BlockedByProtection" xml:space="preserve">目标分支受分支保护锁定，已禁止强制推送；如需本仓库例外请先在“仓库配置 -&gt; Git”解锁。</x:String>
+  <x:String x:Key="Text.Push.Revision.OfflineForceBlocked" xml:space="preserve">离线或查询远端失败时远端状态未知，已禁止无核对的强制推送。</x:String>
+  <x:String x:Key="Text.Push.Revision.RemoteTipFormat" xml:space="preserve">远端最新引用：{0}（{1}）</x:String>
+
+  <x:String x:Key="Text.Configure.Git.BranchProtectionHeader" xml:space="preserve">受保护分支覆写设置（仅作用于当前仓库）</x:String>
+  <x:String x:Key="Text.Configure.Git.BranchProtectionHint" xml:space="preserve">main / master / develop 及远程默认分支（refs/remotes/*/HEAD）默认禁止改写远程历史或非快进回退；以下开关仅在当前仓库生效，不影响其他仓库。</x:String>
+  <x:String x:Key="Text.Configure.Git.BranchProtectionEmpty" xml:space="preserve">当前仓库未发现本地受保护分支。</x:String>
+  <x:String x:Key="Text.Configure.Git.BranchProtectionUnlock" xml:space="preserve">允许在本仓库改写此分支历史（谨慎开启）</x:String>
+  <x:String x:Key="Text.Configure.Git.BranchProtectionReasonDefault" xml:space="preserve">默认受保护主干分支</x:String>
+  <x:String x:Key="Text.Configure.Git.BranchProtectionReasonRemoteHead" xml:space="preserve">远程默认分支指向</x:String>
+  <x:String x:Key="Text.Configure.Git.BranchProtectionSaved" xml:space="preserve">已保存本仓库的受保护分支覆写设置。</x:String>
+
+  <x:String x:Key="Text.OperationRecovery.VerifyRemoteSelected" xml:space="preserve">联网核对远端状态</x:String>
+  <x:String x:Key="Text.OperationRecovery.VerifyRemoteCompleted" xml:space="preserve">已完成远端分支实时核对。</x:String>
+  <x:String x:Key="Text.OperationRecovery.RestoreModeNewBranch" xml:space="preserve">新建安全恢复分支（推荐，不覆盖当前分支后续提交）</x:String>
+  <x:String x:Key="Text.OperationRecovery.RestoreModeExistingBranch" xml:space="preserve">安全覆盖原分支（仅工作区洁净、无新提交且无文件冲突时允许）</x:String>
+  <x:String x:Key="Text.OperationRecovery.RestoreNewerCommitsWarning" xml:space="preserve">原分支在撤回后已新增 {0} 个提交，直接覆写会导致这些新提交丢失；建议新建恢复分支以保留全部进度。</x:String>
+  <x:String x:Key="Text.OperationRecovery.InspectingBackup" xml:space="preserve">正在校验备份引用与目标分支安全状态...</x:String>
 </ResourceDictionary>

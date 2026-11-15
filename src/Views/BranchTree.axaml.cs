@@ -771,6 +771,9 @@ namespace SourceGit.Views
                 }
 
                 menu.Items.Add(push);
+
+                if (upstream != null && repo.Remotes.Count > 0)
+                    menu.Items.Add(this.CreateRewriteRemoteMenuItem(repo, branch, upstream));
                 menu.Items.Add(new MenuItem() { Header = "-" });
 
                 var type = repo.GetGitFlowType(branch);
@@ -872,6 +875,9 @@ namespace SourceGit.Views
                 }
 
                 menu.Items.Add(push);
+
+                if (upstream != null && repo.Remotes.Count > 0)
+                    menu.Items.Add(this.CreateRewriteRemoteMenuItem(repo, branch, upstream));
 
                 if (!repo.IsBare)
                 {

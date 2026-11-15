@@ -108,7 +108,7 @@
   <x:String x:Key="Text.BranchCM.Push" xml:space="preserve">Push ${0}$...</x:String>
   <x:String x:Key="Text.BranchCM.Rebase" xml:space="preserve">Rebase ${0}$ on ${1}$...</x:String>
   <x:String x:Key="Text.BranchCM.Rename" xml:space="preserve">Rename ${0}$...</x:String>
-  <x:String x:Key="Text.BranchCM.ResetToSelectedCommit" xml:space="preserve">Reset ${0}$ to ${1}$...</x:String>
+  <x:String x:Key="Text.BranchCM.ResetToSelectedCommit" xml:space="preserve">Return ${0}$ to Commit ${1}$...</x:String>
   <x:String x:Key="Text.BranchCM.SwitchToWorktree" xml:space="preserve">Switch to ${0}$ (worktree)</x:String>
   <x:String x:Key="Text.BranchCM.Tracking" xml:space="preserve">Set Tracking Branch...</x:String>
   <x:String x:Key="Text.BranchTree.Ahead" xml:space="preserve">{0} commit(s) ahead</x:String>
@@ -203,7 +203,7 @@
   <x:String x:Key="Text.CommitCM.MergeMultiple" xml:space="preserve">Merge...</x:String>
   <x:String x:Key="Text.CommitCM.PushRevision" xml:space="preserve">Push ${0}$ to ${1}$...</x:String>
   <x:String x:Key="Text.CommitCM.Rebase" xml:space="preserve">Rebase ${0}$ on ${1}$...</x:String>
-  <x:String x:Key="Text.CommitCM.Reset" xml:space="preserve">Reset ${0}$ to ${1}$...</x:String>
+  <x:String x:Key="Text.CommitCM.Reset" xml:space="preserve">Return ${0}$ to This Commit (${1}$)...</x:String>
   <x:String x:Key="Text.CommitCM.Revert" xml:space="preserve">Revert This Commit (Keep History)...</x:String>
   <x:String x:Key="Text.CommitCM.SaveAsPatch" xml:space="preserve">Save as Patch...</x:String>
   <x:String x:Key="Text.CommitDetail.Changes" xml:space="preserve">CHANGES</x:String>
@@ -1104,11 +1104,11 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.Repository.Worktrees.Add" xml:space="preserve">Add Worktree</x:String>
   <x:String x:Key="Text.Repository.Worktrees.Prune" xml:space="preserve">Prune</x:String>
   <x:String x:Key="Text.RepositoryURL" xml:space="preserve">Git Repository URL</x:String>
-  <x:String x:Key="Text.Reset" xml:space="preserve">Reset Current Branch To Revision</x:String>
+  <x:String x:Key="Text.Reset" xml:space="preserve">Return Current Branch to Commit</x:String>
   <x:String x:Key="Text.Reset.Mode" xml:space="preserve">Reset Mode:</x:String>
   <x:String x:Key="Text.Reset.MoveTo" xml:space="preserve">Move To:</x:String>
   <x:String x:Key="Text.Reset.Target" xml:space="preserve">Current Branch:</x:String>
-  <x:String x:Key="Text.ResetWithoutCheckout" xml:space="preserve">Reset Branch (Without Checkout)</x:String>
+  <x:String x:Key="Text.ResetWithoutCheckout" xml:space="preserve">Move Branch Pointer (Without Checkout)</x:String>
   <x:String x:Key="Text.ResetWithoutCheckout.MoveTo" xml:space="preserve">Move To:</x:String>
   <x:String x:Key="Text.ResetWithoutCheckout.Target" xml:space="preserve">Branch:</x:String>
   <x:String x:Key="Text.RevealFile" xml:space="preserve">Reveal in File Explorer</x:String>
@@ -1597,4 +1597,73 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.AddToIgnore.TrackedWarning" xml:space="preserve">Git ignore rules do NOT stop tracking files already in the repository, and GitNest will NOT automatically run git rm --cached to delete them from HEAD.</x:String>
   <x:String x:Key="Text.AddToIgnore.ResultTitle" xml:space="preserve">Ignore Rule Update</x:String>
   <x:String x:Key="Text.AddToIgnore.FailedFallback" xml:space="preserve">Failed to update ignore file.</x:String>
+
+  <x:String x:Key="Text.CommitCM.RewriteRemoteHistory" xml:space="preserve">Rewrite Remote History (${0}$)...</x:String>
+  <x:String x:Key="Text.BranchCM.RewriteRemoteHistory" xml:space="preserve">Rewrite Remote Branch History (${0}$ -&gt; ${1}$)...</x:String>
+
+  <x:String x:Key="Text.Reset.Confirm" xml:space="preserve">CONFIRM RETURN</x:String>
+  <x:String x:Key="Text.Reset.ConfirmWithRemote" xml:space="preserve">RETURN &amp; REWRITE REMOTE</x:String>
+  <x:String x:Key="Text.Reset.LoadingPreflight" xml:space="preserve">Inspecting working tree, first-parent history, and remote refs...</x:String>
+  <x:String x:Key="Text.Reset.Mode.Mixed" xml:space="preserve">Keep code changes unstaged (--mixed, recommended)</x:String>
+  <x:String x:Key="Text.Reset.Mode.MixedDesc" xml:space="preserve">Preserves changes after the target commit in your working tree (unstaged) so you can inspect or recommit them.</x:String>
+  <x:String x:Key="Text.Reset.Mode.Hard" xml:space="preserve">Discard index &amp; working tree changes (--hard, destructive)</x:String>
+  <x:String x:Key="Text.Reset.Mode.HardDesc" xml:space="preserve">Clears tracked changes after the target commit in both index and working tree; a local backup ref is kept for recovery.</x:String>
+  <x:String x:Key="Text.Reset.CommitsToRemove" xml:space="preserve">Commits removed from current branch ({0}):</x:String>
+  <x:String x:Key="Text.Reset.CrossMergeNotice" xml:space="preserve">Crosses merge commit(s): {0} first-parent commit(s) and {1} merged side commit(s) will lose branch reachability.</x:String>
+  <x:String x:Key="Text.Reset.OtherAuthorsWarning" xml:space="preserve">Affected commits include other authors. Only rewrite unshared local work or verify teammates' copies first:</x:String>
+  <x:String x:Key="Text.Reset.CollisionTitle" xml:space="preserve">Blocked by untracked or ignored file collisions:</x:String>
+  <x:String x:Key="Text.Reset.ProtectionBadge" xml:space="preserve">Protected Branch</x:String>
+  <x:String x:Key="Text.Reset.ProtectionLockedHint" xml:space="preserve">Protected branches (main/master/develop or remote default branch) block remote history rewrite unless unlocked for this repository in Repository Settings -&gt; Git.</x:String>
+  <x:String x:Key="Text.Reset.ProtectionUnlockedHint" xml:space="preserve">Local protection override is enabled for this branch in Repository Settings.</x:String>
+  <x:String x:Key="Text.Reset.RemoteSectionTitle" xml:space="preserve">Upstream &amp; Remote Tracking Status</x:String>
+  <x:String x:Key="Text.Reset.RemoteProbeOffline" xml:space="preserve">Remote state is unknown (offline or unreachable); remote history rewrite is disabled.</x:String>
+  <x:String x:Key="Text.Reset.AlsoRewriteRemote" xml:space="preserve">Also rewrite remote branch history (using pinned --force-with-lease=&lt;ref&gt;:{0})</x:String>
+  <x:String x:Key="Text.Reset.NoUpstreamRemote" xml:space="preserve">Current branch has no configured upstream remote branch; only local history will be modified.</x:String>
+  <x:String x:Key="Text.Reset.BackupNote" xml:space="preserve">A hidden local backup ref (refs/gitnest/backups/...) is created automatically before modifying refs.</x:String>
+  <x:String x:Key="Text.Reset.Result.SuccessTitle" xml:space="preserve">Current Branch Returned Safely</x:String>
+  <x:String x:Key="Text.Reset.Result.PartialTitle" xml:space="preserve">Local Branch Returned — Remote Not Updated</x:String>
+  <x:String x:Key="Text.Reset.Result.UncertainTitle" xml:space="preserve">Local Returned — Remote Status Pending Verification</x:String>
+  <x:String x:Key="Text.Reset.Result.FailedTitle" xml:space="preserve">Return Operation Failed</x:String>
+  <x:String x:Key="Text.Reset.Result.CollaboratorHint" xml:space="preserve">Collaborator commits on the remote were preserved intact because the lease check rejected overwriting newer remote work.</x:String>
+  <x:String x:Key="Text.Reset.Result.BackupRefLabel" xml:space="preserve">Backup Ref:</x:String>
+  <x:String x:Key="Text.Reset.Result.OpenRecoveryLogs" xml:space="preserve">Open Operations &amp; Recovery Log</x:String>
+
+  <x:String x:Key="Text.RewriteRemote.Title" xml:space="preserve">Rewrite Remote Branch History</x:String>
+  <x:String x:Key="Text.RewriteRemote.Confirm" xml:space="preserve">REWRITE REMOTE HISTORY</x:String>
+  <x:String x:Key="Text.RewriteRemote.Loading" xml:space="preserve">Probing live remote tip and lease state...</x:String>
+  <x:String x:Key="Text.RewriteRemote.LocalBranch" xml:space="preserve">Local Branch:</x:String>
+  <x:String x:Key="Text.RewriteRemote.TargetTip" xml:space="preserve">Target Tip:</x:String>
+  <x:String x:Key="Text.RewriteRemote.RemoteTarget" xml:space="preserve">Remote Target:</x:String>
+  <x:String x:Key="Text.RewriteRemote.LiveRemoteTip" xml:space="preserve">Live Remote Tip:</x:String>
+  <x:String x:Key="Text.RewriteRemote.PinnedLeaseNote" xml:space="preserve">Enforcing pinned lease: --force-with-lease=refs/heads/{0}:{1}</x:String>
+  <x:String x:Key="Text.RewriteRemote.ProtectionHint" xml:space="preserve">Protected branch rules block rewriting remote history. Unlock this branch for this repository under Repository Settings -&gt; Git if intended.</x:String>
+  <x:String x:Key="Text.RewriteRemote.CommitsToRemove" xml:space="preserve">Commits to be removed from remote ({0}):</x:String>
+  <x:String x:Key="Text.RewriteRemote.ResultTitle" xml:space="preserve">Remote History Rewrite Result</x:String>
+  <x:String x:Key="Text.RewriteRemote.NoUpstreamHint" xml:space="preserve">No configured upstream remote branch found for this local branch.</x:String>
+
+  <x:String x:Key="Text.ResetWithoutCheckout.Confirm" xml:space="preserve">UPDATE BRANCH POINTER</x:String>
+  <x:String x:Key="Text.ResetWithoutCheckout.Loading" xml:space="preserve">Checking worktree locks, branch protection, and commit ancestry...</x:String>
+  <x:String x:Key="Text.ResetWithoutCheckout.CommitsPreview" xml:space="preserve">Commits removed from this branch ({0}):</x:String>
+  <x:String x:Key="Text.ResetWithoutCheckout.FastForwardBadge" xml:space="preserve">Fast-forward move (no commits lost)</x:String>
+  <x:String x:Key="Text.ResetWithoutCheckout.ResultTitle" xml:space="preserve">Branch Pointer Update Result</x:String>
+
+  <x:String x:Key="Text.Push.Revision.ForceLeaseWarning" xml:space="preserve">Force push enforces live ls-remote lease verification and respects Branch Protection rules.</x:String>
+  <x:String x:Key="Text.Push.Revision.BlockedByProtection" xml:space="preserve">Target branch is protected; force push is blocked unless unlocked in Repository Settings -&gt; Git.</x:String>
+  <x:String x:Key="Text.Push.Revision.OfflineForceBlocked" xml:space="preserve">Cannot verify live remote tip while offline; blind force push is blocked.</x:String>
+  <x:String x:Key="Text.Push.Revision.RemoteTipFormat" xml:space="preserve">Live remote tip: {0} ({1})</x:String>
+
+  <x:String x:Key="Text.Configure.Git.BranchProtectionHeader" xml:space="preserve">Protected Branch Overrides (Repository-Local)</x:String>
+  <x:String x:Key="Text.Configure.Git.BranchProtectionHint" xml:space="preserve">main, master, develop, and remote default branches (refs/remotes/*/HEAD) block remote history rewrite by default. Toggles below only apply to this repository.</x:String>
+  <x:String x:Key="Text.Configure.Git.BranchProtectionEmpty" xml:space="preserve">No default protected local branches detected in this repository.</x:String>
+  <x:String x:Key="Text.Configure.Git.BranchProtectionUnlock" xml:space="preserve">Allow history rewrite in this repo</x:String>
+  <x:String x:Key="Text.Configure.Git.BranchProtectionReasonDefault" xml:space="preserve">Default protected branch name</x:String>
+  <x:String x:Key="Text.Configure.Git.BranchProtectionReasonRemoteHead" xml:space="preserve">Remote default branch target</x:String>
+  <x:String x:Key="Text.Configure.Git.BranchProtectionSaved" xml:space="preserve">Branch protection override settings updated.</x:String>
+
+  <x:String x:Key="Text.OperationRecovery.VerifyRemoteSelected" xml:space="preserve">Verify Remote State Online</x:String>
+  <x:String x:Key="Text.OperationRecovery.VerifyRemoteCompleted" xml:space="preserve">Remote branch verification completed.</x:String>
+  <x:String x:Key="Text.OperationRecovery.RestoreModeNewBranch" xml:space="preserve">Create a new recovery branch (recommended)</x:String>
+  <x:String x:Key="Text.OperationRecovery.RestoreModeExistingBranch" xml:space="preserve">Safely restore onto original branch (blocked if dirty or newer commits exist)</x:String>
+  <x:String x:Key="Text.OperationRecovery.RestoreNewerCommitsWarning" xml:space="preserve">Warning: {0} newer commit(s) were made after the reset; restoring onto a new recovery branch preserves them.</x:String>
+  <x:String x:Key="Text.OperationRecovery.InspectingBackup" xml:space="preserve">Inspecting backup ref and branch recovery safety checks...</x:String>
 </ResourceDictionary>

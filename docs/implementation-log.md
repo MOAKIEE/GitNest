@@ -281,3 +281,13 @@
 - 新增 `InspectWithoutCheckoutResetAsync` / `ExecuteWithoutCheckoutResetAsync`（阻止被当前或其他工作树检出的分支及受保护分支回退）与 `InspectBackupRestoreForResetAsync` / `RestoreFromBackupAsync`（支持在干净且无后续提交时安全回写原重置分支，否则拦截覆写并安全创建新恢复分支）及 `VerifyRemoteRewriteJournalRecordAsync`。
 - 新增并注册多克隆真实 Git 集成测试 [HistoryResetRewriteTests.cs](../tests/GitNest.IntegrationTests/HistoryResetRewriteTests.cs)；末次改动后执行 `.\build\scripts\build-gitnest.ps1`（`0` 警告 `0` 错误）与 `.\build\scripts\test-gitnest.ps1`（**302 / 302** 通过）；详情见 [phase-3.6.md](verification/phase-3.6.md)。
 - 下一步执行批次 3.6b（原生 UI、仓库设置保护开关、日志恢复弹窗、`ResetRewriteProbe` 及截图走查）。
+
+## 2026-11-15 · 批次 3.6b：提交撤回、远端历史改写、仓库保护解锁与备份恢复原生 UI 及探针验收
+
+- 前一批提交：`f949810e`（批次 3.6a：提交撤回、分支保护、租约远端改写与安全恢复核心）。
+- 重构 `Reset`、`ResetWithoutCheckout` 与 `PushRevision`（补充 `Commands.Push` 显式 `expectedLeaseTipSha` 重载），并新增 `RewriteRemoteHistory` 弹窗及 `ControlExtensions` / `Histories` / `BranchTree` 右键菜单入口：撤回仅保留 `--mixed` 与 `--hard` 两种模式，拦截路径覆盖与未保护分支远端改写，展示跨合并提交范围与多人协作者署名、隔离多远端未推送状态、断网显式阻止并标记 `远端状态未知`，以及在部分失败/租约拒绝或结果待核实状态下保留备份引用卡与「打开操作与恢复日志」直达入口。
+- 扩展 `BranchProtectionPolicy`、`RepositoryConfigure`（`.cs`/`.axaml`）与 `ViewLogs`（`.cs`/`.axaml`/`.axaml.cs`、`OperationJournalService.cs`）：在 `仓库配置 → Git` 增加按当前仓库独立解锁 `main`/`master`/`develop` 与 `<remote>/HEAD` 默认分支的保护开关；在「最近操作与恢复」支持「联网核对远端状态」及安全的回滚恢复（默认新建 `recover/...` 分支，有后续提交或工作区脏时拒绝覆写原分支）。
+- 同步修复截图走查发现的 4 项问题：`Icons.Error` 警告三角图标替换（修复不存在的 `Icons.Warning` 引用）、`Reset` 窄窗结果页去重 stderr 并提升备份引用与恢复入口位置、缩小撤回列表滚动区使底部远端锁框首屏可见，以及修复 `ViewLogs` 选中刷新与恢复面板滚动定位及标点问题。
+- 补全双语词条（`en_US.axaml` 与 `zh_CN.axaml` 对称扩展至 `1624` 条），新增 `tests/GitNest.UIProbe/ResetRewriteProbe.cs`（接入 `probe-gitnest.ps1 -ResetRewrite`）。
+- 末次代码改动后验证：`.\build\scripts\probe-gitnest.ps1 -ResetRewrite`（**14 / 14** 探针检查通过并逐张核对 `artifacts/probes/phase-3.6/` 下 14 张浅色/暗黑/窄窗截图）、`.\build\scripts\test-gitnest.ps1`（**302 / 302** 通过）与 `.\build\scripts\build-gitnest.ps1 -Publish`（**0** 警告 **0** 错误，产出 `artifacts/windows-x64/GitNest.exe`）；详情见 [phase-3.6.md](verification/phase-3.6.md)。
+- 批次 3.6（3.6a / 3.6b）全部完成；接续进入批次 3.7（配置作用域写入、外部变更复核与刷新）。

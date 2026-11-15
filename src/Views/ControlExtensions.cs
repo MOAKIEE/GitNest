@@ -114,5 +114,36 @@ namespace SourceGit.Views
 
             return null;
         }
+
+        public static MenuItem CreateRewriteRemoteMenuItem(
+            this Control control,
+            ViewModels.Repository repo,
+            Models.Branch localBranch,
+            Models.Branch upstream,
+            Models.Commit targetCommit = null,
+            string header = null)
+        {
+            var isProtected = Commands.BranchProtectionPolicy.IsBranchEffectivelyProtectedFast(
+                repo.GitCommonDir,
+                repo.Settings,
+                localBranch.Name,
+                upstream.Name);
+
+            var rewriteRemote = new MenuItem();
+            rewriteRemote.Header = string.IsNullOrEmpty(header)
+                ? App.Text("BranchCM.RewriteRemoteHistory", localBranch.Name, upstream.FriendlyName)
+                : header;
+            rewriteRemote.Icon = control.CreateMenuIcon("Icons.Push");
+            rewriteRemote.IsEnabled = !isProtected;
+            if (isProtected)
+                ToolTip.SetTip(rewriteRemote, App.Text("Reset.ProtectionLockedHint"));
+            rewriteRemote.Click += (_, e) =>
+            {
+                if (repo.CanCreatePopup())
+                    repo.ShowPopup(new ViewModels.RewriteRemoteHistory(repo, localBranch, targetCommit));
+                e.Handled = true;
+            };
+            return rewriteRemote;
+        }
     }
 }

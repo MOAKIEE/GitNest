@@ -70,6 +70,102 @@ namespace SourceGit.Commands
             return map;
         }
 
+        public static async Task<IReadOnlyList<Models.BranchProtectionStatus>> InspectProtectedCandidatesAsync(
+            string repoPath,
+            IEnumerable<string> branchNames,
+            CancellationToken cancellationToken = default)
+        {
+            var (_, commonDir) = await Models.RepositoryWriteGuard.ResolveGitDirectoriesAsync(repoPath, cancellationToken)
+                .ConfigureAwait(false);
+            var remoteDefaults = await ReadRemoteDefaultBranchMapAsync(repoPath, cancellationToken).ConfigureAwait(false);
+            var settings = string.IsNullOrWhiteSpace(commonDir) ? null : Models.RepositorySettings.Get(commonDir);
+
+            var candidates = new HashSet<string>(DefaultProtectedNames, StringComparer.Ordinal);
+            foreach (var name in remoteDefaults.Keys)
+                candidates.Add(name);
+
+            if (branchNames != null)
+            {
+                foreach (var raw in branchNames)
+                {
+                    if (!string.IsNullOrWhiteSpace(raw))
+                        candidates.Add(raw.Trim());
+                }
+            }
+
+            if (settings?.UnprotectedBranches != null)
+            {
+                foreach (var unlocked in settings.UnprotectedBranches)
+                {
+                    if (!string.IsNullOrWhiteSpace(unlocked))
+                        candidates.Add(unlocked.Trim());
+                }
+            }
+
+            return candidates
+                .Select(name => BuildStatus(name, remoteDefaults, settings))
+                .Where(status => status.IsProtectedByDefault)
+                .OrderBy(status => status.BranchName, StringComparer.Ordinal)
+                .ToList();
+        }
+
+        public static bool IsBranchEffectivelyProtectedFast(
+            string gitCommonDir,
+            Models.RepositorySettings settings,
+            string localBranchName,
+            string remoteBranchName = null)
+        {
+            return IsSingleBranchEffectivelyProtectedFast(gitCommonDir, settings, localBranchName) ||
+                IsSingleBranchEffectivelyProtectedFast(gitCommonDir, settings, remoteBranchName);
+        }
+
+        private static bool IsSingleBranchEffectivelyProtectedFast(
+            string gitCommonDir,
+            Models.RepositorySettings settings,
+            string branchName)
+        {
+            if (string.IsNullOrWhiteSpace(branchName))
+                return false;
+
+            var trimmed = branchName.Trim();
+            var isProtected = DefaultProtectedNames.Contains(trimmed);
+            if (!isProtected && !string.IsNullOrWhiteSpace(gitCommonDir))
+                isProtected = IsRemoteHeadTargetFast(gitCommonDir, trimmed);
+
+            if (!isProtected)
+                return false;
+
+            return !(settings?.IsBranchProtectionDisabled(trimmed) ?? false);
+        }
+
+        private static bool IsRemoteHeadTargetFast(string gitCommonDir, string branchName)
+        {
+            try
+            {
+                var remotesRoot = System.IO.Path.Combine(gitCommonDir, "refs", "remotes");
+                if (!System.IO.Directory.Exists(remotesRoot))
+                    return false;
+
+                foreach (var remoteDir in System.IO.Directory.EnumerateDirectories(remotesRoot))
+                {
+                    var headPath = System.IO.Path.Combine(remoteDir, "HEAD");
+                    if (!System.IO.File.Exists(headPath))
+                        continue;
+
+                    var content = System.IO.File.ReadAllText(headPath).Trim();
+                    var remoteName = System.IO.Path.GetFileName(remoteDir);
+                    var expected = $"ref: refs/remotes/{remoteName}/{branchName}";
+                    if (string.Equals(content, expected, StringComparison.Ordinal))
+                        return true;
+                }
+            }
+            catch
+            {
+            }
+
+            return false;
+        }
+
         public static async Task<Models.BranchProtectionStatus> SetLocalOverrideAsync(
             string repoPath,
             string branchName,

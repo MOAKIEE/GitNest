@@ -5,61 +5,177 @@
              xmlns:m="using:SourceGit.Models"
              xmlns:vm="using:SourceGit.ViewModels"
              xmlns:c="using:SourceGit.Converters"
-             mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="450"
+             mc:Ignorable="d" d:DesignWidth="580" d:DesignHeight="450"
              x:Class="SourceGit.Views.ResetWithoutCheckout"
-             x:DataType="vm:ResetWithoutCheckout">
+             x:DataType="vm:ResetWithoutCheckout"
+             MaxWidth="580">
   <StackPanel Orientation="Vertical" Margin="8,0">
-    <StackPanel Orientation="Horizontal">
-      <Path Width="16" Height="16"
-            Data="{StaticResource Icons.Reset}"/>
-
-      <TextBlock FontSize="18"
-                 Margin="8,0,0,0"
-                 Classes="bold"
-                 Text="{DynamicResource Text.ResetWithoutCheckout}"/>
+    <!-- Title -->
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Path Width="16" Height="16" Data="{StaticResource Icons.Reset}"/>
+      <TextBlock FontSize="18" Classes="bold" Text="{DynamicResource Text.ResetWithoutCheckout}"/>
     </StackPanel>
 
-    <Grid Margin="0,16,0,0" RowDefinitions="32,32" ColumnDefinitions="120,*">
-      <TextBlock Grid.Row="0" Grid.Column="0"
-                 HorizontalAlignment="Right" VerticalAlignment="Center"
-                 Margin="0,0,8,0"
-                 Text="{DynamicResource Text.ResetWithoutCheckout.Target}"/>
-      <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Height="20" VerticalAlignment="Center">
-        <Path Margin="0,0,8,0" Width="14" Height="14" Fill="{DynamicResource Brush.FG1}" Data="{StaticResource Icons.Branch}"/>
-        <TextBlock Text="{Binding Target.Name}"/>
-      </StackPanel>
-
-      <TextBlock Grid.Row="1" Grid.Column="0"
-                 HorizontalAlignment="Right" VerticalAlignment="Center"
-                 Margin="0,0,8,0"
-                 Text="{DynamicResource Text.ResetWithoutCheckout.MoveTo}"/>
-      <ContentControl Grid.Row="1" Grid.Column="1" Content="{Binding To}">
-        <ContentControl.DataTemplates>
-          <DataTemplate DataType="m:Branch">
-            <StackPanel Orientation="Horizontal">
-              <Path Width="14" Height="14" Data="{StaticResource Icons.Branch}"/>
-              <TextBlock VerticalAlignment="Center" Text="{Binding FriendlyName}" Margin="8,0,0,0"/>
-            </StackPanel>
-          </DataTemplate>
-
-          <DataTemplate DataType="m:Commit">
-            <Grid ColumnDefinitions="Auto,Auto,*">
-              <Path Grid.Column="0" Width="14" Height="14" Data="{StaticResource Icons.Commit}"/>
-              <TextBlock Grid.Column="1"
-                         VerticalAlignment="Center"
-                         Text="{Binding SHA, Converter={x:Static c:StringConverters.ToShortSHA}}"
-                         FontFamily="{DynamicResource Fonts.Monospace}"
-                         Foreground="DarkOrange"
-                         Margin="8,0,0,0"/>
-              <TextBlock Grid.Column="2"
-                         VerticalAlignment="Center"
-                         Text="{Binding Subject}"
-                         Margin="4,0,0,0"
-                         TextTrimming="CharacterEllipsis"/>
+    <ScrollViewer MaxHeight="440"
+                  Margin="0,12,0,0"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Orientation="Vertical" Spacing="10">
+        <!-- Branch & Target Summary -->
+        <Border Padding="10,8"
+                CornerRadius="4"
+                Background="{DynamicResource Brush.Contents}"
+                BorderThickness="1"
+                BorderBrush="{DynamicResource Brush.Border1}">
+          <StackPanel Spacing="6">
+            <Grid ColumnDefinitions="100,*">
+              <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" VerticalAlignment="Center" Text="{DynamicResource Text.ResetWithoutCheckout.Target}"/>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Path Width="13" Height="13" Fill="{DynamicResource Brush.FG1}" Data="{StaticResource Icons.Branch}"/>
+                <TextBlock Classes="bold" Text="{Binding Target.Name}"/>
+                <Border Padding="6,1"
+                        CornerRadius="8"
+                        Background="#28D97706"
+                        BorderBrush="#88D97706"
+                        BorderThickness="1"
+                        IsVisible="{Binding IsProtectionEffectivelyLocked, Mode=OneWay}">
+                  <TextBlock FontSize="10" FontWeight="SemiBold" Foreground="DarkOrange" Text="{DynamicResource Text.Reset.ProtectionBadge}"/>
+                </Border>
+              </StackPanel>
             </Grid>
-          </DataTemplate>
-        </ContentControl.DataTemplates>
-      </ContentControl>
-    </Grid>
+
+            <Grid ColumnDefinitions="100,*">
+              <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" VerticalAlignment="Center" Text="{DynamicResource Text.ResetWithoutCheckout.MoveTo}"/>
+              <ContentControl Grid.Column="1" Content="{Binding To}" VerticalAlignment="Center">
+                <ContentControl.DataTemplates>
+                  <DataTemplate DataType="m:Branch">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <Path Width="13" Height="13" Data="{StaticResource Icons.Branch}"/>
+                      <TextBlock VerticalAlignment="Center" Text="{Binding FriendlyName}"/>
+                    </StackPanel>
+                  </DataTemplate>
+
+                  <DataTemplate DataType="m:Commit">
+                    <Grid ColumnDefinitions="Auto,Auto,*">
+                      <Path Grid.Column="0" Width="13" Height="13" Data="{StaticResource Icons.Commit}"/>
+                      <TextBlock Grid.Column="1"
+                                 VerticalAlignment="Center"
+                                 Text="{Binding SHA, Converter={x:Static c:StringConverters.ToShortSHA}}"
+                                 FontFamily="{DynamicResource Fonts.Monospace}"
+                                 Foreground="DarkOrange"
+                                 Margin="6,0,0,0"/>
+                      <TextBlock Grid.Column="2"
+                                 VerticalAlignment="Center"
+                                 Text="{Binding Subject}"
+                                 Margin="6,0,0,0"
+                                 TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                  </DataTemplate>
+                </ContentControl.DataTemplates>
+              </ContentControl>
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Loading -->
+        <TextBlock FontSize="12"
+                   Foreground="{DynamicResource Brush.FG2}"
+                   Text="{DynamicResource Text.ResetWithoutCheckout.Loading}"
+                   IsVisible="{Binding IsLoadingPreflight, Mode=OneWay}"/>
+
+        <!-- Configuration View -->
+        <StackPanel Orientation="Vertical"
+                    Spacing="10"
+                    IsVisible="{Binding ShowConfigurationForm, Mode=OneWay}">
+          <!-- Block Reason -->
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="#1EDC2626"
+                  BorderThickness="1"
+                  BorderBrush="#55DC2626"
+                  IsVisible="{Binding HasBlockReason, Mode=OneWay}">
+            <Grid ColumnDefinitions="Auto,*">
+              <Path Grid.Column="0" Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,8,0" Data="{StaticResource Icons.Error}" Fill="OrangeRed"/>
+              <TextBlock Grid.Column="1" Foreground="{DynamicResource Brush.FG1}" TextWrapping="Wrap" Text="{Binding BlockReason, Mode=OneWay}"/>
+            </Grid>
+          </Border>
+
+          <!-- Fast-forward badge -->
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="#1E16A34A"
+                  BorderThickness="1"
+                  BorderBrush="#5516A34A"
+                  IsVisible="{Binding IsFastForward, Mode=OneWay}">
+            <Grid ColumnDefinitions="Auto,*">
+              <Path Grid.Column="0" Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,8,0" Data="{StaticResource Icons.Info}" Fill="#16A34A"/>
+              <TextBlock Grid.Column="1" FontSize="12" TextWrapping="Wrap" Text="{DynamicResource Text.ResetWithoutCheckout.FastForwardBadge}"/>
+            </Grid>
+          </Border>
+
+          <!-- Commits to Remove Preview -->
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="{DynamicResource Brush.Contents}"
+                  BorderThickness="1"
+                  BorderBrush="{DynamicResource Brush.Border1}"
+                  IsVisible="{Binding HasCommitsToRemove, Mode=OneWay}">
+            <StackPanel Spacing="6">
+              <TextBlock FontSize="12" Classes="bold" Text="{Binding CommitsPreviewHeader, Mode=OneWay}"/>
+              <ItemsControl ItemsSource="{Binding CommitsToRemove, Mode=OneWay}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="m:ResetCommitSummary">
+                    <Grid ColumnDefinitions="72,*,Auto" Margin="0,2">
+                      <TextBlock Grid.Column="0" FontSize="11" FontFamily="{DynamicResource Fonts.Monospace}" Foreground="DarkOrange" Text="{Binding ShortSha}"/>
+                      <TextBlock Grid.Column="1" FontSize="11" TextTrimming="CharacterEllipsis" Text="{Binding Subject}"/>
+                      <TextBlock Grid.Column="2" Margin="8,0,0,0" FontSize="11" Foreground="{DynamicResource Brush.FG2}" Text="{Binding AuthorName}"/>
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <!-- Result / Failure Card -->
+        <StackPanel Orientation="Vertical"
+                    Spacing="10"
+                    IsVisible="{Binding HasResultView, Mode=OneWay}">
+          <Border Padding="12,10"
+                  CornerRadius="4"
+                  Background="{DynamicResource Brush.Contents}"
+                  BorderThickness="1"
+                  BorderBrush="{DynamicResource Brush.Border1}">
+            <StackPanel Spacing="8">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Path Width="16" Height="16" Data="{StaticResource Icons.Error}" Fill="OrangeRed"/>
+                <TextBlock FontSize="15" Classes="bold" Text="{DynamicResource Text.ResetWithoutCheckout.ResultTitle}"/>
+              </StackPanel>
+              <TextBlock FontSize="12" TextWrapping="Wrap" Text="{Binding ResultSummary, Mode=OneWay}"/>
+              <TextBlock FontSize="11" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap"
+                         IsVisible="{Binding HasResultDetail, Mode=OneWay}"
+                         Text="{Binding ResultDetail, Mode=OneWay}"/>
+
+              <Border Padding="8,6"
+                      CornerRadius="4"
+                      Background="{DynamicResource Brush.SubPanel}"
+                      BorderThickness="1"
+                      BorderBrush="{DynamicResource Brush.Border2}"
+                      IsVisible="{Binding HasResultBackupRef, Mode=OneWay}">
+                <StackPanel Spacing="4">
+                  <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.Reset.Result.BackupRefLabel}"/>
+                  <SelectableTextBlock FontSize="11" FontFamily="{DynamicResource Fonts.Monospace}" TextWrapping="Wrap" Text="{Binding ResultBackupRef, Mode=OneWay}"/>
+                </StackPanel>
+              </Border>
+
+              <Button Classes="flat primary"
+                      Height="28" Padding="12,0" HorizontalAlignment="Left"
+                      Content="{DynamicResource Text.Reset.Result.OpenRecoveryLogs}"
+                      Click="OnOpenRecoveryLogsClicked"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
   </StackPanel>
 </UserControl>

@@ -1,0 +1,180 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:m="using:SourceGit.Models"
+             xmlns:vm="using:SourceGit.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="620" d:DesignHeight="460"
+             x:Class="SourceGit.Views.RewriteRemoteHistory"
+             x:DataType="vm:RewriteRemoteHistory"
+             MaxWidth="620">
+  <StackPanel Orientation="Vertical" Margin="8,0">
+    <!-- Title -->
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Path Width="16" Height="16" Data="{StaticResource Icons.Push}" Fill="DarkOrange"/>
+      <TextBlock FontSize="18" Classes="bold" Text="{DynamicResource Text.RewriteRemote.Title}"/>
+    </StackPanel>
+
+    <ScrollViewer MaxHeight="440"
+                  Margin="0,12,0,0"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Orientation="Vertical" Spacing="10">
+        <!-- Branch & Target Summary -->
+        <Border Padding="10,8"
+                CornerRadius="4"
+                Background="{DynamicResource Brush.Contents}"
+                BorderThickness="1"
+                BorderBrush="{DynamicResource Brush.Border1}">
+          <StackPanel Spacing="6">
+            <Grid ColumnDefinitions="92,*">
+              <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.RewriteRemote.LocalBranch}"/>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                <Path Width="13" Height="13" Data="{StaticResource Icons.Branch}" Fill="{DynamicResource Brush.FG1}"/>
+                <TextBlock Classes="bold" Text="{Binding LocalBranch.Name}"/>
+              </StackPanel>
+            </Grid>
+
+            <Grid ColumnDefinitions="92,*">
+              <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.RewriteRemote.TargetTip}"/>
+              <Grid Grid.Column="1" ColumnDefinitions="Auto,Auto,*">
+                <Path Grid.Column="0" Width="13" Height="13" Data="{StaticResource Icons.Commit}" Fill="{DynamicResource Brush.FG1}"/>
+                <TextBlock Grid.Column="1" Margin="6,0,0,0" FontFamily="{DynamicResource Fonts.Monospace}" Foreground="DarkOrange" Text="{Binding TargetTipShortSha, Mode=OneWay}"/>
+                <TextBlock Grid.Column="2" Margin="8,0,0,0" Text="{Binding TargetCommitSubject, Mode=OneWay}" TextTrimming="CharacterEllipsis"/>
+              </Grid>
+            </Grid>
+
+            <Grid ColumnDefinitions="92,*">
+              <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.RewriteRemote.RemoteTarget}"/>
+              <TextBlock Grid.Column="1" FontSize="12" Classes="bold" Text="{Binding RemoteTargetDisplay, Mode=OneWay}" TextWrapping="Wrap"/>
+            </Grid>
+
+            <Grid ColumnDefinitions="92,*">
+              <TextBlock Grid.Column="0" FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.RewriteRemote.LiveRemoteTip}"/>
+              <TextBlock Grid.Column="1" FontSize="12" FontFamily="{DynamicResource Fonts.Monospace}" Text="{Binding LiveRemoteTipDisplay, Mode=OneWay}" TextWrapping="Wrap"/>
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Loading -->
+        <TextBlock FontSize="12"
+                   Foreground="{DynamicResource Brush.FG2}"
+                   Text="{DynamicResource Text.RewriteRemote.Loading}"
+                   IsVisible="{Binding IsLoadingPreflight, Mode=OneWay}"/>
+
+        <!-- Configuration View -->
+        <StackPanel Orientation="Vertical"
+                    Spacing="10"
+                    IsVisible="{Binding ShowConfigurationForm, Mode=OneWay}">
+
+          <!-- Blocking Error / Protection Banner -->
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="#1EDC2626"
+                  BorderThickness="1"
+                  BorderBrush="#55DC2626"
+                  IsVisible="{Binding HasBlockReason, Mode=OneWay}">
+            <StackPanel Spacing="6">
+              <Grid ColumnDefinitions="Auto,*">
+                <Path Grid.Column="0" Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,8,0" Data="{StaticResource Icons.Error}" Fill="OrangeRed"/>
+                <TextBlock Grid.Column="1" Foreground="{DynamicResource Brush.FG1}" TextWrapping="Wrap" Text="{Binding BlockReason, Mode=OneWay}"/>
+              </Grid>
+              <TextBlock FontSize="11"
+                         Foreground="{DynamicResource Brush.FG2}"
+                         TextWrapping="Wrap"
+                         IsVisible="{Binding BlockedByProtection, Mode=OneWay}"
+                         Text="{DynamicResource Text.RewriteRemote.ProtectionHint}"/>
+            </StackPanel>
+          </Border>
+
+          <!-- Pinned Lease Confirmation Note -->
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="#14D97706"
+                  BorderThickness="1"
+                  BorderBrush="#55D97706"
+                  IsVisible="{Binding HasPinnedLeaseNote, Mode=OneWay}">
+            <Grid ColumnDefinitions="Auto,*">
+              <Path Grid.Column="0" Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,8,0" Data="{StaticResource Icons.Error}" Fill="DarkOrange"/>
+              <TextBlock Grid.Column="1" FontSize="11" FontFamily="{DynamicResource Fonts.Monospace}" TextWrapping="Wrap" Text="{Binding PinnedLeaseNote, Mode=OneWay}"/>
+            </Grid>
+          </Border>
+
+          <!-- Other Authors Warning -->
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="#1ED97706"
+                  BorderThickness="1"
+                  BorderBrush="#55D97706"
+                  IsVisible="{Binding HasOtherAuthorsOnRemote, Mode=OneWay}">
+            <StackPanel Spacing="3">
+              <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="DarkOrange" TextWrapping="Wrap" Text="{DynamicResource Text.Reset.OtherAuthorsWarning}"/>
+              <TextBlock FontSize="11" TextWrapping="Wrap" Text="{Binding RemoteAuthorsSummary, Mode=OneWay}"/>
+            </StackPanel>
+          </Border>
+
+          <!-- Commits to Remove From Remote -->
+          <Border Padding="10,8"
+                  CornerRadius="4"
+                  Background="{DynamicResource Brush.Contents}"
+                  BorderThickness="1"
+                  BorderBrush="{DynamicResource Brush.Border1}"
+                  IsVisible="{Binding HasCommitsToRemove, Mode=OneWay}">
+            <StackPanel Spacing="6">
+              <TextBlock FontSize="12" Classes="bold" Text="{Binding CommitsToRemoveHeader, Mode=OneWay}"/>
+              <ItemsControl ItemsSource="{Binding CommitsToRemoveOnRemote, Mode=OneWay}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="m:ResetCommitSummary">
+                    <Grid ColumnDefinitions="72,*,Auto" Margin="0,2">
+                      <TextBlock Grid.Column="0" FontSize="11" FontFamily="{DynamicResource Fonts.Monospace}" Foreground="DarkOrange" Text="{Binding ShortSha}"/>
+                      <TextBlock Grid.Column="1" FontSize="11" TextTrimming="CharacterEllipsis" Text="{Binding Subject}"/>
+                      <TextBlock Grid.Column="2" Margin="8,0,0,0" FontSize="11" Foreground="{DynamicResource Brush.FG2}" Text="{Binding AuthorName}"/>
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <!-- Result / Lease Rejection Card -->
+        <StackPanel Orientation="Vertical"
+                    Spacing="10"
+                    IsVisible="{Binding HasResultView, Mode=OneWay}">
+          <Border Padding="12,10"
+                  CornerRadius="4"
+                  Background="{DynamicResource Brush.Contents}"
+                  BorderThickness="1"
+                  BorderBrush="{DynamicResource Brush.Border1}">
+            <StackPanel Spacing="8">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Path Width="16" Height="16" Data="{StaticResource Icons.Error}" Fill="DarkOrange" IsVisible="{Binding IsResultWarning, Mode=OneWay}"/>
+                <Path Width="16" Height="16" Data="{StaticResource Icons.Error}" Fill="OrangeRed" IsVisible="{Binding IsResultError, Mode=OneWay}"/>
+                <TextBlock FontSize="15" Classes="bold" Text="{DynamicResource Text.RewriteRemote.ResultTitle}"/>
+              </StackPanel>
+
+              <TextBlock FontSize="12" TextWrapping="Wrap" Text="{Binding ResultSummary, Mode=OneWay}"/>
+              <TextBlock FontSize="11" Foreground="{DynamicResource Brush.FG2}" TextWrapping="Wrap"
+                         IsVisible="{Binding HasResultDetail, Mode=OneWay}"
+                         Text="{Binding ResultDetail, Mode=OneWay}"/>
+
+              <Border Padding="8,6"
+                      CornerRadius="4"
+                      Background="#1E16A34A"
+                      BorderThickness="1"
+                      BorderBrush="#5516A34A"
+                      IsVisible="{Binding CollaboratorCommitsPreserved, Mode=OneWay}">
+                <TextBlock FontSize="11" TextWrapping="Wrap" Text="{DynamicResource Text.Reset.Result.CollaboratorHint}"/>
+              </Border>
+
+              <Button Classes="flat primary"
+                      Height="28" Padding="12,0" HorizontalAlignment="Left"
+                      Content="{DynamicResource Text.Reset.Result.OpenRecoveryLogs}"
+                      Click="OnOpenRecoveryLogsClicked"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </StackPanel>
+</UserControl>

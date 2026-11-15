@@ -578,6 +578,10 @@ namespace SourceGit.ViewModels
             private set => SetProperty(ref _sanitizedDiagnostics, value ?? string.Empty);
         }
 
+        public AvaloniaList<BranchProtectionOptionItem> ProtectedBranches { get; } = [];
+
+        public bool HasProtectedBranches => ProtectedBranches.Count > 0;
+
         public int PendingChangesCount
         {
             get => _pendingChangesCount;
@@ -609,8 +613,14 @@ namespace SourceGit.ViewModels
                 var branches = snapshot.IsReadable
                     ? await new Commands.QueryBranches(_repo.FullPath).GetResultAsync()
                     : [];
+                var protectionCandidates = snapshot.IsReadable
+                    ? await Commands.BranchProtectionPolicy.InspectProtectedCandidatesAsync(
+                        _repo.FullPath,
+                        branches.Where(b => b.IsLocal).Select(b => b.Name))
+                    : [];
 
                 ApplySnapshot(snapshot, branches);
+                ApplyProtectedBranches(protectionCandidates);
             }
             finally
             {
@@ -800,6 +810,7 @@ namespace SourceGit.ViewModels
                 var results = new List<ConfigSaveItemResult>();
                 var attemptedKeys = new List<(string Key, string IntendedValue, bool WasUnset)>();
 
+                await SaveBranchProtectionOverridesAsync(results);
                 await SaveScalarFieldsAsync(preSaveSnapshot, _snapshot, configCmd, results, attemptedKeys);
                 await SaveRemoteDraftsAsync(preSaveSnapshot, _snapshot, results);
                 await SaveUpstreamAsync(preSaveSnapshot, _snapshot, results);
@@ -808,10 +819,16 @@ namespace SourceGit.ViewModels
                 var refreshedBranches = refreshedSnapshot.IsReadable
                     ? await new Commands.QueryBranches(_repo.FullPath).GetResultAsync()
                     : [];
+                var refreshedProtection = refreshedSnapshot.IsReadable
+                    ? await Commands.BranchProtectionPolicy.InspectProtectedCandidatesAsync(
+                        _repo.FullPath,
+                        refreshedBranches.Where(b => b.IsLocal).Select(b => b.Name))
+                    : [];
 
                 if (refreshedSnapshot.IsReadable)
                 {
                     ApplySnapshot(refreshedSnapshot, refreshedBranches);
+                    ApplyProtectedBranches(refreshedProtection);
                     RefreshRepoRemotesAndBranches(refreshedSnapshot);
                 }
 
@@ -1680,6 +1697,12 @@ namespace SourceGit.ViewModels
             if (HasUpstreamPendingChange)
                 count++;
 
+            foreach (var p in ProtectedBranches)
+            {
+                if (p.HasPendingChange)
+                    count++;
+            }
+
             PendingChangesCount = count;
         }
 
@@ -1827,6 +1850,92 @@ namespace SourceGit.ViewModels
         private bool _syncingOptions;
         private Models.CommitTemplate _selectedCommitTemplate = null;
         private Models.IssueTracker _selectedIssueTracker = null;
+        private void ApplyProtectedBranches(IReadOnlyList<Models.BranchProtectionStatus> candidates)
+        {
+            ProtectedBranches.Clear();
+            if (candidates != null)
+            {
+                foreach (var status in candidates)
+                {
+                    var item = new BranchProtectionOptionItem(
+                        status.BranchName,
+                        status.Reasons.Count > 0 ? string.Join(" · ", status.Reasons) : App.Text("Configure.Git.BranchProtectionReasonDefault"),
+                        status.IsLocallyUnlocked,
+                        UpdatePendingChangesCount);
+                    ProtectedBranches.Add(item);
+                }
+            }
+
+            OnPropertyChanged(nameof(HasProtectedBranches));
+            UpdatePendingChangesCount();
+        }
+
+        private async Task SaveBranchProtectionOverridesAsync(List<ConfigSaveItemResult> results)
+        {
+            foreach (var item in ProtectedBranches)
+            {
+                if (!item.HasPendingChange)
+                    continue;
+
+                _repo.Settings.SetBranchProtectionDisabled(item.BranchName, item.AllowDestructiveHistoryRewrite);
+                await Commands.BranchProtectionPolicy.SetLocalOverrideAsync(
+                    _repo.FullPath,
+                    item.BranchName,
+                    item.AllowDestructiveHistoryRewrite);
+                item.CommitSavedState();
+                results.Add(new ConfigSaveItemResult
+                {
+                    TargetName = $"branch-protection.{item.BranchName}",
+                    Succeeded = true,
+                    Detail = App.Text("Configure.Git.BranchProtectionSaved"),
+                });
+            }
+        }
+
         private Models.CustomAction _selectedCustomAction = null;
+    }
+
+    public sealed class BranchProtectionOptionItem : ObservableObject
+    {
+        public string BranchName { get; }
+        public string ReasonsDisplay { get; }
+
+        public bool AllowDestructiveHistoryRewrite
+        {
+            get => _allowDestructiveHistoryRewrite;
+            set
+            {
+                if (SetProperty(ref _allowDestructiveHistoryRewrite, value))
+                {
+                    OnPropertyChanged(nameof(HasPendingChange));
+                    _onChanged?.Invoke();
+                }
+            }
+        }
+
+        public bool HasPendingChange => _allowDestructiveHistoryRewrite != _initialAllowDestructiveHistoryRewrite;
+
+        public BranchProtectionOptionItem(
+            string branchName,
+            string reasonsDisplay,
+            bool initialAllowed,
+            Action onChanged)
+        {
+            BranchName = branchName;
+            ReasonsDisplay = reasonsDisplay;
+            _initialAllowDestructiveHistoryRewrite = initialAllowed;
+            _allowDestructiveHistoryRewrite = initialAllowed;
+            _onChanged = onChanged;
+        }
+
+        public void CommitSavedState()
+        {
+            _initialAllowDestructiveHistoryRewrite = _allowDestructiveHistoryRewrite;
+            OnPropertyChanged(nameof(HasPendingChange));
+        }
+
+        private readonly Action _onChanged;
+        private bool _initialAllowDestructiveHistoryRewrite;
+        private bool _allowDestructiveHistoryRewrite;
     }
 }

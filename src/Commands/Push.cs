@@ -59,17 +59,41 @@ namespace SourceGit.Commands
         }
 
         public Push(string repo, Models.Commit revision, Models.Remote remote, Models.Branch remoteBranch, bool force)
+            : this(repo, revision, remote, remoteBranch, force, expectedLeaseTipSha: null)
+        {
+        }
+
+        public Push(string repo, Models.Commit revision, Models.Remote remote, Models.Branch remoteBranch, bool force, string expectedLeaseTipSha)
         {
             WorkingDirectory = repo;
             Context = repo;
             SSHKey = remote.PrivateSSHKey;
 
+            var validRemote = CommandArgumentHelper.ValidateNonOptionToken(remote.Name, nameof(remote));
+            var validRemoteBranch = CommandArgumentHelper.ValidateNonOptionToken(remoteBranch.Name, nameof(remoteBranch));
+            var validCommit = CommandArgumentHelper.ValidateNonOptionToken(revision.SHA, nameof(revision));
+
             var builder = new StringBuilder(1024);
             builder.Append("push --progress --verbose ");
             if (force)
-                builder.Append("--force-with-lease ");
+            {
+                if (!string.IsNullOrWhiteSpace(expectedLeaseTipSha))
+                {
+                    var validExpected = CommandArgumentHelper.ValidateNonOptionToken(expectedLeaseTipSha.Trim(), nameof(expectedLeaseTipSha));
+                    var leaseArg = $"--force-with-lease=refs/heads/{validRemoteBranch}:{validExpected}";
+                    builder.Append(CommandArgumentHelper.Quote(leaseArg)).Append(' ');
+                }
+                else
+                {
+                    builder.Append("--force-with-lease ");
+                }
+            }
 
-            builder.Append(remote.Name).Append(' ').Append(revision.SHA).Append(":refs/heads/").Append(remoteBranch.Name);
+            var refspec = $"{validCommit}:refs/heads/{validRemoteBranch}";
+            builder.Append("-- ")
+                .Append(CommandArgumentHelper.Quote(validRemote))
+                .Append(' ')
+                .Append(CommandArgumentHelper.Quote(refspec));
             Args = builder.ToString();
         }
 

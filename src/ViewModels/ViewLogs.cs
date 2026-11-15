@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Avalonia.Collections;
@@ -25,6 +26,13 @@ namespace SourceGit.ViewModels
         public bool HasBackupRef => !string.IsNullOrWhiteSpace(Record.BackupRefName);
         public bool HasReconciliationNote => !string.IsNullOrWhiteSpace(ReconciliationNote);
         public bool HasDiagnostics => !string.IsNullOrWhiteSpace(DiagnosticText);
+        public bool SupportsRemoteVerification =>
+            !string.IsNullOrWhiteSpace(Record.RemoteName) &&
+            !string.IsNullOrWhiteSpace(Record.RemoteBranchName) &&
+            (Record.Kind == Models.GitOperationKind.RewriteRemoteHistory || Record.Kind == Models.GitOperationKind.Reset);
+        public bool IsResetBackupOperation =>
+            HasBackupRef &&
+            (Record.Kind == Models.GitOperationKind.Reset || Record.Kind == Models.GitOperationKind.RewriteRemoteHistory);
 
         public string StageText => Record.Stage switch
         {
@@ -106,8 +114,11 @@ namespace SourceGit.ViewModels
             {
                 if (SetProperty(ref _selectedOperation, value))
                 {
-                    RestoreTargetBranch = value?.Record.BranchName ?? string.Empty;
+                    RestoreTargetBranch = value is { IsResetBackupOperation: true }
+                        ? string.Empty
+                        : (value?.Record.BranchName ?? string.Empty);
                     NotifyOperationSelectionChanged();
+                    StartResetBackupInspection(value);
                 }
             }
         }
@@ -158,6 +169,7 @@ namespace SourceGit.ViewModels
                 {
                     OnPropertyChanged(nameof(CanAcknowledgeSelectedOperation));
                     OnPropertyChanged(nameof(CanRestoreSelectedBackup));
+                    OnPropertyChanged(nameof(CanVerifyRemoteSelectedOperation));
                 }
             }
         }
@@ -206,8 +218,82 @@ namespace SourceGit.ViewModels
         public bool HasSelectedReconciliationNote => _selectedOperation is { HasReconciliationNote: true };
         public bool HasSelectedDiagnostics => _selectedOperation is { HasDiagnostics: true };
         public bool CanAcknowledgeSelectedOperation => _selectedOperation is { RequiresAttention: true } && !_isBusy;
-        public bool CanRestoreSelectedBackup => _selectedOperation is { HasBackupRef: true } && !_isBusy;
+        public bool CanVerifyRemoteSelectedOperation => _selectedOperation is { SupportsRemoteVerification: true } && !_isBusy;
+        public bool CanRestoreSelectedBackup =>
+            _selectedOperation is { HasBackupRef: true } &&
+            !_isBusy &&
+            (!IsSelectedResetBackup || (!_isInspectingResetBackup && CanExecuteSelectedResetRestore));
         public string SelectedOperationDiagnosticText => _selectedOperation?.DiagnosticText ?? string.Empty;
+
+        public bool IsSelectedResetBackup => _selectedOperation is { IsResetBackupOperation: true };
+
+        public bool IsInspectingResetBackup
+        {
+            get => _isInspectingResetBackup;
+            private set
+            {
+                if (SetProperty(ref _isInspectingResetBackup, value))
+                {
+                    OnPropertyChanged(nameof(HasResetBackupBlockReason));
+                    OnPropertyChanged(nameof(CanRestoreSelectedBackup));
+                }
+            }
+        }
+
+        public bool RestoreModeNewBranch
+        {
+            get => _restoreModeNewBranch;
+            set
+            {
+                if (SetProperty(ref _restoreModeNewBranch, value))
+                {
+                    OnPropertyChanged(nameof(RestoreModeExistingBranch));
+                    OnPropertyChanged(nameof(CanRestoreSelectedBackup));
+                    if (value && _resetBackupPreflight != null && !string.IsNullOrEmpty(_resetBackupPreflight.SuggestedNewBranchName))
+                        RestoreTargetBranch = _resetBackupPreflight.SuggestedNewBranchName;
+                }
+            }
+        }
+
+        public bool RestoreModeExistingBranch
+        {
+            get => !_restoreModeNewBranch;
+            set
+            {
+                if (value && !CanSelectRestoreExistingBranch)
+                    return;
+
+                if (SetProperty(ref _restoreModeNewBranch, !value))
+                {
+                    OnPropertyChanged(nameof(RestoreModeNewBranch));
+                    OnPropertyChanged(nameof(CanRestoreSelectedBackup));
+                    if (value && !string.IsNullOrEmpty(_resetBackupPreflight?.TargetBranchName))
+                        RestoreTargetBranch = _resetBackupPreflight.TargetBranchName;
+                    else if (!value && !string.IsNullOrEmpty(_resetBackupPreflight?.SuggestedNewBranchName))
+                        RestoreTargetBranch = _resetBackupPreflight.SuggestedNewBranchName;
+                }
+            }
+        }
+
+        public bool CanSelectRestoreExistingBranch => _resetBackupPreflight is { CanUpdateExistingBranchSafely: true };
+        public bool HasRestoreNewerCommitsWarning => _resetBackupPreflight is { HasNewerCommitsAfterReset: true };
+        public string RestoreNewerCommitsWarningText => App.Text(
+            "OperationRecovery.RestoreNewerCommitsWarning",
+            _resetBackupPreflight?.NewerCommits.Count ?? 0);
+        public string ResetBackupBlockReason => _resetBackupPreflight?.BlockReason ?? string.Empty;
+        public bool HasResetBackupBlockReason =>
+            IsSelectedResetBackup &&
+            !_isInspectingResetBackup &&
+            !string.IsNullOrWhiteSpace(ResetBackupBlockReason);
+
+        private bool CanExecuteSelectedResetRestore =>
+            _resetBackupPreflight != null &&
+            (RestoreModeExistingBranch ? _resetBackupPreflight.CanUpdateExistingBranchSafely : _resetBackupPreflight.CanCreateNewRecoveryBranch);
+
+        public Task EnsureResetBackupInspectedAsync()
+        {
+            return _resetBackupInspectionTask ?? Task.CompletedTask;
+        }
 
         public ViewLogs(
             Repository repo,
@@ -354,6 +440,44 @@ namespace SourceGit.ViewModels
             });
         }
 
+        public async Task VerifyRemoteSelectedOperationAsync()
+        {
+            var current = SelectedOperation;
+            if (current == null || !current.SupportsRemoteVerification || IsBusy)
+                return;
+
+            IsBusy = true;
+            Models.RemoteRewriteJournalVerificationResult verifyRes;
+            try
+            {
+                verifyRes = await Commands.HistoryResetService
+                    .VerifyRemoteRewriteJournalRecordAsync(_repo.FullPath, current.Record, _journalStore)
+                    .ConfigureAwait(false);
+
+                await _repo.RefreshRecoveryStatusAsync(_journalStore).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    IsFeedbackError = true;
+                    FeedbackMessage = Models.GitConfigSnapshot.RedactText(ex.Message);
+                    IsBusy = false;
+                });
+                return;
+            }
+
+            await Dispatcher.UIThread.InvokeAsync(() => IsBusy = false);
+            await RefreshOperationsAsync(runReconciliation: false);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                IsFeedbackError = !verifyRes.QuerySucceeded;
+                FeedbackMessage = string.IsNullOrWhiteSpace(verifyRes.Summary)
+                    ? App.Text("OperationRecovery.VerifyRemoteCompleted")
+                    : verifyRes.Summary;
+            });
+        }
+
         public async Task AcknowledgeSelectedOperationAsync()
         {
             var current = SelectedOperation;
@@ -401,13 +525,49 @@ namespace SourceGit.ViewModels
             try
             {
                 var log = _repo.CreateLog("Restore Backup Branch");
-                res = await Commands.BackupRefs
-                    .RestoreBranchFromBackupAsync(_repo.FullPath, targetBranch, current.Record.BackupRefName, log)
-                    .ConfigureAwait(false);
+                if (current.IsResetBackupOperation)
+                {
+                    var preflight = _resetBackupPreflight;
+                    if (preflight == null || !string.Equals(preflight.BackupRefName, current.Record.BackupRefName, StringComparison.Ordinal))
+                    {
+                        preflight = await Commands.HistoryResetService
+                            .InspectBackupRestoreForResetAsync(
+                                _repo.FullPath,
+                                current.Record.BackupRefName,
+                                current.Record.BranchName,
+                                current.OperationId,
+                                _journalStore)
+                            .ConfigureAwait(false);
+                    }
+
+                    res = await Commands.HistoryResetService
+                        .RestoreFromBackupAsync(
+                            _repo.FullPath,
+                            new Models.BackupResetRestoreOptions
+                            {
+                                RestoreOntoExistingBranch = RestoreModeExistingBranch,
+                                NewBranchName = RestoreModeExistingBranch ? string.Empty : targetBranch,
+                                Preflight = preflight,
+                                SourceOperationId = current.OperationId,
+                            },
+                            _journalStore,
+                            log)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    res = await Commands.BackupRefs
+                        .RestoreBranchFromBackupAsync(_repo.FullPath, targetBranch, current.Record.BackupRefName, log)
+                        .ConfigureAwait(false);
+                }
+
                 log.Complete();
 
                 if (res.Succeeded)
+                {
                     _repo.RefreshBranches();
+                    _repo.RefreshCommits();
+                }
             }
             catch (Exception ex)
             {
@@ -511,8 +671,94 @@ namespace SourceGit.ViewModels
             OnPropertyChanged(nameof(HasSelectedReconciliationNote));
             OnPropertyChanged(nameof(HasSelectedDiagnostics));
             OnPropertyChanged(nameof(CanAcknowledgeSelectedOperation));
+            OnPropertyChanged(nameof(CanVerifyRemoteSelectedOperation));
             OnPropertyChanged(nameof(CanRestoreSelectedBackup));
+            OnPropertyChanged(nameof(IsSelectedResetBackup));
             OnPropertyChanged(nameof(SelectedOperationDiagnosticText));
+        }
+
+        private void StartResetBackupInspection(OperationJournalEntryItem item)
+        {
+            try
+            {
+                _resetBackupCts?.Cancel();
+            }
+            catch
+            {
+            }
+
+            _resetBackupPreflight = null;
+            _restoreModeNewBranch = true;
+            OnPropertyChanged(nameof(RestoreModeNewBranch));
+            OnPropertyChanged(nameof(RestoreModeExistingBranch));
+            OnPropertyChanged(nameof(CanSelectRestoreExistingBranch));
+            OnPropertyChanged(nameof(HasRestoreNewerCommitsWarning));
+            OnPropertyChanged(nameof(RestoreNewerCommitsWarningText));
+            OnPropertyChanged(nameof(ResetBackupBlockReason));
+            OnPropertyChanged(nameof(HasResetBackupBlockReason));
+            OnPropertyChanged(nameof(CanRestoreSelectedBackup));
+
+            if (item == null || !item.IsResetBackupOperation)
+            {
+                _resetBackupInspectionTask = Task.CompletedTask;
+                IsInspectingResetBackup = false;
+                return;
+            }
+
+            var cts = new CancellationTokenSource();
+            _resetBackupCts = cts;
+            _resetBackupInspectionTask = InspectResetBackupCoreAsync(item, cts);
+        }
+
+        private async Task InspectResetBackupCoreAsync(OperationJournalEntryItem item, CancellationTokenSource cts)
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => IsInspectingResetBackup = true);
+
+            try
+            {
+                var preflight = await Commands.HistoryResetService
+                    .InspectBackupRestoreForResetAsync(
+                        _repo.FullPath,
+                        item.Record.BackupRefName,
+                        item.Record.BranchName,
+                        item.OperationId,
+                        _journalStore,
+                        cts.Token)
+                    .ConfigureAwait(false);
+
+                if (cts.IsCancellationRequested)
+                    return;
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (!ReferenceEquals(_selectedOperation, item))
+                        return;
+
+                    _resetBackupPreflight = preflight;
+                    _restoreModeNewBranch = true;
+                    if (!string.IsNullOrWhiteSpace(preflight.SuggestedNewBranchName))
+                        RestoreTargetBranch = preflight.SuggestedNewBranchName;
+
+                    OnPropertyChanged(nameof(RestoreModeNewBranch));
+                    OnPropertyChanged(nameof(RestoreModeExistingBranch));
+                    OnPropertyChanged(nameof(CanSelectRestoreExistingBranch));
+                    OnPropertyChanged(nameof(HasRestoreNewerCommitsWarning));
+                    OnPropertyChanged(nameof(RestoreNewerCommitsWarningText));
+                    OnPropertyChanged(nameof(ResetBackupBlockReason));
+                    OnPropertyChanged(nameof(HasResetBackupBlockReason));
+                    OnPropertyChanged(nameof(CanRestoreSelectedBackup));
+                });
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            finally
+            {
+                if (ReferenceEquals(_resetBackupCts, cts))
+                    _resetBackupCts = null;
+                cts.Dispose();
+                await Dispatcher.UIThread.InvokeAsync(() => IsInspectingResetBackup = false);
+            }
         }
 
         private static string FormatBackupLine(Models.GitBackupRefInfo info)
@@ -534,5 +780,10 @@ namespace SourceGit.ViewModels
         private string _feedbackMessage = string.Empty;
         private bool _isFeedbackError = false;
         private Models.GitBackupPrunePreview _prunePreview = null;
+        private Models.BackupResetRestorePreflight _resetBackupPreflight = null;
+        private CancellationTokenSource _resetBackupCts = null;
+        private Task _resetBackupInspectionTask = Task.CompletedTask;
+        private bool _isInspectingResetBackup = false;
+        private bool _restoreModeNewBranch = true;
     }
 }

@@ -396,7 +396,14 @@ namespace SourceGit.Commands
                     : $"原记录的恢复引用 {record.BackupRefName} 已不存在。");
             }
 
-            record.ReconciliationNote = string.Join("；", notes);
+            var cleanedNotes = notes
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n.Trim().TrimEnd('。', '；'))
+                .Where(n => !string.IsNullOrEmpty(n))
+                .ToList();
+            record.ReconciliationNote = cleanedNotes.Count == 0
+                ? string.Empty
+                : string.Join("；", cleanedNotes) + "。";
             if (markResolved)
             {
                 record.IsUnfinishedOnStartup = false;

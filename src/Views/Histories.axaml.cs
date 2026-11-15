@@ -1336,19 +1336,33 @@ namespace SourceGit.Views
 
             if (!isHead)
             {
-                if (current.Ahead.Contains(commit.SHA))
+                var currentUpstream = string.IsNullOrEmpty(current.Upstream)
+                    ? null
+                    : repo.Branches.Find(x => x.FullName.Equals(current.Upstream, StringComparison.Ordinal));
+
+                if (currentUpstream != null && current.Ahead.Contains(commit.SHA))
                 {
-                    var upstream = repo.Branches.Find(x => x.FullName.Equals(current.Upstream, StringComparison.Ordinal));
                     var pushRevision = new MenuItem();
-                    pushRevision.Header = App.Text("CommitCM.PushRevision", commit.SHA.Substring(0, 10), upstream.FriendlyName);
+                    pushRevision.Header = App.Text("CommitCM.PushRevision", commit.SHA.Substring(0, 10), currentUpstream.FriendlyName);
                     pushRevision.Icon = this.CreateMenuIcon("Icons.Push");
                     pushRevision.Click += (_, e) =>
                     {
                         if (repo.CanCreatePopup())
-                            repo.ShowPopup(new ViewModels.PushRevision(repo, commit, upstream));
+                            repo.ShowPopup(new ViewModels.PushRevision(repo, commit, currentUpstream));
                         e.Handled = true;
                     };
                     menu.Items.Add(pushRevision);
+                    menu.Items.Add(new MenuItem() { Header = "-" });
+                }
+
+                if (currentUpstream != null && repo.Remotes.Count > 0)
+                {
+                    menu.Items.Add(this.CreateRewriteRemoteMenuItem(
+                        repo,
+                        current,
+                        currentUpstream,
+                        commit,
+                        App.Text("CommitCM.RewriteRemoteHistory", currentUpstream.FriendlyName)));
                     menu.Items.Add(new MenuItem() { Header = "-" });
                 }
 
@@ -1596,6 +1610,20 @@ namespace SourceGit.Views
                 e.Handled = true;
             };
             submenu.Items.Add(push);
+
+            if (!string.IsNullOrEmpty(current.Upstream) && repo.Remotes.Count > 0)
+            {
+                var currentUpstream = repo.Branches.Find(x => x.FullName.Equals(current.Upstream, StringComparison.Ordinal));
+                if (currentUpstream != null)
+                {
+                    submenu.Items.Add(this.CreateRewriteRemoteMenuItem(
+                        repo,
+                        current,
+                        currentUpstream,
+                        targetCommit: null,
+                        App.Text("BranchCM.RewriteRemoteHistory", current.Name, currentUpstream.FriendlyName)));
+                }
+            }
 
             var rename = new MenuItem();
             rename.Header = App.Text("BranchCM.Rename", current.Name);

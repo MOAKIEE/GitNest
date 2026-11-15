@@ -1,5 +1,5 @@
 using Avalonia.Controls;
-using Avalonia.Input;
+using Avalonia.Interactivity;
 
 namespace SourceGit.Views
 {
@@ -10,20 +10,12 @@ namespace SourceGit.Views
             InitializeComponent();
         }
 
-        private void OnResetModeKeyDown(object sender, KeyEventArgs e)
+        private async void OnOpenRecoveryLogsClicked(object sender, RoutedEventArgs e)
         {
-            if (sender is ComboBox comboBox)
+            if (DataContext is ViewModels.Reset vm)
             {
-                var key = e.Key.ToString();
-                for (int i = 0; i < Models.ResetMode.Supported.Length; i++)
-                {
-                    if (key.Equals(Models.ResetMode.Supported[i].Key, System.StringComparison.OrdinalIgnoreCase))
-                    {
-                        comboBox.SelectedIndex = i;
-                        e.Handled = true;
-                        return;
-                    }
-                }
+                await this.ShowDialogAsync(new ViewModels.ViewLogs(vm.Repo, focusRecoveryTab: true));
+                e.Handled = true;
             }
         }
     }

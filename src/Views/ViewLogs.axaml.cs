@@ -135,6 +135,15 @@ namespace SourceGit.Views
             }
         }
 
+        private async void OnVerifyRemoteSelectedOperation(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                await vm.VerifyRemoteSelectedOperationAsync();
+                e.Handled = true;
+            }
+        }
+
         private async void OnAcknowledgeSelectedOperation(object sender, RoutedEventArgs e)
         {
             if (DataContext is ViewModels.ViewLogs vm)

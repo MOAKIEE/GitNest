@@ -78,6 +78,10 @@ internal static partial class Program
             {
                 RunStashDiscardIgnore();
             }
+            else if (args.Contains("--reset-rewrite"))
+            {
+                RunResetRewrite();
+            }
             else
             {
                 RunOverview();
@@ -366,5 +370,6 @@ internal static partial class Program
     static partial void RunWorktreeDelete();
     static partial void RunMergeRevert();
     static partial void RunStashDiscardIgnore();
+    static partial void RunResetRewrite();
 
 }
