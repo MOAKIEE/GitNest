@@ -263,3 +263,13 @@
 - 新增 `src/Commands/StashWorkflowService.cs`、`DiscardBackupService.cs`、`IgnoreRuleService.cs`，强化 `Command.cs`（stdin/NUL 通道）、`CommandArgumentHelper.cs`、`Stash.cs`、`QueryStashes.cs`、`Restore.cs`、`Discard.cs` 与 `MergeRevertService.cs`：实现 unborn HEAD/冲突态 stash 拦截、基于 `stash^1..stash`/`^2`/`^3` 的未跟踪与忽略文件碰撞阻断、SHA 绑定应用及冲突保留（`PendingVerification`「恢复未完成，保存项仍保留」）、分支切换拒绝静默丢弃并安全 `StashAndReapply`、丢弃双基线（`RestoreWorktreeToIndex` 与 `RestoreToHead`）前置 30 天备份与失败中止、后续修改防静默覆盖检查及 30 天到期清理、特殊字符转义与主仓/worktree `info/exclude` / `.gitignore` 去重和已跟踪文件安全预警。
 - 新增 `tests/GitNest.IntegrationTests/StashDiscardIgnoreTests.cs` 并接入 `Program.cs`；清理 `DiscardBackupService.cs` 冗余辅助包装后，重新执行 `.\build\scripts\build-gitnest.ps1` 构建（`0` 警告 `0` 错误）与 `.\build\scripts\test-gitnest.ps1`（**274 / 274** 项真实 Git 与 Windows 回收站/文件锁集成检查通过；详情见 [phase-3.5.md](verification/phase-3.5.md)）。
 - 下一批次（3.5b）将在 SourceGit 原生样式中构建 Stash/Discard/恢复库/AddToIgnore 对话框与工作区右键基线入口，并完成 `-StashDiscardIgnore` UI 探针与截图验收。
+
+## 2026-11-15 · 批次 3.5b：Stash/丢弃基线/30 天恢复库/忽略规则原生 UI 与探针截图验收
+
+- 前一批提交：`43e9547b`（批次 3.5a：Stash 事务、丢弃双基线、30 天本地恢复库、回收站删除与忽略规则核心引擎）。
+- 重构 `src/ViewModels/Discard.cs`、`src/Views/Discard.axaml`/`.axaml.cs` 与 `WorkingCopy`（`.cs`/`.axaml`/`.axaml.cs`）：实现 `RestoreWorktreeToIndex` / `RestoreToHead` / `MoveUntrackedToRecycleBin` 明确三基线交互、unborn HEAD 显式拦截、子模块跳过与部分回收失败不闭窗结果展示、无忽略清理入口边界，并拆分工作区右键菜单与标题栏恢复库直达按钮。
+- 扩展 `src/ViewModels/ViewLogs.cs`、`ViewLogs.DiscardBackups.cs` 与 `src/Views/ViewLogs.axaml`/`.axaml.cs`：新增 `丢弃恢复 (30 天)` 页签，提供快照浏览、后续修改冲突 preflight 检查与显式确认覆盖恢复、单条删除及过期记录清理。
+- 改造 `StashChanges`、`ApplyStash`、`DropStash`、`CheckoutBranchFromStash`（精确 SHA 绑定与冲突/部分失败保留卡）、`DealWithLocalChangesMethod`（移除 `Discard` 自动弃改）、共享 `BranchSwitchPopup`/`BranchSwitchResultView` 及其四大分支切换子类，与 `AddToIgnore`（`.gitignore` vs `info/exclude` 仅本机提示、`!` 反向规则冲突与已跟踪文件预警）。
+- 同步修复截图走查中发现的 `Discard` 列挤压截断、`ApplyStash` 阻断提示与文件数标题重复、`ViewLogs` 恢复绿标裁切及 `AddToIgnore` 仅本机标签/警告重复问题；补全双语词条（`en=1562 zh=1562 diff=0`）并新增 `tests/GitNest.UIProbe/StashDiscardIgnoreProbe.cs`（`-StashDiscardIgnore`）。
+- 末次代码改动后验证：`.\build\scripts\build-gitnest.ps1 -Publish`（`0` 警告 `0` 错误，产出 `artifacts/windows-x64/GitNest.exe`）、`.\build\scripts\test-gitnest.ps1`（**274 / 274** 通过）、`.\build\scripts\probe-gitnest.ps1 -StashDiscardIgnore`（**15 / 15** 通过，核对 `artifacts/probes/phase-3.5/` 全部 11 张浅色/暗黑/窄窗截图）、`.\build\scripts\probe-gitnest.ps1 -MergeRevert`（**11 / 11** 回归通过）；详情见 [phase-3.5.md](verification/phase-3.5.md)。
+- 批次 3.5（3.5a / 3.5b）全部完成；接续进入批次 3.6（commit reset、`--force-with-lease` 远程历史改写、本地备份恢复与重启对账）。

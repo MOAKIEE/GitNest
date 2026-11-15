@@ -20,7 +20,9 @@
                  Text="{DynamicResource Text.CheckoutDetached}"/>
     </StackPanel>
 
-    <Grid Margin="0,16,0,0" RowDefinitions="32,Auto,Auto">
+    <Grid Margin="0,16,0,0"
+          RowDefinitions="32,Auto,Auto"
+          IsVisible="{Binding !HasResultView, Mode=OneWay}">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" MinWidth="140"/>
         <ColumnDefinition Width="*"/>
@@ -79,5 +81,8 @@
                    Foreground="DarkOrange"/>
       </Grid>
     </Grid>
+
+    <v:BranchSwitchResultView Margin="0,16,0,0"
+                              IsVisible="{Binding HasResultView, Mode=OneWay}"/>
   </StackPanel>
 </UserControl>

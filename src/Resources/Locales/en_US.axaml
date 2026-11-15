@@ -461,7 +461,7 @@
   <x:String x:Key="Text.Dashboard" xml:space="preserve">Dashboard</x:String>
   <x:String x:Key="Text.DealWithLocalChanges.Discard" xml:space="preserve">Discard</x:String>
   <x:String x:Key="Text.DealWithLocalChanges.DoNothing" xml:space="preserve">Do Nothing</x:String>
-  <x:String x:Key="Text.DealWithLocalChanges.StashAndReapply" xml:space="preserve">Stash &amp; Reapply</x:String>
+  <x:String x:Key="Text.DealWithLocalChanges.StashAndReapply" xml:space="preserve">Stash &amp; Reapply (incl. untracked; keeps stash on conflict)</x:String>
   <x:String x:Key="Text.DeinitSubmodule" xml:space="preserve">De-initialize Submodule</x:String>
   <x:String x:Key="Text.DeinitSubmodule.Force" xml:space="preserve">Force de-init even if it contains local changes.</x:String>
   <x:String x:Key="Text.DeinitSubmodule.Path" xml:space="preserve">Submodule:</x:String>
@@ -1471,4 +1471,130 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.OperationRecovery.Stage.PartialSuccess" xml:space="preserve">Partial Success</x:String>
   <x:String x:Key="Text.OperationRecovery.Stage.Failed" xml:space="preserve">Failed</x:String>
   <x:String x:Key="Text.OperationRecovery.Stage.Succeeded" xml:space="preserve">Succeeded</x:String>
+
+  <!-- Batch 3.5b: Discard / Backup Restore / Stash / Branch Switch / Ignore -->
+  <x:String x:Key="Text.WorkingCopy.OpenDiscardBackups" xml:space="preserve">Open 30-Day Discard Recovery Library</x:String>
+  <x:String x:Key="Text.WorkingCopy.AddToIgnoreRule" xml:space="preserve">Ignore Rules (.gitignore / exclude)...</x:String>
+
+  <x:String x:Key="Text.FileCM.DiscardToIndex" xml:space="preserve">Discard Unstaged Changes (To Index)...</x:String>
+  <x:String x:Key="Text.FileCM.DiscardToIndexMulti" xml:space="preserve">Discard Unstaged for {0} Items (To Index)...</x:String>
+  <x:String x:Key="Text.FileCM.DiscardToHead" xml:space="preserve">Discard All &amp; Reset to HEAD...</x:String>
+  <x:String x:Key="Text.FileCM.DiscardToHeadMulti" xml:space="preserve">Reset {0} Items to HEAD...</x:String>
+  <x:String x:Key="Text.FileCM.MoveToRecycleBin" xml:space="preserve">Move Untracked File to Recycle Bin...</x:String>
+  <x:String x:Key="Text.FileCM.MoveToRecycleBinMulti" xml:space="preserve">Move {0} Untracked Files to Recycle Bin...</x:String>
+  <x:String x:Key="Text.FileCM.DiscardOrRecycleMulti" xml:space="preserve">Discard / Recycle {0} Selected Items...</x:String>
+
+  <x:String x:Key="Text.Discard.BaselineTitle" xml:space="preserve">Discard Baseline</x:String>
+  <x:String x:Key="Text.Discard.Baseline.ToIndex" xml:space="preserve">Restore working tree to Index (keep staged changes)</x:String>
+  <x:String x:Key="Text.Discard.Baseline.ToIndex.Desc" xml:space="preserve">Reverts unstaged edits back to the current index snapshot while keeping staged changes untouched.</x:String>
+  <x:String x:Key="Text.Discard.Baseline.ToHead" xml:space="preserve">Restore to HEAD (clear both staged &amp; unstaged)</x:String>
+  <x:String x:Key="Text.Discard.Baseline.ToHead.Desc" xml:space="preserve">Restores tracked files back to the last commit (HEAD), clearing both staged and unstaged changes.</x:String>
+  <x:String x:Key="Text.Discard.Baseline.Recycle" xml:space="preserve">Move untracked files to Recycle Bin</x:String>
+  <x:String x:Key="Text.Discard.Baseline.Recycle.Desc" xml:space="preserve">Moves selected untracked files to the OS Recycle Bin and saves a 30-day local backup snapshot. Ignored files are untouched.</x:String>
+  <x:String x:Key="Text.Discard.BaselineLabel.ToIndex" xml:space="preserve">Working Tree → Index</x:String>
+  <x:String x:Key="Text.Discard.BaselineLabel.ToHead" xml:space="preserve">Working Tree + Index → HEAD</x:String>
+  <x:String x:Key="Text.Discard.BaselineLabel.Recycle" xml:space="preserve">Untracked → Recycle Bin</x:String>
+  <x:String x:Key="Text.Discard.Confirm.ToIndex" xml:space="preserve">RESTORE TO INDEX</x:String>
+  <x:String x:Key="Text.Discard.Confirm.ToHead" xml:space="preserve">RESTORE TO HEAD</x:String>
+  <x:String x:Key="Text.Discard.Confirm.Recycle" xml:space="preserve">MOVE TO RECYCLE BIN</x:String>
+  <x:String x:Key="Text.Discard.LoadingPreflight" xml:space="preserve">Inspecting discard targets and backup scope...</x:String>
+  <x:String x:Key="Text.Discard.OpenBackupLibrary" xml:space="preserve">Restore Backups</x:String>
+  <x:String x:Key="Text.Discard.BackupRetentionNotice" xml:space="preserve">Before discarding or moving untracked files to the Recycle Bin, GitNest saves a local backup copy kept for 30 days. Submodules and ignored files are skipped.</x:String>
+  <x:String x:Key="Text.Discard.IgnoredSafeNote" xml:space="preserve">Ignored files (.gitignore / .git/info/exclude) are never deleted or cleaned.</x:String>
+  <x:String x:Key="Text.Discard.UnbornHeadBlock" xml:space="preserve">This repository has an unborn HEAD (no commits yet). Cannot restore to HEAD; restore to index or move untracked files to Recycle Bin instead.</x:String>
+  <x:String x:Key="Text.Discard.SkippedSubmodules" xml:space="preserve">Submodules skipped safely (nested worktrees are not reset automatically): {0}</x:String>
+  <x:String x:Key="Text.Discard.IndexAddedOnlyNotice" xml:space="preserve">{0} newly staged file(s) do not exist in HEAD yet and will be moved to the Recycle Bin after backup.</x:String>
+  <x:String x:Key="Text.Discard.TargetSummary.ToIndex" xml:space="preserve">{0} tracked file(s) will revert unstaged edits back to Index</x:String>
+  <x:String x:Key="Text.Discard.TargetSummary.ToHead" xml:space="preserve">{0} tracked file(s) will reset to HEAD; {1} newly added file(s) will move to Recycle Bin</x:String>
+  <x:String x:Key="Text.Discard.TargetSummary.Recycle" xml:space="preserve">{0} untracked file(s) will be moved to the Recycle Bin</x:String>
+  <x:String x:Key="Text.Discard.Empty.ToIndex" xml:space="preserve">No unstaged changes match the restore-to-index baseline.</x:String>
+  <x:String x:Key="Text.Discard.Empty.ToHead" xml:space="preserve">No tracked changes can be restored to HEAD.</x:String>
+  <x:String x:Key="Text.Discard.Empty.Untracked" xml:space="preserve">No untracked files match the Move to Recycle Bin baseline.</x:String>
+  <x:String x:Key="Text.Discard.Empty.WorkingCopy" xml:space="preserve">Working tree is already clean; nothing to discard.</x:String>
+  <x:String x:Key="Text.Discard.Role.TrackedToIndex" xml:space="preserve">Worktree → Index</x:String>
+  <x:String x:Key="Text.Discard.Role.TrackedToHead" xml:space="preserve">Tracked → HEAD</x:String>
+  <x:String x:Key="Text.Discard.Role.IndexAddedRecycle" xml:space="preserve">New in Index → Recycle Bin</x:String>
+  <x:String x:Key="Text.Discard.Role.IndexAddedRecycle.Detail" xml:space="preserve">Does not exist in HEAD; moved to OS Recycle Bin after snapshot backup</x:String>
+  <x:String x:Key="Text.Discard.Role.UntrackedRecycle" xml:space="preserve">Untracked → Recycle Bin</x:String>
+  <x:String x:Key="Text.Discard.Role.UntrackedRecycle.Detail" xml:space="preserve">Snapshot saved for 30 days before moving to OS Recycle Bin</x:String>
+  <x:String x:Key="Text.Discard.Role.SubmoduleSkipped" xml:space="preserve">Submodule (Skipped)</x:String>
+  <x:String x:Key="Text.Discard.Role.SubmoduleSkipped.Detail" xml:space="preserve">Submodule working trees are left untouched</x:String>
+  <x:String x:Key="Text.Discard.Result.BackupId" xml:space="preserve">30-Day Backup Snapshot:</x:String>
+  <x:String x:Key="Text.Discard.Result.DoneWithWarningsTitle" xml:space="preserve">Discard Completed With Notices</x:String>
+  <x:String x:Key="Text.Discard.Result.PartialTitle" xml:space="preserve">Partially Completed — Some Files Failed</x:String>
+  <x:String x:Key="Text.Discard.Result.FailedTitle" xml:space="preserve">Discard Failed</x:String>
+
+  <x:String x:Key="Text.ViewLogs.TabDiscardBackups" xml:space="preserve">Discard Recovery (30d)</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.PruneExpired" xml:space="preserve">Prune Expired</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.Empty" xml:space="preserve">No 30-day discard backups have been recorded for this repository yet.</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.Restore" xml:space="preserve">Restore Selected Backup</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.ConflictTitle" xml:space="preserve">Files Have Changed Since This Backup</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.ConflictDesc" xml:space="preserve">One or more target paths differ from disk or no longer match the post-discard state. Check the confirmation box below before overwriting current files.</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.ConfirmOverwrite" xml:space="preserve">Allow overwriting newer edits on disk with this backup</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.FilesTitle" xml:space="preserve">Backed-Up Files</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.SelectPrompt" xml:space="preserve">Select a backup entry on the left to inspect its files and restore options.</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.ModifiedBadge" xml:space="preserve">Disk Changed</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.FileCount" xml:space="preserve">{0} file(s)</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.RestoredAt" xml:space="preserve">Restored {0}</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.Expired" xml:space="preserve">Expired (&gt;30d)</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.DaysLeft" xml:space="preserve">{0}d left</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.Summary" xml:space="preserve">{0} active backup(s) (retained 30 days)</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.SummaryWithExpired" xml:space="preserve">{0} active backup(s), {1} expired</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.Deleted" xml:space="preserve">Removed backup {0}.</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.DeleteFailed" xml:space="preserve">Failed to remove backup {0}.</x:String>
+
+  <x:String x:Key="Text.Stash.LoadingPreflight" xml:space="preserve">Inspecting files to be stashed...</x:String>
+  <x:String x:Key="Text.Stash.Mode.Discard" xml:space="preserve">Discard from working copy after stashing (standard push)</x:String>
+  <x:String x:Key="Text.Stash.Mode.KeepIndex" xml:space="preserve">Keep staged changes in index after stashing</x:String>
+  <x:String x:Key="Text.Stash.Mode.KeepAll" xml:space="preserve">Keep all changes in working tree &amp; index (snapshot only)</x:String>
+  <x:String x:Key="Text.Stash.Meta.ExternalOrNoBranch" xml:space="preserve">No Branch / Detached HEAD</x:String>
+  <x:String x:Key="Text.Stash.Preview.Summary" xml:space="preserve">{0} file(s) included in stash ({1} untracked)</x:String>
+  <x:String x:Key="Text.Stash.Preview.IgnoredNotice" xml:space="preserve">{0} ignored file(s) will NOT be included (e.g. {1}).</x:String>
+  <x:String x:Key="Text.Stash.Preview.IgnoredNoticeNoSample" xml:space="preserve">{0} ignored file(s) will NOT be included or cleaned.</x:String>
+  <x:String x:Key="Text.Stash.Preview.Included" xml:space="preserve">Included</x:String>
+  <x:String x:Key="Text.Stash.Preview.Skipped" xml:space="preserve">Skipped</x:String>
+  <x:String x:Key="Text.Stash.Preview.State.Both" xml:space="preserve">Staged + Unstaged</x:String>
+  <x:String x:Key="Text.Stash.Preview.State.Staged" xml:space="preserve">Staged</x:String>
+  <x:String x:Key="Text.Stash.Preview.State.Unstaged" xml:space="preserve">Unstaged</x:String>
+  <x:String x:Key="Text.Stash.Preview.State.Untracked" xml:space="preserve">Untracked</x:String>
+  <x:String x:Key="Text.Stash.Push.FailedFallback" xml:space="preserve">Failed to create stash.</x:String>
+  <x:String x:Key="Text.Stash.Result.FailedTitle" xml:space="preserve">Stash Failed</x:String>
+
+  <x:String x:Key="Text.ApplyStash.Confirm" xml:space="preserve">APPLY STASH</x:String>
+  <x:String x:Key="Text.ApplyStash.Subject" xml:space="preserve">Message:</x:String>
+  <x:String x:Key="Text.ApplyStash.AllowDirtyWorkingTree" xml:space="preserve">Apply anyway on dirty working tree (otherwise blocked until clean)</x:String>
+  <x:String x:Key="Text.ApplyStash.LoadingPreflight" xml:space="preserve">Checking stash files &amp; working tree conflicts...</x:String>
+  <x:String x:Key="Text.ApplyStash.BlockedTitle" xml:space="preserve">Working Tree Is Not Clean</x:String>
+  <x:String x:Key="Text.ApplyStash.CollidingTitle" xml:space="preserve">Paths Also Present as Untracked / Ignored</x:String>
+  <x:String x:Key="Text.ApplyStash.EstimatedFiles" xml:space="preserve">Stash touches ~{0} file(s):</x:String>
+  <x:String x:Key="Text.ApplyStash.Result.ConflictRetainedTitle" xml:space="preserve">Applied With Conflicts — Stash Retained Safely</x:String>
+  <x:String x:Key="Text.ApplyStash.Result.DropFailedTitle" xml:space="preserve">Stash Applied — Drop Step Failed</x:String>
+  <x:String x:Key="Text.ApplyStash.Result.FailedTitle" xml:space="preserve">Apply Stash Failed</x:String>
+
+  <x:String x:Key="Text.DropStash.Confirm" xml:space="preserve">DROP STASH</x:String>
+  <x:String x:Key="Text.DropStash.Tip" xml:space="preserve">Pinned by exact stash SHA so list changes cannot drop a different entry.</x:String>
+  <x:String x:Key="Text.DropStash.FailedTitle" xml:space="preserve">Failed to Drop Stash</x:String>
+  <x:String x:Key="Text.DropStash.FailedFallback" xml:space="preserve">Unable to drop the selected stash.</x:String>
+
+  <x:String x:Key="Text.CheckoutBranchFromStash.Confirm" xml:space="preserve">CREATE &amp; CHECKOUT</x:String>
+  <x:String x:Key="Text.CheckoutBranchFromStash.FailedTitle" xml:space="preserve">Failed to Create Branch From Stash</x:String>
+  <x:String x:Key="Text.CheckoutBranchFromStash.FailedFallback" xml:space="preserve">Unable to create branch from the selected stash.</x:String>
+
+  <x:String x:Key="Text.Checkout.Result.StashRetainedTitle" xml:space="preserve">Branch Switched With Conflicts — Auto-Stash Retained</x:String>
+  <x:String x:Key="Text.Checkout.Result.FailedTitle" xml:space="preserve">Branch Switch Failed</x:String>
+  <x:String x:Key="Text.Checkout.Result.RetainedStashSha" xml:space="preserve">Retained Stash SHA: {0} (resolve conflicts or inspect under Stashes before dropping)</x:String>
+
+  <x:String x:Key="Text.AddToIgnore.Confirm" xml:space="preserve">ADD RULE</x:String>
+  <x:String x:Key="Text.AddToIgnore.Applying" xml:space="preserve">Writing ignore rule...</x:String>
+  <x:String x:Key="Text.AddToIgnore.Preset" xml:space="preserve">Rule Scope:</x:String>
+  <x:String x:Key="Text.AddToIgnore.Preset.Custom" xml:space="preserve">Custom pattern...</x:String>
+  <x:String x:Key="Text.AddToIgnore.EffectiveRule" xml:space="preserve">Effective Pattern:</x:String>
+  <x:String x:Key="Text.AddToIgnore.DuplicateNotice" xml:space="preserve">This ignore rule is already present in the selected file.</x:String>
+  <x:String x:Key="Text.AddToIgnore.ScopeLocalHint" xml:space="preserve">Written only to .git/info/exclude on this machine; never committed or shared.</x:String>
+  <x:String x:Key="Text.AddToIgnore.ScopeRepoHint" xml:space="preserve">Written to version-controlled .gitignore so collaborators also share this rule.</x:String>
+  <x:String x:Key="Text.AddToIgnore.MatchedUntrackedTitle" xml:space="preserve">Matched Untracked Files ({0}):</x:String>
+  <x:String x:Key="Text.AddToIgnore.MatchedTrackedTitle" xml:space="preserve">Already Tracked Files Also Match ({0}):</x:String>
+  <x:String x:Key="Text.AddToIgnore.TrackedWarning" xml:space="preserve">Git ignore rules do NOT stop tracking files already in the repository, and GitNest will NOT automatically run git rm --cached to delete them from HEAD.</x:String>
+  <x:String x:Key="Text.AddToIgnore.ResultTitle" xml:space="preserve">Ignore Rule Update</x:String>
+  <x:String x:Key="Text.AddToIgnore.FailedFallback" xml:space="preserve">Failed to update ignore file.</x:String>
 </ResourceDictionary>

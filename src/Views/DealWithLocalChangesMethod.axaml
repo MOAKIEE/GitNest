@@ -5,29 +5,30 @@
              xmlns:m="using:SourceGit.Models"
              xmlns:v="using:SourceGit.Views"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-             x:Class="SourceGit.Views.DealWithLocalChangesMethod"
-             x:Name="ThisControl">
+             x:Class="SourceGit.Views.DealWithLocalChangesMethod">
   <UserControl.Styles>
     <Style Selector="v|DealWithLocalChangesMethod">
-      <Setter Property="FocusAdorner">
-        <FocusAdornerTemplate>
-          <Border/>
-        </FocusAdornerTemplate>
+      <Setter Property="Focusable" Value="True"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border CornerRadius="2">
+            <ContentPresenter Content="{TemplateBinding Content}"/>
+          </Border>
+        </ControlTemplate>
       </Setter>
-
-      <Style Selector="^:focus-visible RadioButton:checked">
-        <Style Selector="^ /template/ Ellipse#Border">
-          <Setter Property="Stroke" Value="{DynamicResource Brush.Accent}"/>
-          <Setter Property="Fill" Value="{DynamicResource Brush.Accent}"/>
-        </Style>
-        <Style Selector="^:checked /template/ Ellipse#Dot">
-          <Setter Property="Stroke" Value="White"/>
-          <Setter Property="Fill" Value="{DynamicResource Brush.Accent}"/>
-        </Style>
-      </Style>
+    </Style>
+    <Style Selector="v|DealWithLocalChangesMethod:focus /template/ Border">
+      <Setter Property="Background" Value="{DynamicResource Brush.AccentHovered}"/>
+    </Style>
+    <Style Selector="RadioButton:checked /template/ Ellipse#OuterEllipse">
+      <Setter Property="Fill" Value="{DynamicResource Brush.Accent}" />
+      <Setter Property="Stroke" Value="{DynamicResource Brush.Accent}" />
+    </Style>
+    <Style Selector="RadioButton:checked /template/ Ellipse#CheckGlyph">
+      <Setter Property="Fill" Value="White" />
     </Style>
   </UserControl.Styles>
-  
+
   <StackPanel Orientation="Vertical" Margin="0,4,0,2">
     <RadioButton Content="{DynamicResource Text.DealWithLocalChanges.DoNothing}"
                  Focusable="False"
@@ -43,12 +44,5 @@
                  IsChecked="False"
                  Click="OnRadioButtonClicked"
                  Tag="{Binding Source={x:Static m:DealWithLocalChanges.StashAndReapply}}"/>
-    <RadioButton Content="{DynamicResource Text.DealWithLocalChanges.Discard}"
-                 Focusable="False"
-                 x:Name="RadioDiscard"
-                 Height="24"
-                 IsChecked="False"
-                 Click="OnRadioButtonClicked"
-                 Tag="{Binding Source={x:Static m:DealWithLocalChanges.Discard}}"/>
   </StackPanel>
 </UserControl>

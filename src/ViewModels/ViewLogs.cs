@@ -87,7 +87,7 @@ namespace SourceGit.ViewModels
         }
     }
 
-    public class ViewLogs : ObservableObject
+    public partial class ViewLogs : ObservableObject
     {
         public AvaloniaList<CommandLog> Logs => _repo.Logs;
 
@@ -121,12 +121,15 @@ namespace SourceGit.ViewModels
                 {
                     OnPropertyChanged(nameof(IsOperationsTabActive));
                     OnPropertyChanged(nameof(IsRawLogsTabActive));
+                    OnPropertyChanged(nameof(IsDiscardBackupsTabActive));
+                    OnSelectedTabChanged(value);
                 }
             }
         }
 
         public bool IsOperationsTabActive => _selectedTabIndex == 0;
         public bool IsRawLogsTabActive => _selectedTabIndex == 1;
+        public bool IsDiscardBackupsTabActive => _selectedTabIndex == 2;
 
         public string RepoStateSummary
         {
@@ -210,21 +213,28 @@ namespace SourceGit.ViewModels
             Repository repo,
             bool focusRecoveryTab = false,
             Models.OperationJournalStore journalStore = null,
-            DateTime? utcNowOverride = null)
+            DateTime? utcNowOverride = null,
+            bool focusDiscardBackupsTab = false,
+            Models.DiscardBackupStore discardBackupStore = null)
         {
             _repo = repo ?? throw new ArgumentNullException(nameof(repo));
             _journalStore = journalStore ?? Models.OperationJournalStore.Instance;
             _utcNowOverride = utcNowOverride;
+            _discardBackupStore = discardBackupStore;
 
-            if (focusRecoveryTab || repo.HasPendingRecoveryOperations || repo.Logs.Count == 0)
+            if (focusDiscardBackupsTab)
+                _selectedTabIndex = 2;
+            else if (focusRecoveryTab || repo.HasPendingRecoveryOperations || repo.Logs.Count == 0)
                 _selectedTabIndex = 0;
             else
                 _selectedTabIndex = 1;
         }
 
+        partial void OnSelectedTabChanged(int index);
+
         public void SelectTab(int index)
         {
-            SelectedTabIndex = index == 1 ? 1 : 0;
+            SelectedTabIndex = Math.Clamp(index, 0, 2);
         }
 
         public void ClearAll()

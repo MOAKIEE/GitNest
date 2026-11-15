@@ -2,119 +2,44 @@
 
 namespace SourceGit.ViewModels
 {
-    public class CheckoutDetached : Popup
+    public class CheckoutDetached : BranchSwitchPopup
     {
         public object Target
         {
             get;
         }
 
-        public bool HasLocalChanges
-        {
-            get => _repo.LocalChangesCount > 0;
-        }
-
-        public Models.DealWithLocalChanges DealWithLocalChanges
-        {
-            get;
-            set;
-        }
-
         public CheckoutDetached(Repository repo, Models.Commit commit)
+            : base(repo)
         {
-            _repo = repo;
             _revision = commit.SHA;
-
             Target = commit;
-            DealWithLocalChanges = Preferences.Instance.UseStashAndReapplyByDefault ?
-                Models.DealWithLocalChanges.StashAndReapply :
-                Models.DealWithLocalChanges.DoNothing;
         }
 
         public CheckoutDetached(Repository repo, Models.Tag tag)
+            : base(repo)
         {
-            _repo = repo;
             _revision = tag.SHA;
-
             Target = tag;
-            DealWithLocalChanges = Preferences.Instance.UseStashAndReapplyByDefault ?
-                Models.DealWithLocalChanges.StashAndReapply :
-                Models.DealWithLocalChanges.DoNothing;
         }
 
         public override async Task<bool> Sure()
         {
-            using var lockWatcher = _repo.LockWatcher();
-            ProgressDescription = $"Checkout Commit '{_revision}' ...";
+            if (HasResultView)
+                return false;
 
-            var log = _repo.CreateLog("Checkout Commit");
-            Use(log);
-
-            if (_repo.CurrentBranch is { IsDetachedHead: true })
-            {
-                var refs = await new Commands.QueryRefsContainsCommit(_repo.FullPath, _repo.CurrentBranch.Head).GetResultAsync();
-                if (refs.Count == 0)
+            return await ExecuteSafeSwitchAsync(
+                "Checkout Commit",
+                $"Checkout Commit '{_revision}' ...",
+                _revision,
+                ["checkout", "--detach", _revision],
+                () =>
                 {
-                    var msg = App.Text("Checkout.WarnLostCommits");
-                    var shouldContinue = await App.AskConfirmAsync(msg);
-                    if (!shouldContinue)
-                        return true;
-                }
-            }
-
-            var succ = false;
-            var needPop = false;
-
-            if (DealWithLocalChanges == Models.DealWithLocalChanges.DoNothing)
-            {
-                succ = await new Commands.Checkout(_repo.FullPath)
-                    .Use(log)
-                    .CommitAsync(_revision, false);
-            }
-            else if (DealWithLocalChanges == Models.DealWithLocalChanges.StashAndReapply)
-            {
-                var changes = await new Commands.CountLocalChanges(_repo.FullPath, false).GetResultAsync();
-                if (changes > 0)
-                {
-                    succ = await new Commands.Stash(_repo.FullPath)
-                        .Use(log)
-                        .PushAsync("CHECKOUT_AUTO_STASH", false);
-                    if (!succ)
-                    {
-                        log.Complete();
-                        _repo.MarkWorkingCopyDirtyManually();
-                        return false;
-                    }
-
-                    needPop = true;
-                }
-
-                succ = await new Commands.Checkout(_repo.FullPath)
-                    .Use(log)
-                    .CommitAsync(_revision, false);
-            }
-            else
-            {
-                succ = await new Commands.Checkout(_repo.FullPath)
-                    .Use(log)
-                    .CommitAsync(_revision, true);
-            }
-
-            if (succ)
-            {
-                await _repo.AutoUpdateSubmodulesAsync(log);
-
-                if (needPop)
-                    await new Commands.Stash(_repo.FullPath)
-                        .Use(log)
-                        .PopAsync("stash@{0}");
-            }
-
-            log.Complete();
-            return succ;
+                    _repo.MarkBranchesDirtyManually();
+                    return Task.CompletedTask;
+                }).ConfigureAwait(false);
         }
 
-        private readonly Repository _repo = null;
         private readonly string _revision = string.Empty;
     }
 }

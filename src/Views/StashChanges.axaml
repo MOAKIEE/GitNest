@@ -2,87 +2,148 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:m="using:SourceGit.Models"
              xmlns:vm="using:SourceGit.ViewModels"
-             xmlns:v="using:SourceGit.Views"
-             mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="450"
+             mc:Ignorable="d" d:DesignWidth="530" d:DesignHeight="360"
              x:Class="SourceGit.Views.StashChanges"
              x:DataType="vm:StashChanges">
-  <StackPanel Orientation="Vertical" Margin="8,0,0,0">
-    <StackPanel Orientation="Horizontal">
-      <Path Width="16" Height="16"
-            Data="{StaticResource Icons.Stashes.Add}"/>
-
-      <TextBlock FontSize="18"
-                 Margin="8,0,0,0"
-                 Classes="bold"
-                 Text="{DynamicResource Text.Stash.Title}"/>
+  <StackPanel Orientation="Vertical" Margin="8,0" Spacing="10">
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Path Width="16" Height="16" Data="{StaticResource Icons.Stashes.Add}"/>
+      <TextBlock FontSize="18" FontWeight="Bold" Classes="bold" Text="{DynamicResource Text.Stash.Title}"/>
     </StackPanel>
 
-    <Grid Margin="8,20,0,0" RowDefinitions="32,Auto,Auto,Auto,Auto" ColumnDefinitions="100,356">
-      <TextBlock Grid.Row="0" Grid.Column="0"
-                 HorizontalAlignment="Right"
-                 Margin="8,0"
-                 Text="{DynamicResource Text.Stash.Mode}"/>
-      <ComboBox Grid.Row="0" Grid.Column="1"
-                MinHeight="28"
-                Padding="8,0"
-                ItemsSource="{Binding Source={x:Static m:DealWithChangesAfterStashing.Supported}}"
-                SelectedIndex="{Binding ChangesAfterStashing, Mode=TwoWay}"
-                HorizontalAlignment="Stretch">
-        <ComboBox.ItemTemplate>
-          <DataTemplate DataType="m:DealWithChangesAfterStashing">
-            <Grid Height="20" ColumnDefinitions="Auto,*">
-              <TextBlock Grid.Column="0" Text="{Binding Label}"/>
-              <TextBlock Grid.Column="1" Text="{Binding Desc}" Margin="8,0" FontSize="11" Foreground="{DynamicResource Brush.FG2}"/>
-            </Grid>
-          </DataTemplate>
-        </ComboBox.ItemTemplate>
-      </ComboBox>
+    <!-- Main Form -->
+    <StackPanel Orientation="Vertical" Spacing="8" IsVisible="{Binding !HasResultView}">
+      <Grid RowDefinitions="32,Auto,Auto" ColumnDefinitions="130,*">
+        <TextBlock Grid.Row="0" Grid.Column="0"
+                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                   Margin="0,0,8,0"
+                   Text="{DynamicResource Text.Stash.Message}"/>
+        <TextBox Grid.Row="0" Grid.Column="1"
+                 Height="28"
+                 CornerRadius="3"
+                 Text="{Binding Message, Mode=TwoWay}"
+                 Watermark="{DynamicResource Text.Stash.Message.Placeholder}"/>
 
-      <TextBlock Grid.Row="1" Grid.Column="0"
-                 HorizontalAlignment="Right" VerticalAlignment="Top"
-                 Margin="0,8,8,0"
-                 Text="{DynamicResource Text.Stash.Message}"/>
-      <TextBox Grid.Row="1" Grid.Column="1"
-               Height="100"
-               Margin="0,4,0,0"
-               CornerRadius="3"
-               Text="{Binding Message, Mode=TwoWay}"
-               Watermark="{DynamicResource Text.Stash.Message.Placeholder}"
-               AcceptsReturn="True"
-               AcceptsTab="False"
-               VerticalContentAlignment="Top"
-               Padding="4"
-               Tag="{Binding Source={x:Static v:StealHotKey.Enter}}"/>
+        <TextBlock Grid.Row="1" Grid.Column="0"
+                   HorizontalAlignment="Right" VerticalAlignment="Top"
+                   Margin="0,10,8,0"
+                   Text="{DynamicResource Text.Stash.Mode}"/>
+        <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,6,0,0" Orientation="Vertical" Spacing="2">
+          <RadioButton GroupName="StashPlacement"
+                       Height="24"
+                       Content="{DynamicResource Text.Stash.Mode.Discard}"
+                       IsChecked="{Binding IsDiscardMode, Mode=TwoWay}"/>
+          <RadioButton GroupName="StashPlacement"
+                       Height="24"
+                       Content="{DynamicResource Text.Stash.Mode.KeepIndex}"
+                       IsChecked="{Binding IsKeepIndexMode, Mode=TwoWay}"/>
+          <RadioButton GroupName="StashPlacement"
+                       Height="24"
+                       Content="{DynamicResource Text.Stash.Mode.KeepAll}"
+                       IsChecked="{Binding IsKeepAllMode, Mode=TwoWay}"/>
+        </StackPanel>
 
-      <CheckBox Grid.Row="2" Grid.Column="1"
-                Height="32"
-                Content="{DynamicResource Text.Stash.OnlyStagedChanges}"
-                IsChecked="{Binding OnlyStaged, Mode=TwoWay}"
-                IsVisible="{Binding !HasSelectedFiles}"
-                ToolTip.Tip="--staged. If file is staged partically, the unstaged part of it will also be stashed."/>
+        <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,6,0,0" Orientation="Vertical" Spacing="2">
+          <CheckBox Content="{DynamicResource Text.Stash.IncludeUntracked}"
+                    IsChecked="{Binding IncludeUntracked, Mode=TwoWay}"
+                    IsEnabled="{Binding CanToggleIncludeUntracked}"/>
+          <CheckBox Content="{DynamicResource Text.Stash.OnlyStagedChanges}"
+                    IsChecked="{Binding OnlyStaged, Mode=TwoWay}"
+                    IsVisible="{Binding CanToggleOnlyStaged}"/>
+        </StackPanel>
+      </Grid>
 
-      <CheckBox Grid.Row="3" Grid.Column="1"
-                Height="32"
-                Content="{DynamicResource Text.Stash.IncludeUntracked}"
-                IsChecked="{Binding IncludeUntracked, Mode=TwoWay}"
-                ToolTip.Tip="--include-untracked">
-        <CheckBox.IsVisible>
-          <MultiBinding Converter="{x:Static BoolConverters.And}">
-            <Binding Path="HasSelectedFiles" Converter="{x:Static BoolConverters.Not}"/>
-            <Binding Path="OnlyStaged" Converter="{x:Static BoolConverters.Not}"/>
-          </MultiBinding>
-        </CheckBox.IsVisible>
-      </CheckBox>
+      <!-- Preflight Loading -->
+      <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsLoadingPreflight}">
+        <Path Width="13" Height="13" Data="{StaticResource Icons.Waiting}"/>
+        <TextBlock FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.Stash.LoadingPreflight}"/>
+      </StackPanel>
 
-      <TextBlock Grid.Row="4" Grid.Column="1"
-                 Classes="small"
-                 Margin="0,4,0,0"
-                 Text="{DynamicResource Text.Stash.TipForSelectedFiles}"
-                 TextWrapping="Wrap"
-                 Foreground="{DynamicResource Brush.FG2}"
-                 IsVisible="{Binding HasSelectedFiles}"/>
-    </Grid>
+      <!-- Blocking Error Notice -->
+      <Border Background="#1AE05252"
+              BorderBrush="#66E05252"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="10,8"
+              IsVisible="{Binding HasBlockingReason}">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Path Width="14" Height="14" Data="{StaticResource Icons.Error}" Fill="#E05252" VerticalAlignment="Top" Margin="0,2,0,0"/>
+          <TextBlock FontSize="12" Text="{Binding BlockingReason}" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Ignored Files Safe Notice -->
+      <Border Background="#18D97706"
+              BorderBrush="#66D97706"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="8,6"
+              IsVisible="{Binding HasIgnoredFiles}">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Path Width="13" Height="13" Data="{StaticResource Icons.Info}" Fill="#D97706" VerticalAlignment="Top" Margin="0,2,0,0"/>
+          <TextBlock FontSize="11.5" Text="{Binding IgnoredNotice}" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Candidate Files Preview -->
+      <Border Background="{DynamicResource Brush.Contents}"
+              BorderBrush="{DynamicResource Brush.Border1}"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="10,8"
+              IsVisible="{Binding HasCandidateFiles}">
+        <StackPanel Orientation="Vertical" Spacing="6">
+          <TextBlock FontSize="12" FontWeight="Bold" Text="{Binding PreflightSummary}"/>
+          <ScrollViewer MaxHeight="135" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding CandidateFiles}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="vm:StashCandidateRow">
+                  <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,2">
+                    <TextBlock Grid.Column="0"
+                               Margin="0,0,8,0"
+                               FontSize="12"
+                               FontFamily="{DynamicResource Fonts.Monospace}"
+                               Text="{Binding Path}"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Grid.Column="1"
+                               Margin="0,0,6,0"
+                               FontSize="11"
+                               Foreground="{DynamicResource Brush.FG2}"
+                               VerticalAlignment="Center"
+                               Text="{Binding StateLabel}"/>
+                    <Border Grid.Column="2"
+                            Padding="5,1"
+                            CornerRadius="3"
+                            VerticalAlignment="Center"
+                            Background="{DynamicResource Brush.Window}"
+                            BorderBrush="{DynamicResource Brush.Border2}"
+                            BorderThickness="1">
+                      <TextBlock FontSize="10.5" Text="{Binding IncludedLabel}"/>
+                    </Border>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <!-- Non-Auto-Closing Failure / Blocked Result Card -->
+    <Border Background="{DynamicResource Brush.Contents}"
+            BorderBrush="{DynamicResource Brush.Border1}"
+            BorderThickness="1"
+            CornerRadius="4"
+            Padding="12,10"
+            IsVisible="{Binding HasResultView}">
+      <StackPanel Orientation="Vertical" Spacing="6">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Path Width="16" Height="16" Data="{StaticResource Icons.Error}" Fill="#E05252"/>
+          <TextBlock FontSize="13.5" FontWeight="Bold" Text="{DynamicResource Text.Stash.Result.FailedTitle}"/>
+        </StackPanel>
+        <TextBlock FontSize="12" Text="{Binding ResultSummary}" TextWrapping="Wrap"/>
+      </StackPanel>
+    </Border>
   </StackPanel>
 </UserControl>

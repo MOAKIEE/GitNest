@@ -3,35 +3,49 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:SourceGit.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="450"
+             mc:Ignorable="d" d:DesignWidth="530" d:DesignHeight="220"
              x:Class="SourceGit.Views.DropStash"
              x:DataType="vm:DropStash">
-  <StackPanel Orientation="Vertical" Margin="8,0,0,0">
-    <StackPanel Orientation="Horizontal">
-      <Path Width="16" Height="16"
-            Data="{StaticResource Icons.Clear}"/>
-
-      <TextBlock FontSize="18"
-                 Margin="8,0,0,0"
-                 Classes="bold"
-                 Text="{DynamicResource Text.StashDropConfirm}"/>
+  <StackPanel Orientation="Vertical" Margin="8,0" Spacing="10">
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Path Width="16" Height="16" Data="{StaticResource Icons.Stashes}"/>
+      <TextBlock FontSize="18" FontWeight="Bold" Classes="bold" Text="{DynamicResource Text.StashDropConfirm}"/>
     </StackPanel>
 
-    <Grid Margin="0,16,8,0" Height="28" ColumnDefinitions="120,*">
-      <TextBlock Grid.Column="0"
-                 HorizontalAlignment="Right" VerticalAlignment="Center"
-                 Margin="0,0,8,0"
-                 Text="{DynamicResource Text.StashDropConfirm.Label}"/>
-      <Grid Grid.Column="1" ColumnDefinitions="Auto,Auto,*">
-        <Path Grid.Column="0"
-              Width="12" Height="12"
-              Margin="0,0,8,0"
-              HorizontalAlignment="Left" VerticalAlignment="Center"
-              Data="{StaticResource Icons.Stashes}"/>
+    <Border Background="{DynamicResource Brush.Contents}"
+            BorderBrush="{DynamicResource Brush.Border1}"
+            BorderThickness="1"
+            CornerRadius="4"
+            Padding="10,8">
+      <StackPanel Orientation="Vertical" Spacing="6">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <TextBlock FontFamily="{DynamicResource Fonts.Monospace}" FontWeight="Bold" Text="{Binding Stash.Name}"/>
+          <TextBlock FontFamily="{DynamicResource Fonts.Monospace}" Foreground="{DynamicResource Brush.FG2}" Text="{Binding StashShortSha}"/>
+          <Border Padding="5,1" CornerRadius="3" Background="{DynamicResource Brush.Window}" BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="1">
+            <TextBlock FontSize="11" Text="{Binding SourceBranchDisplay}"/>
+          </Border>
+        </StackPanel>
+        <TextBlock Text="{Binding Stash.DisplaySubject}" TextWrapping="Wrap"/>
+        <TextBlock FontSize="11.5"
+                   Foreground="{DynamicResource Brush.FG2}"
+                   Text="{DynamicResource Text.DropStash.Tip}"
+                   TextWrapping="Wrap"/>
+      </StackPanel>
+    </Border>
 
-        <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Stash.Name}" Foreground="DarkOrange"/>
-        <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Stash.Subject}" TextTrimming="CharacterEllipsis" Margin="4,0,0,0"/>
-      </Grid>
-    </Grid>
+    <Border Background="#1AE05252"
+            BorderBrush="#66E05252"
+            BorderThickness="1"
+            CornerRadius="4"
+            Padding="10,8"
+            IsVisible="{Binding HasResultView}">
+      <StackPanel Orientation="Vertical" Spacing="4">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Path Width="14" Height="14" Data="{StaticResource Icons.Error}" Fill="#E05252"/>
+          <TextBlock FontSize="12.5" FontWeight="Bold" Text="{DynamicResource Text.DropStash.FailedTitle}"/>
+        </StackPanel>
+        <TextBlock FontSize="12" Text="{Binding ResultSummary}" TextWrapping="Wrap"/>
+      </StackPanel>
+    </Border>
   </StackPanel>
 </UserControl>

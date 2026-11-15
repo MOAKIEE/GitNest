@@ -31,6 +31,14 @@ namespace SourceGit.Views
                 layout.WorkingCopyLeftWidth = new GridLength(leftWidth, GridUnitType.Pixel);
         }
 
+        private async void OnOpenDiscardBackups(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.WorkingCopy { Repository: { } repo })
+                await this.ShowDialogAsync(new ViewModels.ViewLogs(repo, focusDiscardBackupsTab: true));
+
+            e.Handled = true;
+        }
+
         private async void OnOpenAssumeUnchanged(object sender, RoutedEventArgs e)
         {
             var repoView = this.FindAncestorOfType<Repository>();
@@ -423,16 +431,38 @@ namespace SourceGit.Views
                         e.Handled = true;
                     };
 
+                    var isSingleUntracked = change.WorkTree == Models.ChangeState.Untracked;
                     var discard = new MenuItem();
-                    discard.Header = App.Text("FileCM.Discard");
-                    discard.Icon = this.CreateMenuIcon("Icons.Undo");
+                    discard.Header = isSingleUntracked
+                        ? App.Text("FileCM.MoveToRecycleBin")
+                        : App.Text("FileCM.DiscardToIndex");
+                    discard.Icon = this.CreateMenuIcon(isSingleUntracked ? "Icons.Clear" : "Icons.Undo");
                     discard.Tag = "Back/Delete";
                     discard.Click += (_, e) =>
                     {
                         var next = UnstagedChangesView.GetNextChangeWithoutSelection();
-                        vm.Discard(changes, next);
+                        vm.DiscardWithBaseline(
+                            changes,
+                            next,
+                            isSingleUntracked
+                                ? Models.DiscardBaselineKind.MoveUntrackedToRecycleBin
+                                : Models.DiscardBaselineKind.RestoreWorktreeToIndex);
                         e.Handled = true;
                     };
+
+                    MenuItem discardToHead = null;
+                    if (!isSingleUntracked)
+                    {
+                        discardToHead = new MenuItem();
+                        discardToHead.Header = App.Text("FileCM.DiscardToHead");
+                        discardToHead.Icon = this.CreateMenuIcon("Icons.Reset");
+                        discardToHead.Click += (_, e) =>
+                        {
+                            var next = UnstagedChangesView.GetNextChangeWithoutSelection();
+                            vm.DiscardWithBaseline(changes, next, Models.DiscardBaselineKind.RestoreToHead);
+                            e.Handled = true;
+                        };
+                    }
 
                     var stash = new MenuItem();
                     stash.Header = App.Text("FileCM.Stash");
@@ -487,7 +517,21 @@ namespace SourceGit.Views
 
                     menu.Items.Add(stage);
                     menu.Items.Add(discard);
+                    if (discardToHead != null)
+                        menu.Items.Add(discardToHead);
                     menu.Items.Add(stash);
+                    if (!selection.HasFolder && !isSingleUntracked)
+                    {
+                        var addTrackedToIgnore = new MenuItem();
+                        addTrackedToIgnore.Header = App.Text("WorkingCopy.AddToIgnoreRule");
+                        addTrackedToIgnore.Icon = this.CreateMenuIcon("Icons.GitIgnore");
+                        addTrackedToIgnore.Click += (_, e) =>
+                        {
+                            repo.ShowPopup(new ViewModels.AddToIgnore(repo, change.Path, isDirectory: false));
+                            e.Handled = true;
+                        };
+                        menu.Items.Add(addTrackedToIgnore);
+                    }
                     menu.Items.Add(patch);
                     menu.Items.Add(assumeUnchanged);
                     menu.Items.Add(new MenuItem() { Header = "-" });
@@ -789,9 +833,15 @@ namespace SourceGit.Views
                     e.Handled = true;
                 };
 
+                var anyTracked = changes.Exists(c => c.WorkTree != Models.ChangeState.Untracked);
+                var allUntracked = !anyTracked;
                 var discard = new MenuItem();
-                discard.Header = App.Text("FileCM.DiscardMulti", changes.Count);
-                discard.Icon = this.CreateMenuIcon("Icons.Undo");
+                discard.Header = allUntracked
+                    ? App.Text("FileCM.MoveToRecycleBinMulti", changes.Count)
+                    : anyTracked && changes.Exists(c => c.WorkTree == Models.ChangeState.Untracked)
+                        ? App.Text("FileCM.DiscardOrRecycleMulti", changes.Count)
+                        : App.Text("FileCM.DiscardToIndexMulti", changes.Count);
+                discard.Icon = this.CreateMenuIcon(allUntracked ? "Icons.Clear" : "Icons.Undo");
                 discard.Tag = "Back/Delete";
                 discard.Click += (_, e) =>
                 {
@@ -799,6 +849,20 @@ namespace SourceGit.Views
                     vm.Discard(changes, next);
                     e.Handled = true;
                 };
+
+                MenuItem discardToHead = null;
+                if (anyTracked)
+                {
+                    discardToHead = new MenuItem();
+                    discardToHead.Header = App.Text("FileCM.DiscardToHeadMulti", changes.Count);
+                    discardToHead.Icon = this.CreateMenuIcon("Icons.Reset");
+                    discardToHead.Click += (_, e) =>
+                    {
+                        var next = UnstagedChangesView.GetNextChangeWithoutSelection();
+                        vm.DiscardWithBaseline(changes, next, Models.DiscardBaselineKind.RestoreToHead);
+                        e.Handled = true;
+                    };
+                }
 
                 var stash = new MenuItem();
                 stash.Header = App.Text("FileCM.StashMulti", changes.Count);
@@ -841,6 +905,8 @@ namespace SourceGit.Views
 
                 menu.Items.Add(stage);
                 menu.Items.Add(discard);
+                if (discardToHead != null)
+                    menu.Items.Add(discardToHead);
                 menu.Items.Add(stash);
                 menu.Items.Add(patch);
 
@@ -1033,7 +1099,17 @@ namespace SourceGit.Views
                     e.Handled = true;
                 };
 
+                var discardToHead = new MenuItem();
+                discardToHead.Header = App.Text("FileCM.DiscardToHead");
+                discardToHead.Icon = this.CreateMenuIcon("Icons.Reset");
+                discardToHead.Click += (_, e) =>
+                {
+                    vm.DiscardWithBaseline(changes, null, Models.DiscardBaselineKind.RestoreToHead);
+                    e.Handled = true;
+                };
+
                 menu.Items.Add(unstage);
+                menu.Items.Add(discardToHead);
                 menu.Items.Add(stash);
                 menu.Items.Add(patch);
                 menu.Items.Add(new MenuItem() { Header = "-" });
@@ -1248,7 +1324,17 @@ namespace SourceGit.Views
                     e.Handled = true;
                 };
 
+                var discardToHead = new MenuItem();
+                discardToHead.Header = App.Text("FileCM.DiscardToHeadMulti", changes.Count);
+                discardToHead.Icon = this.CreateMenuIcon("Icons.Reset");
+                discardToHead.Click += (_, e) =>
+                {
+                    vm.DiscardWithBaseline(changes, null, Models.DiscardBaselineKind.RestoreToHead);
+                    e.Handled = true;
+                };
+
                 menu.Items.Add(unstage);
+                menu.Items.Add(discardToHead);
                 menu.Items.Add(stash);
                 menu.Items.Add(patch);
 

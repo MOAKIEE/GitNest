@@ -73,6 +73,12 @@
                   ToolTip.Tip="{DynamicResource Text.WorkingCopy.DiscardAll}">
             <Path Width="14" Height="14" Data="{StaticResource Icons.Undo}"/>
           </Button>
+          <Button Classes="icon_button"
+                  Width="24" Height="24"
+                  Click="OnOpenDiscardBackups"
+                  ToolTip.Tip="{DynamicResource Text.WorkingCopy.OpenDiscardBackups}">
+            <Path Width="14" Height="14" Data="{StaticResource Icons.Archive}"/>
+          </Button>
           
           <v:ChangeViewModeSwitcher Grid.Column="3"
                                     Width="26"

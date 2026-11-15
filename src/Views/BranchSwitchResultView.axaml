@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:SourceGit.ViewModels"
+             xmlns:c="using:SourceGit.Converters"
+             mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="160"
+             x:Class="SourceGit.Views.BranchSwitchResultView"
+             x:DataType="vm:BranchSwitchPopup">
+  <Border Background="{DynamicResource Brush.Contents}"
+          BorderBrush="{DynamicResource Brush.Border1}"
+          BorderThickness="1"
+          CornerRadius="4"
+          Padding="12,10">
+    <StackPanel Orientation="Vertical" Spacing="6">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Path Width="16" Height="16" Data="{StaticResource Icons.Info}" Fill="#D97706" IsVisible="{Binding IsResultConflictRetained}"/>
+        <Path Width="16" Height="16" Data="{StaticResource Icons.Error}" Fill="#E05252" IsVisible="{Binding !IsResultConflictRetained}"/>
+        <TextBlock FontSize="13.5" FontWeight="Bold" Text="{Binding ResultTitle}"/>
+      </StackPanel>
+
+      <TextBlock FontSize="12" Text="{Binding ResultSummary}" TextWrapping="Wrap"/>
+
+      <ScrollViewer MaxHeight="140"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto"
+                    IsVisible="{Binding ResultLines.Count, Converter={x:Static c:IntConverters.IsGreaterThanZero}}">
+        <ItemsControl ItemsSource="{Binding ResultLines}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="x:String">
+              <TextBlock FontSize="11.5"
+                         FontFamily="{DynamicResource Fonts.Monospace}"
+                         Text="{Binding}"
+                         Margin="0,1"
+                         TextWrapping="Wrap"/>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </StackPanel>
+  </Border>
+</UserControl>

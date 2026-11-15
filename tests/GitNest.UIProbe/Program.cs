@@ -74,6 +74,10 @@ internal static partial class Program
             {
                 RunMergeRevert();
             }
+            else if (args.Contains("--stash-discard-ignore"))
+            {
+                RunStashDiscardIgnore();
+            }
             else
             {
                 RunOverview();
@@ -361,5 +365,6 @@ internal static partial class Program
     static partial void RunBranchDelete();
     static partial void RunWorktreeDelete();
     static partial void RunMergeRevert();
+    static partial void RunStashDiscardIgnore();
 
 }

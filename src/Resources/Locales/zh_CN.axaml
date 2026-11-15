@@ -465,7 +465,7 @@
   <x:String x:Key="Text.Dashboard" xml:space="preserve">提交历史</x:String>
   <x:String x:Key="Text.DealWithLocalChanges.Discard" xml:space="preserve">丢弃更改</x:String>
   <x:String x:Key="Text.DealWithLocalChanges.DoNothing" xml:space="preserve">不做处理</x:String>
-  <x:String x:Key="Text.DealWithLocalChanges.StashAndReapply" xml:space="preserve">贮藏并自动恢复</x:String>
+  <x:String x:Key="Text.DealWithLocalChanges.StashAndReapply" xml:space="preserve">自动贮藏并在切换后恢复（含未跟踪文件；冲突时保留贮藏）</x:String>
   <x:String x:Key="Text.DeinitSubmodule" xml:space="preserve">取消初始化子模块</x:String>
   <x:String x:Key="Text.DeinitSubmodule.Force" xml:space="preserve">强制取消，即使包含本地变更</x:String>
   <x:String x:Key="Text.DeinitSubmodule.Path" xml:space="preserve">子模块 ：</x:String>
@@ -1475,4 +1475,130 @@
   <x:String x:Key="Text.OperationRecovery.Stage.PartialSuccess" xml:space="preserve">部分完成</x:String>
   <x:String x:Key="Text.OperationRecovery.Stage.Failed" xml:space="preserve">失败</x:String>
   <x:String x:Key="Text.OperationRecovery.Stage.Succeeded" xml:space="preserve">已完成</x:String>
+
+  <!-- Batch 3.5b: 丢弃基线 / 30 天恢复库 / 贮藏与切分支 / 忽略规则 -->
+  <x:String x:Key="Text.WorkingCopy.OpenDiscardBackups" xml:space="preserve">打开丢弃恢复库 (30 天)</x:String>
+  <x:String x:Key="Text.WorkingCopy.AddToIgnoreRule" xml:space="preserve">添加到忽略规则...</x:String>
+
+  <x:String x:Key="Text.FileCM.DiscardToIndex" xml:space="preserve">仅丢弃工作区修改（保留暂存）...</x:String>
+  <x:String x:Key="Text.FileCM.DiscardToIndexMulti" xml:space="preserve">对所选 {0} 项丢弃工作区修改（保留暂存）...</x:String>
+  <x:String x:Key="Text.FileCM.DiscardToHead" xml:space="preserve">彻底恢复到 HEAD（清除暂存与未暂存）...</x:String>
+  <x:String x:Key="Text.FileCM.DiscardToHeadMulti" xml:space="preserve">将所选 {0} 项恢复到 HEAD...</x:String>
+  <x:String x:Key="Text.FileCM.MoveToRecycleBin" xml:space="preserve">将未跟踪文件移入回收站...</x:String>
+  <x:String x:Key="Text.FileCM.MoveToRecycleBinMulti" xml:space="preserve">将 {0} 个未跟踪文件移入回收站...</x:String>
+  <x:String x:Key="Text.FileCM.DiscardOrRecycleMulti" xml:space="preserve">丢弃或回收所选 {0} 项更改...</x:String>
+
+  <x:String x:Key="Text.Discard.BaselineTitle" xml:space="preserve">恢复基线与作用范围</x:String>
+  <x:String x:Key="Text.Discard.Baseline.ToIndex" xml:space="preserve">仅回退工作区到暂存区（保留已暂存修改）</x:String>
+  <x:String x:Key="Text.Discard.Baseline.ToIndex.Desc" xml:space="preserve">仅丢弃工作区中的未暂存编辑，已暂存 (Staged) 内容原样保留，不影响 .gitignore 忽略文件。</x:String>
+  <x:String x:Key="Text.Discard.Baseline.ToHead" xml:space="preserve">同时回退工作区与暂存区到 HEAD</x:String>
+  <x:String x:Key="Text.Discard.Baseline.ToHead.Desc" xml:space="preserve">将受跟踪文件同时重置回最近一次提交 (HEAD)；新加入暂存区但未提交的文件会先备份后移入回收站。</x:String>
+  <x:String x:Key="Text.Discard.Baseline.Recycle" xml:space="preserve">将未跟踪文件移入系统回收站</x:String>
+  <x:String x:Key="Text.Discard.Baseline.Recycle.Desc" xml:space="preserve">仅将选中的未跟踪文件移入系统回收站并保存 30 天备份快照；.gitignore / exclude 忽略文件不受影响。</x:String>
+  <x:String x:Key="Text.Discard.BaselineLabel.ToIndex" xml:space="preserve">工作区 → 暂存区</x:String>
+  <x:String x:Key="Text.Discard.BaselineLabel.ToHead" xml:space="preserve">工作区 + 暂存区 → HEAD</x:String>
+  <x:String x:Key="Text.Discard.BaselineLabel.Recycle" xml:space="preserve">未跟踪文件 → 回收站</x:String>
+  <x:String x:Key="Text.Discard.Confirm.ToIndex" xml:space="preserve">恢复到暂存区</x:String>
+  <x:String x:Key="Text.Discard.Confirm.ToHead" xml:space="preserve">回退到 HEAD</x:String>
+  <x:String x:Key="Text.Discard.Confirm.Recycle" xml:space="preserve">移入回收站</x:String>
+  <x:String x:Key="Text.Discard.LoadingPreflight" xml:space="preserve">正在分析目标文件与恢复基线...</x:String>
+  <x:String x:Key="Text.Discard.OpenBackupLibrary" xml:space="preserve">丢弃恢复库</x:String>
+  <x:String x:Key="Text.Discard.BackupRetentionNotice" xml:space="preserve">执行丢弃或移入回收站前会自动创建本地备份并保留 30 天，可在“日志 → 丢弃恢复”中找回；子模块与忽略文件不会被改动。</x:String>
+  <x:String x:Key="Text.Discard.IgnoredSafeNote" xml:space="preserve">当前策略安全边界：不提供清理被忽略文件的选项，已有 .gitignore / exclude 文件保持不变。</x:String>
+  <x:String x:Key="Text.Discard.UnbornHeadBlock" xml:space="preserve">当前仓库尚无提交记录（Unborn HEAD），无法按 HEAD 基线重置。请选择“恢复到暂存区”或“移入回收站”。</x:String>
+  <x:String x:Key="Text.Discard.SkippedSubmodules" xml:space="preserve">已跳过子模块（需手动进入子模块处理）：{0}</x:String>
+  <x:String x:Key="Text.Discard.IndexAddedOnlyNotice" xml:space="preserve">其中 {0} 个新增已暂存文件在 HEAD 中尚不存在，执行后将先备份再从暂存区移除并移入回收站。</x:String>
+  <x:String x:Key="Text.Discard.TargetSummary.ToIndex" xml:space="preserve">将回退 {0} 个已跟踪文件在工作区的未暂存改动（保留暂存区）</x:String>
+  <x:String x:Key="Text.Discard.TargetSummary.ToHead" xml:space="preserve">将重置 {0} 个已跟踪文件到 HEAD，并将 {1} 个新增文件移入回收站</x:String>
+  <x:String x:Key="Text.Discard.TargetSummary.Recycle" xml:space="preserve">将 {0} 个未跟踪文件移入系统回收站（附带 30 天本地备份）</x:String>
+  <x:String x:Key="Text.Discard.Empty.ToIndex" xml:space="preserve">当前目标中没有需要回退到暂存区的未暂存修改。</x:String>
+  <x:String x:Key="Text.Discard.Empty.ToHead" xml:space="preserve">当前目标中没有可重置到 HEAD 的已跟踪修改。</x:String>
+  <x:String x:Key="Text.Discard.Empty.Untracked" xml:space="preserve">当前目标中没有可移入回收站的未跟踪文件。</x:String>
+  <x:String x:Key="Text.Discard.Empty.WorkingCopy" xml:space="preserve">当前选择范围内没有可处理的本地更改。</x:String>
+  <x:String x:Key="Text.Discard.Role.TrackedToIndex" xml:space="preserve">回退到暂存区</x:String>
+  <x:String x:Key="Text.Discard.Role.TrackedToHead" xml:space="preserve">重置到 HEAD</x:String>
+  <x:String x:Key="Text.Discard.Role.IndexAddedRecycle" xml:space="preserve">新增暂存 → 回收站</x:String>
+  <x:String x:Key="Text.Discard.Role.IndexAddedRecycle.Detail" xml:space="preserve">HEAD 中无此文件，备份后移入系统回收站</x:String>
+  <x:String x:Key="Text.Discard.Role.UntrackedRecycle" xml:space="preserve">未跟踪 → 回收站</x:String>
+  <x:String x:Key="Text.Discard.Role.UntrackedRecycle.Detail" xml:space="preserve">先备份 30 天快照，再移入系统回收站</x:String>
+  <x:String x:Key="Text.Discard.Role.SubmoduleSkipped" xml:space="preserve">子模块（跳过）</x:String>
+  <x:String x:Key="Text.Discard.Role.SubmoduleSkipped.Detail" xml:space="preserve">为保护嵌套工作区，子模块不自动丢弃</x:String>
+  <x:String x:Key="Text.Discard.Result.BackupId" xml:space="preserve">30 天恢复备份编号：</x:String>
+  <x:String x:Key="Text.Discard.Result.DoneWithWarningsTitle" xml:space="preserve">丢弃完成（附带提醒）</x:String>
+  <x:String x:Key="Text.Discard.Result.PartialTitle" xml:space="preserve">部分完成 — 个别文件未能处理</x:String>
+  <x:String x:Key="Text.Discard.Result.FailedTitle" xml:space="preserve">丢弃失败</x:String>
+
+  <x:String x:Key="Text.ViewLogs.TabDiscardBackups" xml:space="preserve">丢弃恢复 (30 天)</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.PruneExpired" xml:space="preserve">清理过期备份</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.Empty" xml:space="preserve">当前仓库暂无 30 天丢弃备份记录。</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.Restore" xml:space="preserve">从选中备份恢复</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.ConflictTitle" xml:space="preserve">检测到磁盘文件在备份后被再次修改</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.ConflictDesc" xml:space="preserve">当前工作区中的部分目标文件与备份时不一致；如确需用该历史快照覆盖现有内容，请先勾选下方确认项。</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.ConfirmOverwrite" xml:space="preserve">我已核对并确认允许覆盖备份后的后续修改</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.FilesTitle" xml:space="preserve">备份包含文件</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.SelectPrompt" xml:space="preserve">请在左侧选择一条丢弃备份，查看包含文件并执行恢复。</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.ModifiedBadge" xml:space="preserve">已有新修改</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.FileCount" xml:space="preserve">{0} 个文件</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.RestoredAt" xml:space="preserve">已于 {0} 恢复</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.Expired" xml:space="preserve">已超过 30 天</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.DaysLeft" xml:space="preserve">剩余 {0} 天</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.Summary" xml:space="preserve">共 {0} 条有效恢复备份（保留 30 天）</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.SummaryWithExpired" xml:space="preserve">共 {0} 条有效备份，另有 {1} 条已超过 30 天</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.Deleted" xml:space="preserve">已删除丢弃备份 {0}。</x:String>
+  <x:String x:Key="Text.ViewLogs.DiscardBackups.DeleteFailed" xml:space="preserve">未能删除丢弃备份 {0}。</x:String>
+
+  <x:String x:Key="Text.Stash.LoadingPreflight" xml:space="preserve">正在预览待暂存文件范围...</x:String>
+  <x:String x:Key="Text.Stash.Mode.Discard" xml:space="preserve">贮藏后清空工作区对应更改（标准模式）</x:String>
+  <x:String x:Key="Text.Stash.Mode.KeepIndex" xml:space="preserve">贮藏后在暂存区保留已暂存修改 (Keep Index)</x:String>
+  <x:String x:Key="Text.Stash.Mode.KeepAll" xml:space="preserve">贮藏快照但保留工作区全部修改 (Keep All)</x:String>
+  <x:String x:Key="Text.Stash.Meta.ExternalOrNoBranch" xml:space="preserve">游离 HEAD 或无当前分支</x:String>
+  <x:String x:Key="Text.Stash.Preview.Summary" xml:space="preserve">预计收入 {0} 个文件到贮藏（含 {1} 个未跟踪文件）</x:String>
+  <x:String x:Key="Text.Stash.Preview.IgnoredNotice" xml:space="preserve">另有 {0} 个忽略文件（如 {1}）不会被纳入或清理。</x:String>
+  <x:String x:Key="Text.Stash.Preview.IgnoredNoticeNoSample" xml:space="preserve">另有 {0} 个忽略文件不会被纳入或清理。</x:String>
+  <x:String x:Key="Text.Stash.Preview.Included" xml:space="preserve">收入</x:String>
+  <x:String x:Key="Text.Stash.Preview.Skipped" xml:space="preserve">保留在磁盘</x:String>
+  <x:String x:Key="Text.Stash.Preview.State.Both" xml:space="preserve">已暂存 + 未暂存</x:String>
+  <x:String x:Key="Text.Stash.Preview.State.Staged" xml:space="preserve">已暂存</x:String>
+  <x:String x:Key="Text.Stash.Preview.State.Unstaged" xml:space="preserve">未暂存</x:String>
+  <x:String x:Key="Text.Stash.Preview.State.Untracked" xml:space="preserve">未跟踪</x:String>
+  <x:String x:Key="Text.Stash.Push.FailedFallback" xml:space="preserve">创建贮藏失败。</x:String>
+  <x:String x:Key="Text.Stash.Result.FailedTitle" xml:space="preserve">贮藏未能完成</x:String>
+
+  <x:String x:Key="Text.ApplyStash.Confirm" xml:space="preserve">应用贮藏</x:String>
+  <x:String x:Key="Text.ApplyStash.Subject" xml:space="preserve">贮藏说明 ：</x:String>
+  <x:String x:Key="Text.ApplyStash.AllowDirtyWorkingTree" xml:space="preserve">工作区已有本地改动时仍强制尝试应用</x:String>
+  <x:String x:Key="Text.ApplyStash.LoadingPreflight" xml:space="preserve">正在预检贮藏内容与当前工作区冲突...</x:String>
+  <x:String x:Key="Text.ApplyStash.BlockedTitle" xml:space="preserve">当前工作区存在未提交改动</x:String>
+  <x:String x:Key="Text.ApplyStash.CollidingTitle" xml:space="preserve">可能冲突的未跟踪或忽略文件</x:String>
+  <x:String x:Key="Text.ApplyStash.EstimatedFiles" xml:space="preserve">该贮藏共涉及约 {0} 个文件：</x:String>
+  <x:String x:Key="Text.ApplyStash.Result.ConflictRetainedTitle" xml:space="preserve">应用时发生冲突 — 原贮藏已自动保留</x:String>
+  <x:String x:Key="Text.ApplyStash.Result.DropFailedTitle" xml:space="preserve">更改已应用 — 自动删除贮藏失败</x:String>
+  <x:String x:Key="Text.ApplyStash.Result.FailedTitle" xml:space="preserve">应用贮藏失败</x:String>
+
+  <x:String x:Key="Text.DropStash.Confirm" xml:space="preserve">删除贮藏</x:String>
+  <x:String x:Key="Text.DropStash.Tip" xml:space="preserve">将按精确 SHA 引用执行删除，避免列表变动后误删其他贮藏。</x:String>
+  <x:String x:Key="Text.DropStash.FailedTitle" xml:space="preserve">删除贮藏失败</x:String>
+  <x:String x:Key="Text.DropStash.FailedFallback" xml:space="preserve">未能删除所选贮藏。</x:String>
+
+  <x:String x:Key="Text.CheckoutBranchFromStash.Confirm" xml:space="preserve">创建并检出分支</x:String>
+  <x:String x:Key="Text.CheckoutBranchFromStash.FailedTitle" xml:space="preserve">从贮藏检出分支失败</x:String>
+  <x:String x:Key="Text.CheckoutBranchFromStash.FailedFallback" xml:space="preserve">未能从所选贮藏创建并检出分支。</x:String>
+
+  <x:String x:Key="Text.Checkout.Result.StashRetainedTitle" xml:space="preserve">已切换分支，但自动恢复改动冲突 — 贮藏已保留</x:String>
+  <x:String x:Key="Text.Checkout.Result.FailedTitle" xml:space="preserve">切换分支未能成功</x:String>
+  <x:String x:Key="Text.Checkout.Result.RetainedStashSha" xml:space="preserve">保留贮藏校验和：{0}（可在侧边栏 Stashes 中查看并在解决冲突后清理）</x:String>
+
+  <x:String x:Key="Text.AddToIgnore.Confirm" xml:space="preserve">写入忽略规则</x:String>
+  <x:String x:Key="Text.AddToIgnore.Applying" xml:space="preserve">正在写入忽略规则...</x:String>
+  <x:String x:Key="Text.AddToIgnore.Preset" xml:space="preserve">规则粒度 ：</x:String>
+  <x:String x:Key="Text.AddToIgnore.Preset.Custom" xml:space="preserve">自定义规则...</x:String>
+  <x:String x:Key="Text.AddToIgnore.EffectiveRule" xml:space="preserve">实际写入 ：</x:String>
+  <x:String x:Key="Text.AddToIgnore.DuplicateNotice" xml:space="preserve">目标忽略文件中已存在完全相同的规则，不会重复写入。</x:String>
+  <x:String x:Key="Text.AddToIgnore.ScopeLocalHint" xml:space="preserve">仅写入本机 .git/info/exclude，不进入仓库版本历史，适合个人临时脚本或私有配置。</x:String>
+  <x:String x:Key="Text.AddToIgnore.ScopeRepoHint" xml:space="preserve">写入受版本控制的 .gitignore 文件，后续提交后将对团队其他克隆副本生效。</x:String>
+  <x:String x:Key="Text.AddToIgnore.MatchedUntrackedTitle" xml:space="preserve">命中的未跟踪文件（{0} 项）：</x:String>
+  <x:String x:Key="Text.AddToIgnore.MatchedTrackedTitle" xml:space="preserve">同时命中已跟踪文件（{0} 项）：</x:String>
+  <x:String x:Key="Text.AddToIgnore.TrackedWarning" xml:space="preserve">注意：已纳入 Git 跟踪的文件写入 .gitignore 后仍会被继续跟踪，不会自动停止同步，也不会自动执行 git rm --cached。</x:String>
+  <x:String x:Key="Text.AddToIgnore.ResultTitle" xml:space="preserve">忽略规则处理结果</x:String>
+  <x:String x:Key="Text.AddToIgnore.FailedFallback" xml:space="preserve">写入忽略规则失败。</x:String>
 </ResourceDictionary>

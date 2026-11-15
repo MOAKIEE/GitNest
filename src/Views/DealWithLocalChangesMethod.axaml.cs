@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 
@@ -10,27 +11,33 @@ namespace SourceGit.Views
         public static readonly DirectProperty<DealWithLocalChangesMethod, Models.DealWithLocalChanges> MethodProperty =
             AvaloniaProperty.RegisterDirect<DealWithLocalChangesMethod, Models.DealWithLocalChanges>(
                 nameof(Method),
-                static o => o.Method,
-                static (o, v) => o.Method = v);
+                o => o.Method,
+                (o, v) => o.Method = v,
+                defaultBindingMode: BindingMode.TwoWay);
 
         public Models.DealWithLocalChanges Method
         {
             get => _method;
-            set => SetAndRaise(MethodProperty, ref _method, value);
+            set
+            {
+                var safeValue = value == Models.DealWithLocalChanges.Discard
+                    ? Models.DealWithLocalChanges.DoNothing
+                    : value;
+
+                if (SetAndRaise(MethodProperty, ref _method, safeValue))
+                    UpdateUI();
+            }
         }
 
         public DealWithLocalChangesMethod()
         {
-            Focusable = true;
             InitializeComponent();
         }
 
-        protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+        protected override void OnLoaded(RoutedEventArgs e)
         {
-            base.OnPropertyChanged(change);
-
-            if (change.Property == MethodProperty)
-                UpdateRadioButtons();
+            base.OnLoaded(e);
+            UpdateUI();
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
@@ -41,16 +48,12 @@ namespace SourceGit.Views
             {
                 if (Method == Models.DealWithLocalChanges.StashAndReapply)
                     Method = Models.DealWithLocalChanges.DoNothing;
-                else if (Method == Models.DealWithLocalChanges.Discard)
-                    Method = Models.DealWithLocalChanges.StashAndReapply;
                 e.Handled = true;
             }
             else if (e.Key == Key.Down)
             {
                 if (Method == Models.DealWithLocalChanges.DoNothing)
                     Method = Models.DealWithLocalChanges.StashAndReapply;
-                else if (Method == Models.DealWithLocalChanges.StashAndReapply)
-                    Method = Models.DealWithLocalChanges.Discard;
                 e.Handled = true;
             }
         }
@@ -60,28 +63,22 @@ namespace SourceGit.Views
             if (sender is RadioButton { Tag: Models.DealWithLocalChanges way })
             {
                 Method = way;
-                e.Handled = true;
+                Focus();
             }
         }
 
-        private void UpdateRadioButtons()
+        private void UpdateUI()
         {
+            if (RadioDoNothing == null || RadioStashAndReapply == null)
+                return;
+
             switch (_method)
             {
                 case Models.DealWithLocalChanges.DoNothing:
                     RadioDoNothing.IsChecked = true;
-                    RadioStashAndReapply.IsChecked = false;
-                    RadioDiscard.IsChecked = false;
-                    break;
-                case Models.DealWithLocalChanges.StashAndReapply:
-                    RadioDoNothing.IsChecked = false;
-                    RadioStashAndReapply.IsChecked = true;
-                    RadioDiscard.IsChecked = false;
                     break;
                 default:
-                    RadioDoNothing.IsChecked = false;
-                    RadioStashAndReapply.IsChecked = false;
-                    RadioDiscard.IsChecked = true;
+                    RadioStashAndReapply.IsChecked = true;
                     break;
             }
         }

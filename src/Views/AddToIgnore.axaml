@@ -2,68 +2,183 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:m="using:SourceGit.Models"
              xmlns:vm="using:SourceGit.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             mc:Ignorable="d" d:DesignWidth="530" d:DesignHeight="380"
              x:Class="SourceGit.Views.AddToIgnore"
              x:DataType="vm:AddToIgnore">
-  <StackPanel Orientation="Vertical" Margin="8,0">
-    <StackPanel Orientation="Horizontal">
-      <Path Width="16" Height="16"
-            Data="{StaticResource Icons.GitIgnore}"/>
-
-      <TextBlock FontSize="18"
-                 Margin="8,0,0,0"
-                 Classes="bold"
-                 Text="{DynamicResource Text.AddToIgnore}"/>
+  <StackPanel Orientation="Vertical" Margin="8,0" Spacing="10">
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Path Width="16" Height="16" Data="{StaticResource Icons.GitIgnore}"/>
+      <TextBlock FontSize="18" FontWeight="Bold" Classes="bold" Text="{DynamicResource Text.AddToIgnore}"/>
     </StackPanel>
 
-    <Grid Margin="0,16,0,0" RowDefinitions="32,32" ColumnDefinitions="120,*">
-      <TextBlock Grid.Row="0" Grid.Column="0"
-                 HorizontalAlignment="Right" VerticalAlignment="Center"
-                 Margin="0,0,8,0"
-                 Text="{DynamicResource Text.AddToIgnore.Pattern}"/>
-      <TextBox Grid.Row="0" Grid.Column="1"
-               Height="28"
-               CornerRadius="3"
-               Text="{Binding Pattern, Mode=TwoWay}">
-        <TextBox.InnerLeftContent>
-          <Path Width="12" Height="12" Margin="6,0,2,0" Data="{StaticResource Icons.Pattern}" Fill="{DynamicResource Brush.FG2}"/>
-        </TextBox.InnerLeftContent>
-      </TextBox>
+    <!-- Main Form & Live Inspection -->
+    <StackPanel Orientation="Vertical" Spacing="8" IsVisible="{Binding !HasResultView}">
+      <Grid RowDefinitions="32,Auto,32" ColumnDefinitions="120,*">
+        <TextBlock Grid.Row="0" Grid.Column="0"
+                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                   Margin="0,0,8,0"
+                   Text="{DynamicResource Text.AddToIgnore.Storage}"/>
+        <ComboBox Grid.Row="0" Grid.Column="1"
+                  Height="28"
+                  HorizontalAlignment="Stretch"
+                  ItemsSource="{Binding SupportedTargets}"
+                  SelectedItem="{Binding SelectedTarget, Mode=TwoWay}"/>
 
-      <TextBlock Grid.Row="1" Grid.Column="0"
-                 HorizontalAlignment="Right" VerticalAlignment="Center"
-                 Margin="0,0,8,0"
-                 Text="{DynamicResource Text.AddToIgnore.Storage}"/>
-      <ComboBox Grid.Row="1" Grid.Column="1"
-                Height="28" Padding="4,0"
-                VerticalAlignment="Center" HorizontalAlignment="Stretch"
-                ItemsSource="{Binding StorageFiles, Mode=OneWay}"
-                SelectedItem="{Binding SelectedStorageFile, Mode=TwoWay}">
-        <ComboBox.ItemTemplate>
-          <DataTemplate DataType="m:GitIgnoreFile">
-            <StackPanel Orientation="Horizontal">
-              <Path Width="12" Height="12"
-                    Margin="4,0"
-                    Data="{StaticResource Icons.File}"
-                    Fill="{DynamicResource Brush.FG2}"/>
+        <TextBlock Grid.Row="1" Grid.Column="0"
+                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                   Margin="0,6,8,0"
+                   IsVisible="{Binding HasPresets}"
+                   Text="{DynamicResource Text.AddToIgnore.Preset}"/>
+        <ComboBox Grid.Row="1" Grid.Column="1"
+                  Height="28"
+                  Margin="0,6,0,0"
+                  HorizontalAlignment="Stretch"
+                  IsVisible="{Binding HasPresets}"
+                  ItemsSource="{Binding Presets}"
+                  SelectedItem="{Binding SelectedPreset, Mode=TwoWay}"/>
 
-              <TextBlock Text="{Binding DisplayName, Mode=OneWay}"
-                         VerticalAlignment="Center"/>
+        <TextBlock Grid.Row="2" Grid.Column="0"
+                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                   Margin="0,6,8,0"
+                   Text="{DynamicResource Text.AddToIgnore.Pattern}"/>
+        <TextBox Grid.Row="2" Grid.Column="1"
+                 Height="28"
+                 Margin="0,6,0,0"
+                 CornerRadius="3"
+                 FontFamily="{DynamicResource Fonts.Monospace}"
+                 Text="{Binding Pattern, Mode=TwoWay}"/>
+      </Grid>
 
-              <Border Height="16"
-                      Margin="8,0,0,0"
-                      CornerRadius="8"
-                      Background="Gray"
-                      HorizontalAlignment="Left" VerticalAlignment="Center"
-                      IsVisible="{Binding IsLocalOnly}">
-                <TextBlock Text="LOCAL ONLY" Margin="6,0" FontSize="10" Foreground="White"/>
-              </Border>
-            </StackPanel>
-          </DataTemplate>
-        </ComboBox.ItemTemplate>
-      </ComboBox>
-    </Grid>
+      <!-- Scope & Effective Rule Summary -->
+      <Border Background="{DynamicResource Brush.Contents}"
+              BorderBrush="{DynamicResource Brush.Border1}"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="10,8">
+        <StackPanel Orientation="Vertical" Spacing="4">
+          <Grid ColumnDefinitions="Auto,*">
+            <TextBlock Grid.Column="0"
+                       FontSize="11.5"
+                       Foreground="{DynamicResource Brush.FG2}"
+                       Margin="0,0,6,0"
+                       Text="{DynamicResource Text.AddToIgnore.EffectiveRule}"/>
+            <TextBlock Grid.Column="1"
+                       FontSize="12"
+                       FontWeight="Bold"
+                       FontFamily="{DynamicResource Fonts.Monospace}"
+                       Text="{Binding EffectivePattern}"
+                       TextTrimming="CharacterEllipsis"/>
+          </Grid>
+          <TextBlock FontSize="11.5"
+                     Foreground="{DynamicResource Brush.FG2}"
+                     Text="{Binding TargetScopeHint}"
+                     TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Validation Error -->
+      <Border Background="#1AE05252"
+              BorderBrush="#66E05252"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="10,8"
+              IsVisible="{Binding HasValidationError}">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Path Width="14" Height="14" Data="{StaticResource Icons.Error}" Fill="#E05252"/>
+          <TextBlock FontSize="12" Text="{Binding ValidationError}" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Duplicate Rule Notice -->
+      <Border Background="#18D97706"
+              BorderBrush="#66D97706"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="10,8"
+              IsVisible="{Binding AlreadyExists}">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Path Width="14" Height="14" Data="{StaticResource Icons.Info}" Fill="#D97706"/>
+          <TextBlock FontSize="12" Text="{DynamicResource Text.AddToIgnore.DuplicateNotice}" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Negation Conflicts / Warnings -->
+      <Border Background="#18D97706"
+              BorderBrush="#66D97706"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="10,8"
+              IsVisible="{Binding HasWarnings}">
+        <StackPanel Orientation="Vertical" Spacing="3">
+          <ItemsControl ItemsSource="{Binding Warnings}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="x:String">
+                <TextBlock FontSize="11.5" Text="{Binding}" TextWrapping="Wrap"/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <!-- Matched Tracked Files Explicit Warning (never untracks automatically) -->
+      <Border Background="#18D97706"
+              BorderBrush="#66D97706"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="10,8"
+              IsVisible="{Binding HasMatchedTracked}">
+        <StackPanel Orientation="Vertical" Spacing="4">
+          <TextBlock FontSize="12" FontWeight="Bold" Text="{Binding MatchedTrackedTitle}"/>
+          <TextBlock FontSize="11.5" Text="{DynamicResource Text.AddToIgnore.TrackedWarning}" TextWrapping="Wrap"/>
+          <ScrollViewer MaxHeight="80" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding MatchedTrackedPaths}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="x:String">
+                  <TextBlock FontSize="11.5" FontFamily="{DynamicResource Fonts.Monospace}" Text="{Binding}" TextTrimming="CharacterEllipsis"/>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </StackPanel>
+      </Border>
+
+      <!-- Matched Untracked Preview -->
+      <Border Background="{DynamicResource Brush.Contents}"
+              BorderBrush="{DynamicResource Brush.Border1}"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="10,8"
+              IsVisible="{Binding HasMatchedUntracked}">
+        <StackPanel Orientation="Vertical" Spacing="4">
+          <TextBlock FontSize="12" FontWeight="Bold" Text="{Binding MatchedUntrackedTitle}"/>
+          <ScrollViewer MaxHeight="95" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding MatchedUntrackedPaths}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="x:String">
+                  <TextBlock FontSize="11.5" FontFamily="{DynamicResource Fonts.Monospace}" Text="{Binding}" TextTrimming="CharacterEllipsis"/>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+
+    <!-- Non-Auto-Closing Result Card -->
+    <Border Background="{DynamicResource Brush.Contents}"
+            BorderBrush="{DynamicResource Brush.Border1}"
+            BorderThickness="1"
+            CornerRadius="4"
+            Padding="12,10"
+            IsVisible="{Binding HasResultView}">
+      <StackPanel Orientation="Vertical" Spacing="6">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Path Width="16" Height="16" Data="{StaticResource Icons.Info}"/>
+          <TextBlock FontSize="13.5" FontWeight="Bold" Text="{DynamicResource Text.AddToIgnore.ResultTitle}"/>
+        </StackPanel>
+        <TextBlock FontSize="12" Text="{Binding ResultSummary}" TextWrapping="Wrap"/>
+      </StackPanel>
+    </Border>
   </StackPanel>
 </UserControl>

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace SourceGit.ViewModels
 {
-    public class CreateBranch : Popup
+    public class CreateBranch : BranchSwitchPopup
     {
         [Required(ErrorMessage = "Branch name is required!")]
         [CustomValidation(typeof(CreateBranch), nameof(ValidateBranchName))]
@@ -17,17 +17,6 @@ namespace SourceGit.ViewModels
         public object BasedOn
         {
             get;
-        }
-
-        public bool HasLocalChanges
-        {
-            get => _repo.LocalChangesCount > 0;
-        }
-
-        public Models.DealWithLocalChanges DealWithLocalChanges
-        {
-            get;
-            set;
         }
 
         public bool CheckoutAfterCreated
@@ -66,8 +55,8 @@ namespace SourceGit.ViewModels
         }
 
         public CreateBranch(Repository repo, Models.Branch branch)
+            : base(repo)
         {
-            _repo = repo;
             _baseOnRevision = branch.Head;
             _committerDate = branch.CommitterDate;
             _head = branch.Head;
@@ -76,37 +65,28 @@ namespace SourceGit.ViewModels
                 Name = branch.Name;
 
             BasedOn = branch;
-            DealWithLocalChanges = Preferences.Instance.UseStashAndReapplyByDefault ?
-                Models.DealWithLocalChanges.StashAndReapply :
-                Models.DealWithLocalChanges.DoNothing;
             UpdateOverrideTip();
         }
 
         public CreateBranch(Repository repo, Models.Commit commit)
+            : base(repo)
         {
-            _repo = repo;
             _baseOnRevision = commit.SHA;
             _committerDate = commit.CommitterTime;
             _head = commit.SHA;
 
             BasedOn = commit;
-            DealWithLocalChanges = Preferences.Instance.UseStashAndReapplyByDefault ?
-                Models.DealWithLocalChanges.StashAndReapply :
-                Models.DealWithLocalChanges.DoNothing;
             UpdateOverrideTip();
         }
 
         public CreateBranch(Repository repo, Models.Tag tag)
+            : base(repo)
         {
-            _repo = repo;
             _baseOnRevision = tag.SHA;
             _committerDate = tag.CreatorDate;
             _head = tag.SHA;
 
             BasedOn = tag;
-            DealWithLocalChanges = Preferences.Instance.UseStashAndReapplyByDefault ?
-                Models.DealWithLocalChanges.StashAndReapply :
-                Models.DealWithLocalChanges.DoNothing;
             UpdateOverrideTip();
         }
 
@@ -134,25 +114,8 @@ namespace SourceGit.ViewModels
 
         public override async Task<bool> Sure()
         {
-            using var lockWatcher = _repo.LockWatcher();
-
-            var log = _repo.CreateLog($"Create Branch '{_name}'");
-            Use(log);
-
-            if (CheckoutAfterCreated)
-            {
-                if (_repo.CurrentBranch is { IsDetachedHead: true } && !_repo.CurrentBranch.Head.Equals(_baseOnRevision, StringComparison.Ordinal))
-                {
-                    var refs = await new Commands.QueryRefsContainsCommit(_repo.FullPath, _repo.CurrentBranch.Head).GetResultAsync();
-                    if (refs.Count == 0)
-                    {
-                        var msg = App.Text("Checkout.WarnLostCommits");
-                        var shouldContinue = await App.AskConfirmAsync(msg);
-                        if (!shouldContinue)
-                            return true;
-                    }
-                }
-            }
+            if (HasResultView)
+                return false;
 
             Models.Branch created = new()
             {
@@ -163,61 +126,47 @@ namespace SourceGit.ViewModels
                 IsLocal = true,
             };
 
-            bool succ;
             if (CheckoutAfterCreated && !_repo.IsBare)
             {
-                var needPopStash = false;
-                if (DealWithLocalChanges == Models.DealWithLocalChanges.DoNothing)
-                {
-                    succ = await new Commands.Checkout(_repo.FullPath)
-                        .Use(log)
-                        .BranchAsync(_name, _baseOnRevision, false, _allowOverwrite);
-                }
-                else if (DealWithLocalChanges == Models.DealWithLocalChanges.StashAndReapply)
-                {
-                    var changes = await new Commands.CountLocalChanges(_repo.FullPath, false).GetResultAsync();
-                    if (changes > 0)
+                var skipDetachedCheck = _repo.CurrentBranch is { IsDetachedHead: true } &&
+                    _repo.CurrentBranch.Head.Equals(_baseOnRevision, StringComparison.Ordinal);
+
+                return await ExecuteSafeSwitchAsync(
+                    $"Create Branch '{_name}'",
+                    $"Create branch '{_name}' ...",
+                    _name,
+                    ["checkout", _allowOverwrite ? "-B" : "-b", _name, _baseOnRevision],
+                    async () =>
                     {
-                        succ = await new Commands.Stash(_repo.FullPath)
-                            .Use(log)
-                            .PushAsync("CREATE_BRANCH_AUTO_STASH", false);
-                        if (!succ)
+                        if (BasedOn is Models.Branch { IsLocal: false } basedOn &&
+                            _name.Equals(basedOn.Name, StringComparison.Ordinal))
                         {
-                            log.Complete();
-                            _repo.MarkWorkingCopyDirtyManually();
-                            return false;
+                            var branchLog = _repo.CreateLog($"Set Upstream '{_name}'");
+                            await new Commands.Branch(_repo.FullPath, _name)
+                                .Use(branchLog)
+                                .SetUpstreamAsync(basedOn)
+                                .ConfigureAwait(false);
+                            branchLog.Complete();
+                            created.Upstream = basedOn.FullName;
+                        }
+                        else
+                        {
+                            created.Upstream = string.Empty;
                         }
 
-                        needPopStash = true;
-                    }
-
-                    succ = await new Commands.Checkout(_repo.FullPath)
-                        .Use(log)
-                        .BranchAsync(_name, _baseOnRevision, false, _allowOverwrite);
-                }
-                else
-                {
-                    succ = await new Commands.Checkout(_repo.FullPath)
-                        .Use(log)
-                        .BranchAsync(_name, _baseOnRevision, true, _allowOverwrite);
-                }
-
-                if (succ)
-                {
-                    await _repo.AutoUpdateSubmodulesAsync(log);
-
-                    if (needPopStash)
-                        await new Commands.Stash(_repo.FullPath)
-                            .Use(log)
-                            .PopAsync("stash@{0}");
-                }
+                        _repo.RefreshAfterCreateBranch(created, true);
+                    },
+                    skipDetachedHeadCheck: skipDetachedCheck).ConfigureAwait(false);
             }
-            else
-            {
-                succ = await new Commands.Branch(_repo.FullPath, _name)
-                    .Use(log)
-                    .CreateAsync(_baseOnRevision, _allowOverwrite);
-            }
+
+            using var lockWatcher = _repo.LockWatcher();
+
+            var log = _repo.CreateLog($"Create Branch '{_name}'");
+            Use(log);
+
+            var succ = await new Commands.Branch(_repo.FullPath, _name)
+                .Use(log)
+                .CreateAsync(_baseOnRevision, _allowOverwrite);
 
             if (succ)
             {
@@ -234,7 +183,7 @@ namespace SourceGit.ViewModels
                     created.Upstream = string.Empty;
                 }
 
-                _repo.RefreshAfterCreateBranch(created, CheckoutAfterCreated);
+                _repo.RefreshAfterCreateBranch(created, false);
             }
             else
             {
@@ -242,7 +191,7 @@ namespace SourceGit.ViewModels
             }
 
             log.Complete();
-            return true;
+            return succ;
         }
 
         private void UpdateOverrideTip()
@@ -250,7 +199,6 @@ namespace SourceGit.ViewModels
             OverrideTip = CheckoutAfterCreated ? "-B in `git checkout`" : "-f in `git branch`";
         }
 
-        private readonly Repository _repo = null;
         private readonly string _baseOnRevision = null;
         private readonly ulong _committerDate = 0;
         private readonly string _head = string.Empty;

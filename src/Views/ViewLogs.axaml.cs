@@ -23,6 +23,7 @@ namespace SourceGit.Views
                     vm.SelectedLog = vm.Logs[0];
 
                 await vm.RefreshOperationsAsync(runReconciliation: false);
+                await vm.RefreshDiscardBackupsAsync();
             }
         }
 
@@ -40,6 +41,51 @@ namespace SourceGit.Views
             if (DataContext is ViewModels.ViewLogs vm)
             {
                 vm.SelectTab(1);
+                e.Handled = true;
+            }
+        }
+
+        private void OnSelectDiscardBackupsTab(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                vm.SelectTab(2);
+                e.Handled = true;
+            }
+        }
+
+        private async void OnRefreshDiscardBackups(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                await vm.RefreshDiscardBackupsAsync();
+                e.Handled = true;
+            }
+        }
+
+        private async void OnPruneExpiredDiscardBackups(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                await vm.PruneExpiredDiscardBackupsAsync();
+                e.Handled = true;
+            }
+        }
+
+        private async void OnRestoreSelectedDiscardBackup(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                await vm.RestoreSelectedDiscardBackupAsync();
+                e.Handled = true;
+            }
+        }
+
+        private async void OnDeleteSelectedDiscardBackup(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.ViewLogs vm)
+            {
+                await vm.DeleteSelectedDiscardBackupAsync();
                 e.Handled = true;
             }
         }

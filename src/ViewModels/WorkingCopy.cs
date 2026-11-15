@@ -546,6 +546,12 @@ namespace SourceGit.ViewModels
                 _repo.ShowPopup(new Discard(_repo, changes, next));
         }
 
+        public void DiscardWithBaseline(List<Models.Change> changes, Models.Change next, Models.DiscardBaselineKind baseline)
+        {
+            if (_repo.CanCreatePopup())
+                _repo.ShowPopup(new Discard(_repo, changes, next, baseline));
+        }
+
         public void ClearFilter()
         {
             Filter = string.Empty;

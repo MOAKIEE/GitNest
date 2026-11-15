@@ -1,23 +1,45 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 
 namespace SourceGit.ViewModels
 {
     public class CheckoutBranchFromStash : Popup
     {
-        public Models.Stash Target
-        {
-            get;
-        }
+        public Models.Stash Target { get; }
 
-        [Required(ErrorMessage = "Branch name is required!")]
+        public string SourceBranchDisplay => string.IsNullOrEmpty(Target.SourceBranch)
+            ? App.Text("Stash.Meta.ExternalOrNoBranch")
+            : Target.SourceBranch;
+
+        [Required(ErrorMessage = "Branch name is required!!!")]
         [CustomValidation(typeof(CheckoutBranchFromStash), nameof(ValidateBranchName))]
         public string BranchName
         {
             get => _branchName;
             set => SetProperty(ref _branchName, value, true);
         }
+
+        public bool HasResultView
+        {
+            get => _hasResultView;
+            private set
+            {
+                if (SetProperty(ref _hasResultView, value))
+                    NotifyPopupButtonsChanged();
+            }
+        }
+
+        public string ResultSummary
+        {
+            get => _resultSummary;
+            private set => SetProperty(ref _resultSummary, value);
+        }
+
+        public override bool ShowConfirmButton => !HasResultView;
+        public override bool CanConfirm => !HasResultView;
+        public override string ConfirmButtonText => App.Text("CheckoutBranchFromStash.Confirm");
+        public override string CancelButtonText => HasResultView ? App.Text("Close") : App.Text("Cancel");
 
         public CheckoutBranchFromStash(Repository repo, Models.Stash stash)
         {
@@ -27,46 +49,66 @@ namespace SourceGit.ViewModels
 
         public static ValidationResult ValidateBranchName(string name, ValidationContext ctx)
         {
-            if (ctx.ObjectInstance is CheckoutBranchFromStash caller)
+            if (ctx.ObjectInstance is CheckoutBranchFromStash creator)
             {
-                if (!Models.RefName.IsValidBranchName(name))
-                    return new ValidationResult("Bad branch name format!");
-
-                foreach (var b in caller._repo.Branches)
+                foreach (var b in creator._repo.Branches)
                 {
-                    if (b.FriendlyName.Equals(name, StringComparison.Ordinal))
-                        return new ValidationResult("A branch with same name already exists!");
+                    if (b.FriendlyName == name)
+                        return new ValidationResult("A branch with same name already exists!!!");
                 }
-
-                return ValidationResult.Success;
             }
 
-            return new ValidationResult("Missing runtime context to create branch!");
+            return ValidationResult.Success;
         }
 
         public override async Task<bool> Sure()
         {
-            using var lockWatcher = _repo.LockWatcher();
-            ProgressDescription = "Checkout branch from stash...";
+            if (HasResultView)
+                return false;
 
-            var log = _repo.CreateLog($"Checkout Branch '{_branchName}'");
+            if (!Check())
+                return false;
+
+            using var lockWatcher = _repo.LockWatcher();
+            ProgressDescription = $"Create branch '{_branchName}' from stash ...";
+
+            var log = _repo.CreateLog("Checkout Branch from Stash");
             Use(log);
 
-            var succ = await new Commands.Stash(_repo.FullPath)
-                .Use(log)
-                .CheckoutBranchAsync(Target.Name, _branchName);
-
-            if (succ)
-            {
-                _repo.MarkWorkingCopyDirtyManually();
-                _repo.MarkStashesDirtyManually();
-            }
+            var res = await Commands.StashWorkflowService.CheckoutBranchFromStashAsync(
+                _repo.FullPath,
+                Target.Name,
+                _branchName,
+                Target.SHA,
+                journalStore: Models.OperationJournalStore.Instance,
+                outerLog: log).ConfigureAwait(false);
 
             log.Complete();
-            return true;
+
+            _repo.MarkBranchesDirtyManually();
+            _repo.MarkWorkingCopyDirtyManually();
+            _repo.RefreshStashes();
+            _ = _repo.RefreshRecoveryStatusAsync();
+
+            if (res.Succeeded)
+            {
+                Dispatcher.UIThread.Post(() => _repo.SendNotification(res.Summary, false));
+                return true;
+            }
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                ResultSummary = string.IsNullOrWhiteSpace(res.Summary)
+                    ? App.Text("CheckoutBranchFromStash.FailedFallback")
+                    : res.Summary;
+                HasResultView = true;
+            });
+            return false;
         }
 
         private readonly Repository _repo;
         private string _branchName = string.Empty;
+        private bool _hasResultView = false;
+        private string _resultSummary = string.Empty;
     }
 }

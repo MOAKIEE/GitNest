@@ -3,107 +3,241 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:SourceGit.ViewModels"
-             xmlns:c="using:SourceGit.Converters"
-             mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="450"
+             mc:Ignorable="d" d:DesignWidth="530" d:DesignHeight="360"
              x:Class="SourceGit.Views.Discard"
              x:DataType="vm:Discard">
-  <StackPanel Orientation="Vertical" Margin="8,0,0,0">
-    <StackPanel Orientation="Horizontal">
-      <Path Width="16" Height="16"
-            Data="{StaticResource Icons.Undo}"/>
+  <StackPanel Orientation="Vertical" Margin="8,0" Spacing="10">
+    <!-- Title Row -->
+    <Grid ColumnDefinitions="*,Auto">
+      <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
+        <Path Width="16" Height="16" Data="{StaticResource Icons.Undo}"/>
+        <TextBlock FontSize="18" FontWeight="Bold" Classes="bold" Text="{DynamicResource Text.Discard}"/>
+      </StackPanel>
 
-      <TextBlock FontSize="18"
-                 Margin="8,0,0,0"
-                 Classes="bold"
-                 Text="{DynamicResource Text.Discard}"/>
+      <Button Grid.Column="1"
+              Classes="flat"
+              Padding="8,3"
+              Click="OnOpenDiscardBackups"
+              ToolTip.Tip="{DynamicResource Text.WorkingCopy.OpenDiscardBackups}">
+        <StackPanel Orientation="Horizontal" Spacing="5">
+          <Path Width="12" Height="12" Data="{StaticResource Icons.Archive}"/>
+          <TextBlock FontSize="11.5" Text="{DynamicResource Text.Discard.OpenBackupLibrary}"/>
+        </StackPanel>
+      </Button>
+    </Grid>
+
+    <!-- Baseline Selection & Preflight -->
+    <StackPanel Orientation="Vertical"
+                Spacing="8"
+                IsVisible="{Binding !HasResultView}">
+      <!-- Baseline Selector -->
+      <Border Background="{DynamicResource Brush.Contents}"
+              BorderBrush="{DynamicResource Brush.Border1}"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="10,8">
+        <StackPanel Orientation="Vertical" Spacing="6">
+          <TextBlock FontSize="12" FontWeight="Bold" Text="{DynamicResource Text.Discard.BaselineTitle}"/>
+
+          <RadioButton GroupName="DiscardBaseline"
+                       Height="24"
+                       Content="{DynamicResource Text.Discard.Baseline.ToIndex}"
+                       IsChecked="{Binding IsBaselineWorktreeToIndex, Mode=TwoWay}"
+                       IsVisible="{Binding CanSelectWorktreeToIndex}"/>
+
+          <RadioButton GroupName="DiscardBaseline"
+                       Height="24"
+                       Content="{DynamicResource Text.Discard.Baseline.ToHead}"
+                       IsChecked="{Binding IsBaselineToHead, Mode=TwoWay}"
+                       IsVisible="{Binding CanSelectToHead}"/>
+
+          <RadioButton GroupName="DiscardBaseline"
+                       Height="24"
+                       Content="{DynamicResource Text.Discard.Baseline.Recycle}"
+                       IsChecked="{Binding IsBaselineRecycleUntracked, Mode=TwoWay}"
+                       IsVisible="{Binding CanSelectRecycleUntracked}"/>
+
+          <Border Background="{DynamicResource Brush.Window}"
+                  BorderBrush="{DynamicResource Brush.Border2}"
+                  BorderThickness="1"
+                  CornerRadius="4"
+                  Padding="8,6">
+            <TextBlock FontSize="11.5"
+                       Text="{Binding BaselineExplanation}"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource Brush.FG2}"/>
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <!-- Preflight Loading -->
+      <StackPanel Orientation="Horizontal"
+                  Spacing="6"
+                  IsVisible="{Binding IsLoadingPreflight}">
+        <Path Width="13" Height="13" Data="{StaticResource Icons.Waiting}"/>
+        <TextBlock FontSize="12" Text="{DynamicResource Text.Discard.LoadingPreflight}" Foreground="{DynamicResource Brush.FG2}"/>
+      </StackPanel>
+
+      <!-- Unborn HEAD Block -->
+      <Border Background="#1AE05252"
+              BorderBrush="#66E05252"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="10,8"
+              IsVisible="{Binding ShowUnbornHeadBlock}">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Path Width="14" Height="14" Data="{StaticResource Icons.Error}" Fill="#E05252" VerticalAlignment="Top" Margin="0,2,0,0"/>
+          <TextBlock FontSize="12" Text="{Binding UnbornHeadNotice}" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Load Error -->
+      <Border Background="#1AE05252"
+              BorderBrush="#66E05252"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="10,8"
+              IsVisible="{Binding HasLoadError}">
+        <TextBlock FontSize="12" Text="{Binding LoadErrorMessage}" TextWrapping="Wrap"/>
+      </Border>
+
+      <!-- Index-Added Only Warning -->
+      <Border Background="#18D97706"
+              BorderBrush="#66D97706"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="8,6"
+              IsVisible="{Binding HasIndexAddedOnlyTargets}">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Path Width="13" Height="13" Data="{StaticResource Icons.Info}" Fill="#D97706" VerticalAlignment="Top" Margin="0,2,0,0"/>
+          <TextBlock FontSize="11.5" Text="{Binding IndexAddedOnlyNotice}" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Skipped Submodules Notice -->
+      <Border Background="#18D97706"
+              BorderBrush="#66D97706"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="8,6"
+              IsVisible="{Binding HasSkippedSubmodules}">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Path Width="13" Height="13" Data="{StaticResource Icons.Submodule}" Fill="#D97706" VerticalAlignment="Top" Margin="0,2,0,0"/>
+          <TextBlock FontSize="11.5" Text="{Binding SkippedSubmodulesSummary}" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Empty Targets Notice -->
+      <Border Background="{DynamicResource Brush.Contents}"
+              BorderBrush="{DynamicResource Brush.Border1}"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="10,8"
+              IsVisible="{Binding HasNoTargetsForBaseline}">
+        <TextBlock FontSize="12"
+                   Text="{Binding NoTargetsNotice}"
+                   TextWrapping="Wrap"
+                   Foreground="{DynamicResource Brush.FG2}"/>
+      </Border>
+
+      <!-- Explicit Target List -->
+      <Border Background="{DynamicResource Brush.Contents}"
+              BorderBrush="{DynamicResource Brush.Border1}"
+              BorderThickness="1"
+              CornerRadius="4"
+              Padding="10,8"
+              IsVisible="{Binding !HasNoTargetsForBaseline}">
+        <StackPanel Orientation="Vertical" Spacing="6">
+          <TextBlock FontSize="12"
+                     FontWeight="Bold"
+                     Text="{Binding TargetCountSummary}"
+                     TextWrapping="Wrap"/>
+
+          <ScrollViewer MaxHeight="160" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding TargetRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="vm:DiscardTargetRow">
+                  <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                    <StackPanel Grid.Column="0" Orientation="Vertical" Spacing="1" Margin="0,0,8,0">
+                      <TextBlock FontSize="12"
+                                 FontFamily="{DynamicResource Fonts.Monospace}"
+                                 Text="{Binding Path}"
+                                 TextTrimming="CharacterEllipsis"/>
+                      <TextBlock FontSize="11"
+                                 Text="{Binding Detail}"
+                                 Foreground="{DynamicResource Brush.FG2}"/>
+                    </StackPanel>
+                    <Border Grid.Column="1"
+                            Padding="6,2"
+                            CornerRadius="3"
+                            VerticalAlignment="Center"
+                            Background="{DynamicResource Brush.Window}"
+                            BorderBrush="{DynamicResource Brush.Border2}"
+                            BorderThickness="1">
+                      <TextBlock FontSize="10.5" Text="{Binding RoleLabel}"/>
+                    </Border>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+
+          <StackPanel Orientation="Vertical" Spacing="2">
+            <TextBlock FontSize="11"
+                       Text="{DynamicResource Text.Discard.IgnoredSafeNote}"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource Brush.FG2}"/>
+            <TextBlock FontSize="11"
+                       Text="{DynamicResource Text.Discard.BackupRetentionNotice}"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource Brush.FG2}"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
     </StackPanel>
 
-    <ContentControl Margin="0,16,0,8" Content="{Binding Mode}">
-      <ContentControl.DataTemplates>
-        <DataTemplate DataType="vm:DiscardAllMode">
-          <Grid RowDefinitions="32,32,32,32,Auto" ColumnDefinitions="120,*">
-            <TextBlock Grid.Row="0" Grid.Column="0"
-                       Margin="0,0,8,0"
-                       HorizontalAlignment="Right"
-                       Text="{DynamicResource Text.Discard.Changes}"/>
-            <TextBlock Grid.Row="0" Grid.Column="1"
-                       Text="{DynamicResource Text.Discard.All}"/>
+    <!-- Non-Auto-Closing Result Card (Warnings / Submodule Skip / Recycle Failures) -->
+    <Border Background="{DynamicResource Brush.Contents}"
+            BorderBrush="{DynamicResource Brush.Border1}"
+            BorderThickness="1"
+            CornerRadius="4"
+            Padding="12,10"
+            IsVisible="{Binding HasResultView}">
+      <StackPanel Orientation="Vertical" Spacing="8">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Path Width="16" Height="16" Data="{StaticResource Icons.Info}" IsVisible="{Binding IsResultSuccess}"/>
+          <Path Width="16" Height="16" Data="{StaticResource Icons.Error}" Fill="#E05252" IsVisible="{Binding !IsResultSuccess}"/>
+          <TextBlock FontSize="13.5" FontWeight="Bold" Text="{Binding ResultTitle}"/>
+        </StackPanel>
 
-            <CheckBox Grid.Row="1" Grid.Column="1"
-                      Content="{DynamicResource Text.Discard.IncludeModified}"
-                      IsChecked="{Binding IncludeModified, Mode=TwoWay}"/>
+        <TextBlock FontSize="12" Text="{Binding ResultSummary}" TextWrapping="Wrap"/>
 
-            <CheckBox Grid.Row="2" Grid.Column="1"
-                      Content="{DynamicResource Text.Discard.IncludeUntracked}"
-                      IsChecked="{Binding IncludeUntracked, Mode=TwoWay}"/>
+        <Border Background="{DynamicResource Brush.Window}"
+                BorderBrush="{DynamicResource Brush.Border2}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="8,5"
+                IsVisible="{Binding HasResultBackupId}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock FontSize="11.5" Text="{DynamicResource Text.Discard.Result.BackupId}" Foreground="{DynamicResource Brush.FG2}"/>
+            <TextBlock FontSize="11.5" FontFamily="{DynamicResource Fonts.Monospace}" Text="{Binding ResultBackupId}"/>
+          </StackPanel>
+        </Border>
 
-            <CheckBox Grid.Row="3" Grid.Column="1"
-                      Content="{DynamicResource Text.Discard.IncludeIgnored}"
-                      IsChecked="{Binding IncludeIgnored, Mode=TwoWay}"/>
-
-            <Grid Grid.Row="4" Grid.Column="1" ColumnDefinitions="Auto,*" Margin="0,6,0,0">
-              <Path Grid.Column="0"
-                    Width="14" Height="14"
-                    Data="{StaticResource Icons.Error}"
-                    Fill="DarkOrange"/>
-              <TextBlock Grid.Column="1" Margin="8,0,0,0"
-                         Text="{DynamicResource Text.Discard.Warning}"
-                         TextWrapping="Wrap"
-                         Foreground="DarkOrange"/>
-            </Grid>
-          </Grid>
-        </DataTemplate>
-
-        <DataTemplate DataType="vm:DiscardSingleFile">
-          <Grid RowDefinitions="32,Auto" ColumnDefinitions="120,*">
-            <TextBlock Grid.Row="0" Grid.Column="0"
-                       Margin="0,0,8,0"
-                       HorizontalAlignment="Right"
-                       Text="{DynamicResource Text.Discard.Changes}"/>
-
-            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
-              <Path Width="12" Height="12" Data="{StaticResource Icons.File}"/>
-              <TextBlock Text="{Binding Path}" Margin="4,0,0,0"/>
-            </StackPanel>
-
-            <Grid Grid.Row="1" Grid.Column="1" ColumnDefinitions="Auto,*" Margin="0,6,0,0">
-              <Path Grid.Column="0"
-                    Width="14" Height="14"
-                    Data="{StaticResource Icons.Error}"
-                    Fill="DarkOrange"/>
-              <TextBlock Grid.Column="1" Margin="8,0,0,0"
-                         Text="{DynamicResource Text.Discard.Warning}"
-                         TextWrapping="Wrap"
-                         Foreground="DarkOrange"/>
-            </Grid>
-          </Grid>
-        </DataTemplate>
-
-        <DataTemplate DataType="vm:DiscardMultipleFiles">
-          <Grid RowDefinitions="32,Auto" ColumnDefinitions="120,*">
-            <TextBlock Grid.Row="0" Grid.Column="0"
-                       Margin="0,0,8,0"
-                       HorizontalAlignment="Right"
-                       Text="{DynamicResource Text.Discard.Changes}"/>
-            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
-              <Path Width="12" Height="12" Data="{StaticResource Icons.File}"/>
-              <TextBlock Text="{Binding Count, Converter={x:Static c:StringConverters.FormatByResourceKey}, ConverterParameter='Discard.Total'}"
-                         Margin="4,0,0,0"/>
-            </StackPanel>
-
-            <Grid Grid.Row="1" Grid.Column="1" ColumnDefinitions="Auto,*" Margin="0,6,0,0">
-              <Path Grid.Column="0"
-                    Width="14" Height="14"
-                    Data="{StaticResource Icons.Error}"
-                    Fill="DarkOrange"/>
-              <TextBlock Grid.Column="1" Margin="8,0,0,0"
-                         Text="{DynamicResource Text.Discard.Warning}"
-                         TextWrapping="Wrap"
-                         Foreground="DarkOrange"/>
-            </Grid>
-          </Grid>
-        </DataTemplate>
-      </ContentControl.DataTemplates>
-    </ContentControl>
+        <ScrollViewer MaxHeight="170" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{Binding ResultLines}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="x:String">
+                <TextBlock FontSize="11.5"
+                           FontFamily="{DynamicResource Fonts.Monospace}"
+                           Margin="0,2"
+                           Text="{Binding}"
+                           TextWrapping="Wrap"/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </StackPanel>
+    </Border>
   </StackPanel>
 </UserControl>

@@ -66,6 +66,13 @@
                     FontSize="12"
                     Content="{DynamicResource Text.ViewLogs.TabCommandLogs}"
                     Click="OnSelectRawLogsTab"/>
+            <Button Classes="flat"
+                    Classes.primary="{Binding IsDiscardBackupsTabActive, Mode=OneWay}"
+                    Height="26"
+                    Padding="12,0"
+                    FontSize="12"
+                    Content="{DynamicResource Text.ViewLogs.TabDiscardBackups}"
+                    Click="OnSelectDiscardBackupsTab"/>
           </StackPanel>
         </Border>
 
@@ -83,6 +90,19 @@
           <TextBlock FontSize="12"
                      Foreground="{DynamicResource Brush.FG2}"
                      Text="{Binding ActiveBackupsSummary, Mode=OneWay}"
+                     VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1"
+                    Orientation="Horizontal"
+                    Spacing="12"
+                    Margin="12,0"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding IsDiscardBackupsTabActive, Mode=OneWay}">
+          <TextBlock FontSize="12"
+                     Foreground="{DynamicResource Brush.FG1}"
+                     Text="{Binding DiscardBackupsSummary, Mode=OneWay}"
+                     TextTrimming="CharacterEllipsis"
                      VerticalAlignment="Center"/>
         </StackPanel>
 
@@ -105,6 +125,27 @@
                   Content="{DynamicResource Text.OperationRecovery.PreviewExpiredBackups}"
                   IsEnabled="{Binding !IsBusy, Mode=OneWay}"
                   Click="OnPreviewExpiredBackups"/>
+        </StackPanel>
+
+        <StackPanel Grid.Column="2"
+                    Orientation="Horizontal"
+                    Spacing="6"
+                    VerticalAlignment="Center"
+                    IsVisible="{Binding IsDiscardBackupsTabActive, Mode=OneWay}">
+          <Button Classes="flat"
+                  Height="28"
+                  Padding="10,0"
+                  FontSize="12"
+                  Content="{DynamicResource Text.Repository.RefreshStatus}"
+                  IsEnabled="{Binding !IsBusy, Mode=OneWay}"
+                  Click="OnRefreshDiscardBackups"/>
+          <Button Classes="flat"
+                  Height="28"
+                  Padding="10,0"
+                  FontSize="12"
+                  Content="{DynamicResource Text.ViewLogs.DiscardBackups.PruneExpired}"
+                  IsEnabled="{Binding CanPruneExpiredDiscardBackups, Mode=OneWay}"
+                  Click="OnPruneExpiredDiscardBackups"/>
         </StackPanel>
 
         <Button Grid.Column="2"
@@ -543,6 +584,240 @@
                                       HorizontalScrollBarVisibility="Auto"
                                       VerticalScrollBarVisibility="Auto"/>
       </Border>
+    </Grid>
+
+    <!-- Tab 2: 30-Day Discard Backups -->
+    <Grid Grid.Row="2"
+          Margin="8"
+          RowDefinitions="Auto,*"
+          IsVisible="{Binding IsDiscardBackupsTabActive, Mode=OneWay}">
+      <!-- Feedback Banner -->
+      <Border Grid.Row="0"
+              Margin="0,0,0,8"
+              Padding="10,8"
+              CornerRadius="4"
+              BorderThickness="1"
+              Background="{DynamicResource Brush.Window}"
+              BorderBrush="{DynamicResource Brush.Border1}"
+              IsVisible="{Binding HasFeedbackMessage, Mode=OneWay}">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <Path Grid.Column="0" Width="14" Height="14" Margin="0,0,8,0"
+                Data="{StaticResource Icons.Error}" Fill="#E05252"
+                IsVisible="{Binding IsFeedbackError, Mode=OneWay}"/>
+          <Path Grid.Column="0" Width="14" Height="14" Margin="0,0,8,0"
+                Data="{StaticResource Icons.Info}"
+                IsVisible="{Binding !IsFeedbackError, Mode=OneWay}"/>
+          <TextBlock Grid.Column="1" FontSize="12" Text="{Binding FeedbackMessage, Mode=OneWay}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+          <Button Grid.Column="2" Classes="icon_button" Width="22" Height="22" Margin="8,0,0,0" Click="OnDismissFeedback">
+            <Path Width="10" Height="10" Data="{StaticResource Icons.Window.Close}"/>
+          </Button>
+        </Grid>
+      </Border>
+
+      <!-- Master/Detail Backups View -->
+      <Grid Grid.Row="1" ColumnDefinitions="300,6,*">
+        <Border Grid.Column="0"
+                BorderBrush="{DynamicResource Brush.Border2}"
+                BorderThickness="1"
+                Background="{DynamicResource Brush.Contents}">
+          <Grid>
+            <ListBox ItemsSource="{Binding DiscardBackups}"
+                     SelectedItem="{Binding SelectedDiscardBackup, Mode=TwoWay}"
+                     SelectionMode="Single"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto">
+              <ListBox.Styles>
+                <Style Selector="ListBoxItem">
+                  <Setter Property="Margin" Value="0"/>
+                  <Setter Property="Padding" Value="8,6"/>
+                  <Setter Property="Height" Value="NaN"/>
+                </Style>
+              </ListBox.Styles>
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="vm:DiscardBackupItemViewModel">
+                  <StackPanel Orientation="Vertical" Spacing="3">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Grid.Column="0"
+                                 FontSize="12.5"
+                                 FontWeight="Bold"
+                                 Text="{Binding BaselineLabel}"
+                                 TextTrimming="CharacterEllipsis"/>
+                      <TextBlock Grid.Column="1"
+                                 FontSize="11"
+                                 FontFamily="{DynamicResource Fonts.Monospace}"
+                                 Foreground="{DynamicResource Brush.FG2}"
+                                 Text="{Binding TimeDisplay}"/>
+                    </Grid>
+                    <TextBlock FontSize="11.5"
+                               Text="{Binding Summary}"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource Brush.FG2}"/>
+                    <WrapPanel Orientation="Horizontal">
+                      <TextBlock Margin="0,2,6,0" FontSize="11" FontFamily="{DynamicResource Fonts.Monospace}" Foreground="{DynamicResource Brush.FG2}" VerticalAlignment="Center" Text="{Binding ShortId}"/>
+                      <TextBlock Margin="0,2,6,0" FontSize="11" Foreground="{DynamicResource Brush.FG2}" VerticalAlignment="Center" Text="{Binding FileCountText}"/>
+                      <Border Margin="0,2,6,0" Padding="5,1" CornerRadius="3" Background="{DynamicResource Brush.Window}" BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="1">
+                        <TextBlock FontSize="10.5" Text="{Binding ExpiryBadgeText}"/>
+                      </Border>
+                      <Border Margin="0,2,0,0" Padding="5,1" CornerRadius="3" Background="{DynamicResource Brush.Window}" BorderBrush="#662DA44E" BorderThickness="1" IsVisible="{Binding IsRestored}">
+                        <TextBlock FontSize="10.5" Foreground="#2DA44E" FontWeight="SemiBold" Text="{Binding RestoredDisplay}"/>
+                      </Border>
+                    </WrapPanel>
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+
+            <StackPanel HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="8"
+                        IsVisible="{Binding DiscardBackups.Count, Converter={x:Static c:IntConverters.IsZero}}">
+              <Path HorizontalAlignment="Center" Width="40" Height="40" Data="{StaticResource Icons.Archive}" Fill="{DynamicResource Brush.FG2}"/>
+              <TextBlock FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.ViewLogs.DiscardBackups.Empty}"/>
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <GridSplitter Grid.Column="1"
+                      MinWidth="1"
+                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                      Background="Transparent"
+                      BorderThickness="0"
+                      Focusable="False"/>
+
+        <Border Grid.Column="2"
+                BorderBrush="{DynamicResource Brush.Border2}"
+                BorderThickness="1"
+                Background="{DynamicResource Brush.Contents}"
+                Padding="12">
+          <Grid>
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          IsVisible="{Binding HasSelectedDiscardBackup, Mode=OneWay}">
+              <StackPanel Orientation="Vertical" Spacing="10">
+                <!-- Header Metadata -->
+                <Grid ColumnDefinitions="*,Auto,Auto">
+                  <StackPanel Grid.Column="0" Orientation="Vertical" Spacing="2">
+                    <TextBlock FontSize="14" FontWeight="Bold" Text="{Binding SelectedDiscardBaselineLabel, Mode=OneWay}"/>
+                    <TextBlock FontSize="11.5"
+                               Foreground="{DynamicResource Brush.FG2}"
+                               FontFamily="{DynamicResource Fonts.Monospace}"
+                               Text="{Binding SelectedDiscardMetaLine, Mode=OneWay}"
+                               TextTrimming="CharacterEllipsis"/>
+                  </StackPanel>
+
+                  <Button Grid.Column="1"
+                          Classes="flat"
+                          Height="28"
+                          Padding="10,0"
+                          Margin="8,0,0,0"
+                          FontSize="12"
+                          Content="{DynamicResource Text.ViewLogs.Delete}"
+                          IsEnabled="{Binding CanDeleteSelectedDiscardBackup, Mode=OneWay}"
+                          Click="OnDeleteSelectedDiscardBackup"/>
+
+                  <Button Grid.Column="2"
+                          Classes="flat primary"
+                          Height="28"
+                          Padding="12,0"
+                          Margin="8,0,0,0"
+                          FontSize="12"
+                          Content="{DynamicResource Text.ViewLogs.DiscardBackups.Restore}"
+                          IsEnabled="{Binding CanRestoreSelectedDiscardBackup, Mode=OneWay}"
+                          Click="OnRestoreSelectedDiscardBackup"/>
+                </Grid>
+
+                <!-- Preflight Blocking Error (Expired / Corrupt Payload) -->
+                <Border Background="#1AE05252"
+                        BorderBrush="#66E05252"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="10,8"
+                        IsVisible="{Binding HasSelectedDiscardBlockingError, Mode=OneWay}">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Path Width="14" Height="14" Data="{StaticResource Icons.Error}" Fill="#E05252" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                    <TextBlock FontSize="12" Text="{Binding SelectedDiscardBlockingReason, Mode=OneWay}" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Border>
+
+                <!-- Subsequent Modification Conflict Warning + Explicit Overwrite Opt-In -->
+                <Border Background="#18D97706"
+                        BorderBrush="#66D97706"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="10,8"
+                        IsVisible="{Binding HasSelectedDiscardConflicts, Mode=OneWay}">
+                  <StackPanel Orientation="Vertical" Spacing="6">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <Path Width="14" Height="14" Data="{StaticResource Icons.Info}" Fill="#D97706"/>
+                      <TextBlock FontSize="12" FontWeight="Bold" Text="{DynamicResource Text.ViewLogs.DiscardBackups.ConflictTitle}"/>
+                    </StackPanel>
+                    <TextBlock FontSize="11.5" Text="{DynamicResource Text.ViewLogs.DiscardBackups.ConflictDesc}" TextWrapping="Wrap"/>
+                    <ItemsControl ItemsSource="{Binding SelectedDiscardConflictDetails}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="x:String">
+                          <TextBlock FontSize="11.5" FontFamily="{DynamicResource Fonts.Monospace}" Text="{Binding}" TextWrapping="Wrap" Margin="0,1"/>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <CheckBox Content="{DynamicResource Text.ViewLogs.DiscardBackups.ConfirmOverwrite}"
+                              IsChecked="{Binding AllowOverwriteSubsequentEdits, Mode=TwoWay}"/>
+                  </StackPanel>
+                </Border>
+
+                <!-- Files List -->
+                <Border Background="{DynamicResource Brush.Window}"
+                        BorderBrush="{DynamicResource Brush.Border2}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="10,8">
+                  <StackPanel Orientation="Vertical" Spacing="6">
+                    <TextBlock FontSize="12" FontWeight="Bold" Text="{DynamicResource Text.ViewLogs.DiscardBackups.FilesTitle}"/>
+                    <ItemsControl ItemsSource="{Binding SelectedDiscardBackupFiles}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="vm:DiscardBackupFileRow">
+                          <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,3">
+                            <StackPanel Grid.Column="0" Orientation="Vertical" Spacing="1" Margin="0,0,8,0">
+                              <TextBlock FontSize="12" FontFamily="{DynamicResource Fonts.Monospace}" Text="{Binding RelativePath}" TextTrimming="CharacterEllipsis"/>
+                              <TextBlock FontSize="11" Foreground="{DynamicResource Brush.FG2}" Text="{Binding PayloadSummary}"/>
+                            </StackPanel>
+                            <Border Grid.Column="1"
+                                    Margin="0,0,6,0"
+                                    Padding="5,1"
+                                    CornerRadius="3"
+                                    VerticalAlignment="Center"
+                                    Background="#18D97706"
+                                    BorderBrush="#66D97706"
+                                    BorderThickness="1"
+                                    IsVisible="{Binding HasSubsequentModification}">
+                              <TextBlock FontSize="10.5" Text="{Binding ConflictBadge}"/>
+                            </Border>
+                            <Border Grid.Column="2"
+                                    Padding="6,2"
+                                    CornerRadius="3"
+                                    VerticalAlignment="Center"
+                                    Background="{DynamicResource Brush.Contents}"
+                                    BorderBrush="{DynamicResource Brush.Border2}"
+                                    BorderThickness="1">
+                              <TextBlock FontSize="10.5" Text="{Binding StateLabel}"/>
+                            </Border>
+                          </Grid>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </ScrollViewer>
+
+            <TextBlock HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       FontSize="12"
+                       Foreground="{DynamicResource Brush.FG2}"
+                       Text="{DynamicResource Text.ViewLogs.DiscardBackups.SelectPrompt}"
+                       IsVisible="{Binding !HasSelectedDiscardBackup, Mode=OneWay}"/>
+          </Grid>
+        </Border>
+      </Grid>
     </Grid>
   </Grid>
 </v:ChromelessWindow>
