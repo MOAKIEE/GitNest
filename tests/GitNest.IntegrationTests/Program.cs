@@ -34,6 +34,7 @@ internal static partial class Program
         "next-stage-1",
         "next-stage-2",
         "next-stage-3",
+        "next-stage-4",
     ];
 
     private static void AddRequestedSuites(string raw)
@@ -152,8 +153,14 @@ internal static partial class Program
         var originalGit = NativeOS.GitExecutable;
         var originalGitDir = Environment.GetEnvironmentVariable("GIT_DIR");
         var originalWorkTree = Environment.GetEnvironmentVariable("GIT_WORK_TREE");
+        var originalConfigDir = NativeOS.BasicDirectories.ConfigDir;
+        var originalCacheDir = NativeOS.BasicDirectories.CacheDir;
         var root = Path.Combine(Path.GetTempPath(), "GitNest-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
+        NativeOS.BasicDirectories.ConfigDir = Path.Combine(root, ".gitnest-config");
+        NativeOS.BasicDirectories.CacheDir = Path.Combine(root, ".gitnest-cache");
+        Directory.CreateDirectory(NativeOS.BasicDirectories.ConfigDir);
+        Directory.CreateDirectory(NativeOS.BasicDirectories.CacheDir);
         try
         {
             if (ShouldRunSuite("core"))
@@ -285,7 +292,8 @@ internal static partial class Program
             if (ShouldRunSuite("next-stage") ||
                 ShouldRunSuite("next-stage-1") ||
                 ShouldRunSuite("next-stage-2") ||
-                ShouldRunSuite("next-stage-3"))
+                ShouldRunSuite("next-stage-3") ||
+                ShouldRunSuite("next-stage-4"))
                 await RunNextStageTestsAsync(realGit, root);
         }
         finally
@@ -296,14 +304,27 @@ internal static partial class Program
             Environment.SetEnvironmentVariable("GIT_DIR", originalGitDir);
             Environment.SetEnvironmentVariable("GIT_WORK_TREE", originalWorkTree);
             NativeOS.GitExecutable = originalGit;
+            NativeOS.BasicDirectories.ConfigDir = originalConfigDir;
+            NativeOS.BasicDirectories.CacheDir = originalCacheDir;
             var resolvedRoot = Path.GetFullPath(root);
             var temporaryDirectory = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
             if (!resolvedRoot.StartsWith(temporaryDirectory, StringComparison.OrdinalIgnoreCase) ||
                 !Path.GetFileName(resolvedRoot).StartsWith("GitNest-tests-", StringComparison.Ordinal))
                 throw new InvalidOperationException("Unexpected test cleanup directory.");
-            foreach (var file in Directory.EnumerateFiles(resolvedRoot, "*", SearchOption.AllDirectories))
-                File.SetAttributes(file, FileAttributes.Normal);
-            Directory.Delete(resolvedRoot, true);
+            for (var attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    foreach (var file in Directory.EnumerateFiles(resolvedRoot, "*", SearchOption.AllDirectories))
+                        File.SetAttributes(file, FileAttributes.Normal);
+                    Directory.Delete(resolvedRoot, true);
+                    break;
+                }
+                catch (IOException) when (attempt < 15)
+                {
+                    await Task.Delay(200);
+                }
+            }
         }
     }
 

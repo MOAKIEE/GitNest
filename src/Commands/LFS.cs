@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Text;
-using System.Text.Json;
+﻿using System.Text;
 using System.Threading.Tasks;
 
 namespace SourceGit.Commands
@@ -46,67 +44,6 @@ namespace SourceGit.Commands
         {
             Args = $"lfs push {remote}";
             await ExecAsync().ConfigureAwait(false);
-        }
-
-        public async Task PruneAsync()
-        {
-            Args = "lfs prune";
-            await ExecAsync().ConfigureAwait(false);
-        }
-
-        public async Task<List<Models.LFSLock>> GetLocksAsync(string remote)
-        {
-            Args = $"lfs locks --json --remote={remote}";
-
-            var rs = await ReadToEndAsync().ConfigureAwait(false);
-            if (rs.IsSuccess)
-            {
-                try
-                {
-                    var locks = JsonSerializer.Deserialize(rs.StdOut, JsonCodeGen.Default.ListLFSLock);
-                    return locks;
-                }
-                catch
-                {
-                    // Ignore exceptions.
-                }
-            }
-
-            return [];
-        }
-
-        public async Task<bool> LockAsync(string remote, string file)
-        {
-            Args = $"lfs lock --remote={remote} {file.Quoted()}";
-            return await ExecAsync().ConfigureAwait(false);
-        }
-
-        public async Task<bool> UnlockAsync(string remote, string file, bool force)
-        {
-            var builder = new StringBuilder();
-            builder
-                .Append("lfs unlock --remote=")
-                .Append(remote)
-                .Append(force ? " -f " : " ")
-                .Append(file.Quoted());
-
-            Args = builder.ToString();
-            return await ExecAsync().ConfigureAwait(false);
-        }
-
-        public async Task<bool> UnlockMultipleAsync(string remote, List<string> files, bool force)
-        {
-            var builder = new StringBuilder();
-            builder
-                .Append("lfs unlock --remote=")
-                .Append(remote)
-                .Append(force ? " -f" : " ");
-
-            foreach (string file in files)
-                builder.Append(' ').Append(file.Quoted());
-
-            Args = builder.ToString();
-            return await ExecAsync().ConfigureAwait(false);
         }
     }
 }

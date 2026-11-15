@@ -7,7 +7,7 @@ namespace SourceGit.ViewModels
         public string BranchName => _branch.Name;
 
         public Checkout(Repository repo, Models.Branch branch)
-            : base(repo)
+            : base(repo, branch.FullName)
         {
             _branch = branch;
         }

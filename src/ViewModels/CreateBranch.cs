@@ -19,6 +19,8 @@ namespace SourceGit.ViewModels
             get;
         }
 
+        public override bool ShowSubmoduleUpdateOption => ShowSwitchForm && HasSubmodules && CheckoutAfterCreated;
+
         public bool CheckoutAfterCreated
         {
             get => _repo.UIStates.CheckoutBranchOnCreateBranch;
@@ -28,6 +30,7 @@ namespace SourceGit.ViewModels
                 {
                     _repo.UIStates.CheckoutBranchOnCreateBranch = value;
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(ShowSubmoduleUpdateOption));
                     UpdateOverrideTip();
                 }
             }
@@ -55,7 +58,7 @@ namespace SourceGit.ViewModels
         }
 
         public CreateBranch(Repository repo, Models.Branch branch)
-            : base(repo)
+            : base(repo, branch.Head)
         {
             _baseOnRevision = branch.Head;
             _committerDate = branch.CommitterDate;
@@ -69,7 +72,7 @@ namespace SourceGit.ViewModels
         }
 
         public CreateBranch(Repository repo, Models.Commit commit)
-            : base(repo)
+            : base(repo, commit.SHA)
         {
             _baseOnRevision = commit.SHA;
             _committerDate = commit.CommitterTime;
@@ -80,7 +83,7 @@ namespace SourceGit.ViewModels
         }
 
         public CreateBranch(Repository repo, Models.Tag tag)
-            : base(repo)
+            : base(repo, tag.SHA)
         {
             _baseOnRevision = tag.SHA;
             _committerDate = tag.CreatorDate;
@@ -116,6 +119,9 @@ namespace SourceGit.ViewModels
         {
             if (HasResultView)
                 return false;
+
+            if (IsAwaitingSubmoduleConfirm)
+                return await ExecutePendingSubmoduleUpdateAsync().ConfigureAwait(false);
 
             Models.Branch created = new()
             {

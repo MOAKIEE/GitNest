@@ -19,10 +19,10 @@
                  Text="{DynamicResource Text.Checkout.WithFastForward}"/>
     </StackPanel>
 
-    <Grid Margin="0,16,0,0"
-          RowDefinitions="32,32,Auto"
-          ColumnDefinitions="140,*"
-          IsVisible="{Binding !HasResultView, Mode=OneWay}">
+    <StackPanel Orientation="Vertical" IsVisible="{Binding ShowSwitchForm, Mode=OneWay}">
+      <Grid Margin="0,16,0,0"
+            RowDefinitions="32,32,Auto"
+            ColumnDefinitions="140,*">
       <TextBlock Grid.Row="0" Grid.Column="0"
                  HorizontalAlignment="Right" VerticalAlignment="Center"
                  Margin="0,0,8,0"
@@ -64,9 +64,12 @@
       <v:DealWithLocalChangesMethod Grid.Row="2" Grid.Column="1"
                                     Method="{Binding DealWithLocalChanges, Mode=TwoWay}"
                                     IsVisible="{Binding HasLocalChanges, Mode=OneWay}"/>
-    </Grid>
+      </Grid>
+
+      <v:BranchSwitchSubmoduleOptionsView LabelWidth="140"/>
+    </StackPanel>
 
     <v:BranchSwitchResultView Margin="0,16,0,0"
-                              IsVisible="{Binding HasResultView, Mode=OneWay}"/>
+                              IsVisible="{Binding ShowSecondaryPanel, Mode=OneWay}"/>
   </StackPanel>
 </UserControl>

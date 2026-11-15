@@ -10,14 +10,14 @@ namespace SourceGit.ViewModels
         }
 
         public CheckoutDetached(Repository repo, Models.Commit commit)
-            : base(repo)
+            : base(repo, commit.SHA)
         {
             _revision = commit.SHA;
             Target = commit;
         }
 
         public CheckoutDetached(Repository repo, Models.Tag tag)
-            : base(repo)
+            : base(repo, tag.SHA)
         {
             _revision = tag.SHA;
             Target = tag;

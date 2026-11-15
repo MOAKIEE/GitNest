@@ -14,6 +14,19 @@ namespace SourceGit.Commands
 
         public async Task<bool> UpdateAsync(List<string> modules, bool init, bool recursive, bool useRemote)
         {
+            Args = BuildUpdateArgs(modules, init, recursive, useRemote);
+            return await ExecAsync().ConfigureAwait(false);
+        }
+
+        public async Task<(bool Success, string ErrorMessage)> UpdateDetailedAsync(List<string> modules, bool init, bool recursive, bool useRemote)
+        {
+            Args = BuildUpdateArgs(modules, init, recursive, useRemote);
+            RaiseError = false;
+            return await ExecDetailedAsync().ConfigureAwait(false);
+        }
+
+        private static string BuildUpdateArgs(List<string> modules, bool init, bool recursive, bool useRemote)
+        {
             var builder = new StringBuilder();
             builder.Append("submodule update");
 
@@ -23,15 +36,14 @@ namespace SourceGit.Commands
                 builder.Append(" --recursive");
             if (useRemote)
                 builder.Append(" --remote");
-            if (modules.Count > 0)
+            if (modules is { Count: > 0 })
             {
                 builder.Append(" --");
                 foreach (var module in modules)
                     builder.Append(' ').Append(module.Quoted());
             }
 
-            Args = builder.ToString();
-            return await ExecAsync().ConfigureAwait(false);
+            return builder.ToString();
         }
     }
 }

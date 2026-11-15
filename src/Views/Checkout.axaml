@@ -22,7 +22,7 @@
     <Grid Margin="0,16,0,0"
           RowDefinitions="32,Auto"
           ColumnDefinitions="140,*"
-          IsVisible="{Binding !HasResultView, Mode=OneWay}">
+          IsVisible="{Binding ShowSwitchForm, Mode=OneWay}">
       <TextBlock Grid.Row="0" Grid.Column="0"
                  HorizontalAlignment="Right" VerticalAlignment="Center"
                  Margin="0,0,8,0"
@@ -45,7 +45,9 @@
                                     IsVisible="{Binding HasLocalChanges, Mode=OneWay}"/>
     </Grid>
 
+    <v:BranchSwitchSubmoduleOptionsView LabelWidth="120"/>
+
     <v:BranchSwitchResultView Margin="0,16,0,0"
-                              IsVisible="{Binding HasResultView, Mode=OneWay}"/>
+                              IsVisible="{Binding ShowSecondaryPanel, Mode=OneWay}"/>
   </StackPanel>
 </UserControl>

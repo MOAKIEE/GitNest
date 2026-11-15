@@ -20,9 +20,9 @@
                  Text="{DynamicResource Text.CreateBranch.Title}"/>
     </StackPanel>
 
-    <Grid Margin="0,16,0,0"
-          RowDefinitions="32,32,Auto,Auto,Auto"
-          IsVisible="{Binding !HasResultView, Mode=OneWay}">
+    <StackPanel Orientation="Vertical" IsVisible="{Binding ShowSwitchForm, Mode=OneWay}">
+      <Grid Margin="0,16,0,0"
+            RowDefinitions="32,32,Auto,Auto,Auto">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" MinWidth="140"/>
         <ColumnDefinition Width="*"/>
@@ -110,9 +110,12 @@
                 Content="{DynamicResource Text.CreateBranch.Checkout}"
                 IsChecked="{Binding CheckoutAfterCreated, Mode=TwoWay}"
                 IsVisible="{Binding !IsBareRepository}"/>
-    </Grid>
+      </Grid>
+
+      <v:BranchSwitchSubmoduleOptionsView LabelWidth="140"/>
+    </StackPanel>
 
     <v:BranchSwitchResultView Margin="0,16,0,0"
-                              IsVisible="{Binding HasResultView, Mode=OneWay}"/>
+                              IsVisible="{Binding ShowSecondaryPanel, Mode=OneWay}"/>
   </StackPanel>
 </UserControl>

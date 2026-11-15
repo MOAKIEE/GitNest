@@ -373,7 +373,7 @@ namespace SourceGit.ViewModels
             LastOutcome = outcome;
 
             if (outcome.LocalBranchReset)
-                await _repo.AutoUpdateSubmodulesAsync(log).ConfigureAwait(true);
+                _repo.MarkSubmodulesDirtyManually();
 
             log.Complete();
             await _repo.RefreshRecoveryStatusAsync(_journalStore).ConfigureAwait(true);

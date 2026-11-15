@@ -22,6 +22,8 @@ internal static partial class Program
             await RunBatch2TestsAsync(realGit, stageRoot, utf8NoBom);
         if (ShouldRunSuite("next-stage-3"))
             await RunBatch3TestsAsync(realGit, stageRoot, utf8NoBom);
+        if (ShouldRunSuite("next-stage-4"))
+            await RunBatch4TestsAsync(realGit, stageRoot, utf8NoBom);
     }
 
     private static async Task RunBatch1TestsAsync(string realGit, string stageRoot, UTF8Encoding utf8NoBom)
@@ -468,7 +470,6 @@ internal static partial class Program
         Check(loadedSettings.DefaultRemote == "upstream" &&
               loadedSettings.PreferredMergeMode == 1 &&
               loadedSettings.ConventionalTypesOverride == "feat,fix,docs" &&
-              !loadedSettings.EnableRecursiveWhenAutoUpdatingSubmodules &&
               loadedSettings.IsBranchProtectionDisabled("feat/legacy"),
               "Legacy gitnest.settings preserves all non-template settings on load");
         var bytesAfterReadOnlyLoad = await File.ReadAllBytesAsync(settingsPath);
@@ -481,14 +482,17 @@ internal static partial class Program
         using (var migratedDoc = System.Text.Json.JsonDocument.Parse(await File.ReadAllBytesAsync(settingsPath)))
         {
             var hasTemplatesProp = migratedDoc.RootElement.TryGetProperty("CommitTemplates", out _);
+            var hasAutoSubmoduleProp = migratedDoc.RootElement.TryGetProperty("AskBeforeAutoUpdatingSubmodules", out _) ||
+                                       migratedDoc.RootElement.TryGetProperty("EnableRecursiveWhenAutoUpdatingSubmodules", out _);
             var preservedRemote = migratedDoc.RootElement.GetProperty("DefaultRemote").GetString();
             var preservedMode = migratedDoc.RootElement.GetProperty("PreferredMergeMode").GetInt32();
             var preservedConv = migratedDoc.RootElement.GetProperty("ConventionalTypesOverride").GetString();
             Check(!hasTemplatesProp &&
+                  !hasAutoSubmoduleProp &&
                   preservedRemote == "upstream" &&
                   preservedMode == 1 &&
                   preservedConv == "feat,fix,docs",
-                  "Migrated gitnest.settings strips CommitTemplates while preserving other repository settings");
+                  "Migrated gitnest.settings strips legacy removed settings while preserving other repository settings");
         }
 
         var bakBytesAfterFirstSave = await File.ReadAllBytesAsync(backupPath);
@@ -549,6 +553,399 @@ internal static partial class Program
               templateFileBefore.SequenceEqual(templateFileAfter) &&
               templateCfgBefore == templateCfgAfter,
               "Normal commit + recent history reuse succeed while preserving Git commit.template config and file untouched");
+    }
+
+    private static async Task RunBatch4TestsAsync(string realGit, string stageRoot, UTF8Encoding utf8NoBom)
+    {
+        // Batch 4: Narrow LFS management & submodule opt-in checkout + legacy migration
+        var appAssembly = typeof(App).Assembly;
+        string[] removedLfsTypes =
+        [
+            "SourceGit.Models.LFSLock",
+            "SourceGit.ViewModels.LFSLocks",
+            "SourceGit.ViewModels.LFSPrune",
+            "SourceGit.Views.LFSLocks",
+            "SourceGit.Views.LFSPrune",
+        ];
+        foreach (var typeName in removedLfsTypes)
+            Check(appAssembly.GetType(typeName) == null, $"Trimmed LFS lock/prune type '{typeName}' is absent");
+
+        string[] retainedLfsTypes =
+        [
+            "SourceGit.Commands.LFS",
+            "SourceGit.Commands.IsLFSFiltered",
+            "SourceGit.Commands.Diff",
+            "SourceGit.Models.LFSDiff",
+            "SourceGit.Models.LFSObject",
+            "SourceGit.ViewModels.LFSFetch",
+            "SourceGit.ViewModels.LFSPull",
+            "SourceGit.ViewModels.LFSPush",
+            "SourceGit.ViewModels.LFSTrackCustomPattern",
+            "SourceGit.ViewModels.LFSImageDiff",
+            "SourceGit.ViewModels.RevisionLFSImage",
+        ];
+        foreach (var typeName in retainedLfsTypes)
+            Check(appAssembly.GetType(typeName) != null, $"Retained LFS pointer/preview/core type '{typeName}' exists");
+
+        var lfsCmdMethods = typeof(LFS).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .Select(m => m.Name)
+            .ToHashSet(StringComparer.Ordinal);
+        Check(!lfsCmdMethods.Contains("PruneAsync") &&
+              !lfsCmdMethods.Contains("GetLocksAsync") &&
+              !lfsCmdMethods.Contains("LockAsync") &&
+              !lfsCmdMethods.Contains("UnlockAsync") &&
+              !lfsCmdMethods.Contains("UnlockMultipleAsync") &&
+              lfsCmdMethods.Contains("InstallAsync") &&
+              lfsCmdMethods.Contains("TrackAsync") &&
+              lfsCmdMethods.Contains("FetchAsync") &&
+              lfsCmdMethods.Contains("PullAsync") &&
+              lfsCmdMethods.Contains("PushAsync"),
+              "Commands.LFS retains Install/Track/Fetch/Pull/Push and omits Prune/Lock APIs");
+
+        var repoVmMethods = typeof(SourceGit.ViewModels.Repository)
+            .GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .Select(m => m.Name)
+            .ToHashSet(StringComparer.Ordinal);
+        Check(!repoVmMethods.Contains("LockLFSFileAsync") &&
+              !repoVmMethods.Contains("UnlockLFSFileAsync") &&
+              !repoVmMethods.Contains("AutoUpdateSubmodulesAsync"),
+              "Repository ViewModel omits LFS lock/unlock and implicit AutoUpdateSubmodulesAsync");
+
+        var settingsProps = typeof(RepositorySettings)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .Select(p => p.Name)
+            .ToHashSet(StringComparer.Ordinal);
+        Check(!settingsProps.Contains("AskBeforeAutoUpdatingSubmodules") &&
+              !settingsProps.Contains("EnableRecursiveWhenAutoUpdatingSubmodules"),
+              "RepositorySettings removes legacy submodule auto-update flags");
+
+        var configureProps = typeof(SourceGit.ViewModels.RepositoryConfigure)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .Select(p => p.Name)
+            .ToHashSet(StringComparer.Ordinal);
+        Check(!configureProps.Contains("AskBeforeAutoUpdatingSubmodules") &&
+              !configureProps.Contains("EnableRecursiveWhenAutoUpdatingSubmodules"),
+              "RepositoryConfigure removes legacy submodule auto-update flags");
+
+        Check(SourceGit.JsonCodeGen.Default.GetTypeInfo(typeof(System.Collections.Generic.List<object>)) == null &&
+              typeof(SourceGit.JsonCodeGen).GetProperty("ListLFSLock") == null,
+              "JsonCodeGen no longer serializes LFSLock");
+
+        var repoRootDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        var enText = await File.ReadAllTextAsync(Path.Combine(repoRootDir, "src", "Resources", "Locales", "en_US.axaml"));
+        var zhText = await File.ReadAllTextAsync(Path.Combine(repoRootDir, "src", "Resources", "Locales", "zh_CN.axaml"));
+        string[] removedKeys =
+        [
+            "Text.GitLFS.Prune",
+            "Text.GitLFS.Prune.Tips",
+            "Text.GitLFS.Locks",
+            "Text.GitLFS.Locks.Empty",
+            "Text.GitLFS.Locks.Lock",
+            "Text.GitLFS.Locks.OnlyMine",
+            "Text.GitLFS.Locks.Title",
+            "Text.GitLFS.Locks.Unlock",
+            "Text.GitLFS.Locks.UnlockAllMyLocks",
+            "Text.GitLFS.Locks.UnlockAllMyLocks.Confirm",
+            "Text.GitLFS.Locks.UnlockForce",
+            "Text.Configure.Git.AskBeforeAutoUpdatingSubmodules",
+            "Text.Configure.Git.EnableRecursiveWhenAutoUpdatingSubmodules",
+            "Text.Checkout.WarnUpdatingSubmodules",
+        ];
+        foreach (var key in removedKeys)
+        {
+            Check(!enText.Contains($"x:Key=\"{key}\"", StringComparison.Ordinal) &&
+                  !zhText.Contains($"x:Key=\"{key}\"", StringComparison.Ordinal),
+                  $"Locales omit removed Batch 4 key '{key}'");
+        }
+
+        string[] addedKeys =
+        [
+            "Text.GitLFS.Advanced",
+            "Text.GitLFS.Status.Enabled",
+            "Text.GitLFS.Status.NotInstalled",
+            "Text.Checkout.Submodules",
+            "Text.Checkout.UpdateSubmodulesAfterSwitch",
+            "Text.Checkout.UpdateSubmodulesRecursive",
+            "Text.Checkout.Submodules.ConfirmTitle",
+            "Text.Checkout.Submodules.ConfirmUpdate",
+            "Text.Checkout.Submodules.SkipAndClose",
+            "Text.Checkout.Result.SubmoduleUpdateFailedTitle",
+        ];
+        foreach (var key in addedKeys)
+        {
+            Check(enText.Contains($"x:Key=\"{key}\"", StringComparison.Ordinal) &&
+                  zhText.Contains($"x:Key=\"{key}\"", StringComparison.Ordinal),
+                  $"Locales expose symmetric Batch 4 key '{key}'");
+        }
+
+        // Allow local file:// submodules inside isolated test GIT_CONFIG_GLOBAL
+        await GitAsync(realGit, "config", "--global", "protocol.file.allow", "always");
+
+        var batch4Root = Path.Combine(stageRoot, "batch4");
+        Directory.CreateDirectory(batch4Root);
+
+        // Real Git LFS repository behavior: install, track, pointer, commit with hooks preserved (no --no-verify, no prune)
+        var lfsRemoteBare = Path.Combine(batch4Root, "lfs-remote.git");
+        await GitAsync(realGit, "init", "--bare", lfsRemoteBare);
+        var lfsRepo = Path.Combine(batch4Root, "lfs-repo");
+        await GitAsync(realGit, "init", "-b", "main", lfsRepo);
+        await GitAsync(realGit, "-C", lfsRepo, "config", "user.name", "LfsTester");
+        await GitAsync(realGit, "-C", lfsRepo, "config", "user.email", "lfs@example.invalid");
+        await GitAsync(realGit, "-C", lfsRepo, "remote", "add", "origin", new Uri(lfsRemoteBare).AbsoluteUri);
+
+        var installedLfs = await new LFS(lfsRepo).InstallAsync();
+        var trackedLfs = await new LFS(lfsRepo).TrackAsync("*.bin", false);
+        Check(installedLfs && trackedLfs &&
+              File.Exists(Path.Combine(lfsRepo, ".git", "hooks", "pre-push")) &&
+              File.Exists(Path.Combine(lfsRepo, ".gitattributes")) &&
+              (await File.ReadAllTextAsync(Path.Combine(lfsRepo, ".gitattributes"))).Contains("filter=lfs", StringComparison.Ordinal),
+              "Commands.LFS InstallAsync and TrackAsync install LFS hooks and write .gitattributes");
+
+        var payload = new byte[512];
+        for (int i = 0; i < payload.Length; i++)
+            payload[i] = (byte)((i * 31) & 0xFF);
+        var binPath = Path.Combine(lfsRepo, "asset.bin");
+        await File.WriteAllBytesAsync(binPath, payload);
+        await GitAsync(realGit, "-C", lfsRepo, "add", ".gitattributes", "asset.bin");
+        var stagedPointer = await GitAsync(realGit, "-C", lfsRepo, "cat-file", "-p", ":asset.bin");
+        Check(new IsLFSFiltered(lfsRepo, "asset.bin").GetResult() &&
+              stagedPointer.Contains("version https://git-lfs.github.com/spec/v1", StringComparison.Ordinal) &&
+              stagedPointer.Contains("oid sha256:", StringComparison.Ordinal),
+              "Git LFS smudge/clean pointer detection works after TrackAsync");
+
+        var preCommitHook = Path.Combine(lfsRepo, ".git", "hooks", "pre-commit");
+        var hookMarker = Path.Combine(lfsRepo, ".git", "precommit-invoked.txt");
+        await File.WriteAllTextAsync(preCommitHook, "#!/bin/sh\necho invoked > \"" + hookMarker.Replace('\\', '/') + "\"\nexit 0\n", utf8NoBom);
+        var lfsSnap = await QueryStagedSnapshot.CaptureAsync(lfsRepo);
+        var lfsJournal = new OperationJournalStore(Path.Combine(batch4Root, "lfs-journal.json"));
+        var lfsCommitRes = await GitSyncService.CommitAsync(
+            lfsRepo,
+            new CommitExecutionOptions { Message = "feat: add lfs binary asset", ExpectedSnapshot = lfsSnap },
+            journalStore: lfsJournal);
+        var lfsObjectsDir = Path.Combine(lfsRepo, ".git", "lfs", "objects");
+        var lfsObjectFiles = Directory.Exists(lfsObjectsDir)
+            ? Directory.GetFiles(lfsObjectsDir, "*", SearchOption.AllDirectories)
+            : [];
+        Check(lfsCommitRes.Succeeded && File.Exists(hookMarker) && lfsObjectFiles.Length >= 1,
+              "GitSyncService commit succeeds without bypassing hooks (--no-verify) and keeps local LFS objects intact");
+
+        var lfsSecondPayload = new byte[512];
+        for (int i = 0; i < lfsSecondPayload.Length; i++)
+            lfsSecondPayload[i] = (byte)(((i * 17) + 3) & 0xFF);
+        await File.WriteAllBytesAsync(binPath, lfsSecondPayload);
+        await GitAsync(realGit, "-C", lfsRepo, "add", "asset.bin");
+        var diffOpt = new DiffOption(new Change { Path = "asset.bin", Index = ChangeState.Modified }, false);
+        var diffRes = await new Diff(lfsRepo, diffOpt, 3, false, false).ReadAsync();
+        var lfsDiff = diffRes.LFSDiff;
+        Check(lfsDiff != null &&
+              lfsDiff.Old.Size == 512 &&
+              lfsDiff.New.Size == 512 &&
+              !string.IsNullOrEmpty(lfsDiff.Old.Oid) &&
+              lfsDiff.Old.Oid != lfsDiff.New.Oid,
+              "Commands.Diff resolves real LFS pointer metadata across staged LFS revisions");
+
+        // Submodule opt-in branch switch, recursive update, legacy settings non-authorization, and partial failure reporting
+        var nestedOrigin = Path.Combine(batch4Root, "nested-origin");
+        await GitAsync(realGit, "init", "-b", "main", nestedOrigin);
+        await GitAsync(realGit, "-C", nestedOrigin, "config", "user.name", "NestedUser");
+        await GitAsync(realGit, "-C", nestedOrigin, "config", "user.email", "nested@example.invalid");
+        await File.WriteAllTextAsync(Path.Combine(nestedOrigin, "nested.txt"), "nested v1\n", utf8NoBom);
+        await GitAsync(realGit, "-C", nestedOrigin, "add", ".");
+        await GitAsync(realGit, "-C", nestedOrigin, "commit", "-m", "nested v1");
+        var nestedV1 = (await GitAsync(realGit, "-C", nestedOrigin, "rev-parse", "HEAD")).Trim();
+        await File.WriteAllTextAsync(Path.Combine(nestedOrigin, "nested.txt"), "nested v2\n", utf8NoBom);
+        await GitAsync(realGit, "-C", nestedOrigin, "add", ".");
+        await GitAsync(realGit, "-C", nestedOrigin, "commit", "-m", "nested v2");
+        var nestedV2 = (await GitAsync(realGit, "-C", nestedOrigin, "rev-parse", "HEAD")).Trim();
+
+        var subOrigin = Path.Combine(batch4Root, "sub-origin");
+        await GitAsync(realGit, "init", "-b", "main", subOrigin);
+        await GitAsync(realGit, "-C", subOrigin, "config", "user.name", "SubUser");
+        await GitAsync(realGit, "-C", subOrigin, "config", "user.email", "sub@example.invalid");
+        await GitAsync(realGit, "-C", subOrigin, "submodule", "add", nestedOrigin, "nested");
+        await GitAsync(realGit, "-C", Path.Combine(subOrigin, "nested"), "checkout", nestedV1);
+        await GitAsync(realGit, "-C", subOrigin, "add", ".");
+        await GitAsync(realGit, "-C", subOrigin, "commit", "-m", "sub v1 pointing nested v1");
+        var subV1 = (await GitAsync(realGit, "-C", subOrigin, "rev-parse", "HEAD")).Trim();
+
+        await GitAsync(realGit, "-C", Path.Combine(subOrigin, "nested"), "checkout", nestedV2);
+        await GitAsync(realGit, "-C", subOrigin, "add", "nested");
+        await GitAsync(realGit, "-C", subOrigin, "commit", "-m", "sub v2 pointing nested v2");
+        var subV2 = (await GitAsync(realGit, "-C", subOrigin, "rev-parse", "HEAD")).Trim();
+
+        var superRepo = Path.Combine(batch4Root, "super-repo");
+        await GitAsync(realGit, "init", "-b", "main", superRepo);
+        await GitAsync(realGit, "-C", superRepo, "config", "user.name", "SuperUser");
+        await GitAsync(realGit, "-C", superRepo, "config", "user.email", "super@example.invalid");
+        await GitAsync(realGit, "-C", superRepo, "submodule", "add", subOrigin, "deps/sub");
+        await GitAsync(realGit, "-C", Path.Combine(superRepo, "deps", "sub"), "checkout", subV1);
+        await GitAsync(realGit, "-C", Path.Combine(superRepo, "deps", "sub"), "submodule", "update", "--init", "--recursive");
+        await GitAsync(realGit, "-C", superRepo, "add", ".");
+        await GitAsync(realGit, "-C", superRepo, "commit", "-m", "main at sub v1");
+
+        await GitAsync(realGit, "-C", superRepo, "checkout", "-b", "feat/bump");
+        await GitAsync(realGit, "-C", Path.Combine(superRepo, "deps", "sub"), "checkout", subV2);
+        await GitAsync(realGit, "-C", Path.Combine(superRepo, "deps", "sub"), "submodule", "update", "--recursive");
+        await GitAsync(realGit, "-C", superRepo, "add", "deps/sub");
+        await GitAsync(realGit, "-C", superRepo, "commit", "-m", "bump sub to v2");
+
+        await GitAsync(realGit, "-C", superRepo, "checkout", "-b", "feat/broken-sub");
+        await GitAsync(realGit, "-C", superRepo, "update-index", "--add", "--cacheinfo", "160000,0123456789abcdef0123456789abcdef01234567,deps/sub");
+        await GitAsync(realGit, "-C", superRepo, "commit", "-m", "broken sub pointer");
+
+        // Switch back to main with nested submodule aligned to v1
+        await GitAsync(realGit, "-C", superRepo, "checkout", "main");
+        await GitAsync(realGit, "-C", superRepo, "submodule", "update", "--init", "--recursive");
+
+        // Write legacy settings claiming AskBeforeAutoUpdatingSubmodules = false (old silent auto-update)
+        var superGitDir = Path.Combine(superRepo, ".git");
+        var legacySuperSettingsPath = Path.Combine(superGitDir, "gitnest.settings");
+        await File.WriteAllTextAsync(
+            legacySuperSettingsPath,
+            """
+            {
+              "DefaultRemote": "origin",
+              "EnableRecursiveWhenAutoUpdatingSubmodules": true,
+              "AskBeforeAutoUpdatingSubmodules": false
+            }
+            """,
+            utf8NoBom);
+        RepositorySettings.ClearCacheForRepository(superGitDir);
+
+        var superVm = new SourceGit.ViewModels.Repository(false, superRepo, superGitDir);
+        try
+        {
+            var loadedBranches = await new QueryBranches(superRepo).GetResultAsync();
+            var mainBranch = loadedBranches.Single(b => b.IsLocal && b.Name == "main");
+            var bumpBranch = loadedBranches.Single(b => b.IsLocal && b.Name == "feat/bump");
+            var brokenBranch = loadedBranches.Single(b => b.IsLocal && b.Name == "feat/broken-sub");
+
+            // 1) Default Checkout must keep UpdateSubmodulesAfterSwitch unchecked and must NOT auto-update
+            var defaultCheckout = new SourceGit.ViewModels.Checkout(superVm, bumpBranch);
+            Check(!defaultCheckout.UpdateSubmodulesAfterSwitch &&
+                  !defaultCheckout.RecursiveSubmoduleUpdate &&
+                  defaultCheckout.HasSubmodules &&
+                  defaultCheckout.ShowSubmoduleUpdateOption,
+                  "Legacy auto-update settings do NOT authorize default Checkout submodule updates");
+            var defaultOk = await defaultCheckout.Sure();
+            var subHeadAfterDefault = (await GitAsync(realGit, "-C", Path.Combine(superRepo, "deps", "sub"), "rev-parse", "HEAD")).Trim();
+            var nestedHeadAfterDefault = (await GitAsync(realGit, "-C", Path.Combine(superRepo, "deps", "sub", "nested"), "rev-parse", "HEAD")).Trim();
+            var currentAfterDefault = (await GitAsync(realGit, "-C", superRepo, "symbolic-ref", "--short", "HEAD")).Trim();
+            Check(defaultOk &&
+                  currentAfterDefault == "feat/bump" &&
+                  subHeadAfterDefault == subV1 &&
+                  nestedHeadAfterDefault == nestedV1,
+                  "Default branch switch leaves submodule and nested submodule HEAD untouched while switching main branch");
+
+            // Align submodule manually to v2 so switching back to main tests opt-in + recursive + 2-step confirm
+            await GitAsync(realGit, "-C", superRepo, "submodule", "update", "--recursive");
+            var subBeforeOptIn = (await GitAsync(realGit, "-C", Path.Combine(superRepo, "deps", "sub"), "rev-parse", "HEAD")).Trim();
+            Check(subBeforeOptIn == subV2, "Submodule setup aligned to v2 on feat/bump");
+
+            var optInCheckout = new SourceGit.ViewModels.Checkout(superVm, mainBranch)
+            {
+                UpdateSubmodulesAfterSwitch = true,
+                RecursiveSubmoduleUpdate = true,
+            };
+            var phase1Result = await optInCheckout.Sure();
+            var subAfterPhase1 = (await GitAsync(realGit, "-C", Path.Combine(superRepo, "deps", "sub"), "rev-parse", "HEAD")).Trim();
+            Check(!phase1Result &&
+                  optInCheckout.IsAwaitingSubmoduleConfirm &&
+                  optInCheckout.AffectedSubmodules.Contains("deps/sub") &&
+                  subAfterPhase1 == subV2 &&
+                  (await GitAsync(realGit, "-C", superRepo, "symbolic-ref", "--short", "HEAD")).Trim() == "main",
+                  "Opt-in Checkout pauses after main switch with affected submodule paths awaiting explicit confirmation");
+
+            var phase2Result = await optInCheckout.Sure();
+            var subAfterPhase2 = (await GitAsync(realGit, "-C", Path.Combine(superRepo, "deps", "sub"), "rev-parse", "HEAD")).Trim();
+            var nestedAfterPhase2 = (await GitAsync(realGit, "-C", Path.Combine(superRepo, "deps", "sub", "nested"), "rev-parse", "HEAD")).Trim();
+            Check(phase2Result &&
+                  subAfterPhase2 == subV1 &&
+                  nestedAfterPhase2 == nestedV1,
+                  "Confirmed recursive submodule update updates deps/sub and nested submodule to target revisions");
+
+            // 3) Branch switch succeeds while submodule update fails -> separate outcome reporting and keep main switched
+            var failCheckout = new SourceGit.ViewModels.Checkout(superVm, brokenBranch)
+            {
+                UpdateSubmodulesAfterSwitch = true,
+                RecursiveSubmoduleUpdate = false,
+            };
+            var failPhase1 = await failCheckout.Sure();
+            Check(!failPhase1 && failCheckout.IsAwaitingSubmoduleConfirm && failCheckout.AffectedSubmodules.Contains("deps/sub"),
+                  "Checkout to branch with broken submodule revision pauses at secondary confirmation with path list");
+
+            var failPhase2 = await failCheckout.Sure();
+            var currentAfterBroken = (await GitAsync(realGit, "-C", superRepo, "symbolic-ref", "--short", "HEAD")).Trim();
+            var subAfterBroken = (await GitAsync(realGit, "-C", Path.Combine(superRepo, "deps", "sub"), "rev-parse", "HEAD")).Trim();
+            var refreshedUpdatable = await new QueryUpdatableSubmodules(superRepo, false).GetResultAsync();
+            Check(!failPhase2 &&
+                  !failCheckout.IsAwaitingSubmoduleConfirm &&
+                  failCheckout.HasResultView &&
+                  failCheckout.IsSubmoduleFailureResult &&
+                  !string.IsNullOrWhiteSpace(failCheckout.MainBranchOutcomeText) &&
+                  !string.IsNullOrWhiteSpace(failCheckout.SubmoduleFailureText) &&
+                  failCheckout.ResultLines.Contains("deps/sub") &&
+                  currentAfterBroken == "feat/broken-sub" &&
+                  subAfterBroken == subV1 &&
+                  refreshedUpdatable.Contains("deps/sub"),
+                  "Submodule update failure reports main branch success and submodule failure separately while refreshing real state");
+        }
+        finally
+        {
+            superVm.Close();
+        }
+
+        // 4) Switching from branch with NO .gitmodules into branch WITH uninitialized submodule detects HasSubmodules & --init confirmation
+        var initRepo = Path.Combine(batch4Root, "init-on-switch-repo");
+        await GitAsync(realGit, "init", "-b", "no-sub", initRepo);
+        await GitAsync(realGit, "-C", initRepo, "config", "user.name", "InitUser");
+        await GitAsync(realGit, "-C", initRepo, "config", "user.email", "init@example.invalid");
+        await File.WriteAllTextAsync(Path.Combine(initRepo, "app.txt"), "base\n", utf8NoBom);
+        await GitAsync(realGit, "-C", initRepo, "add", ".");
+        await GitAsync(realGit, "-C", initRepo, "commit", "-m", "base without submodules");
+
+        await GitAsync(realGit, "-C", initRepo, "checkout", "-b", "with-sub");
+        await GitAsync(realGit, "-C", initRepo, "submodule", "add", nestedOrigin, "deps/added");
+        await GitAsync(realGit, "-C", initRepo, "add", ".");
+        await GitAsync(realGit, "-C", initRepo, "commit", "-m", "branch with submodule");
+        await GitAsync(realGit, "-C", initRepo, "submodule", "deinit", "-f", "deps/added");
+        var gitModulesCache = Path.Combine(initRepo, ".git", "modules", "deps", "added");
+        if (Directory.Exists(gitModulesCache))
+        {
+            foreach (var f in Directory.EnumerateFiles(gitModulesCache, "*", SearchOption.AllDirectories))
+                File.SetAttributes(f, FileAttributes.Normal);
+            Directory.Delete(gitModulesCache, true);
+        }
+        await GitAsync(realGit, "-C", initRepo, "checkout", "-f", "no-sub");
+        var leftoverDir = Path.Combine(initRepo, "deps", "added");
+        if (Directory.Exists(leftoverDir))
+            Directory.Delete(leftoverDir, true);
+
+        var initVm = new SourceGit.ViewModels.Repository(false, initRepo, Path.Combine(initRepo, ".git"));
+        try
+        {
+            var initBranches = await new QueryBranches(initRepo).GetResultAsync();
+            var withSubBranch = initBranches.Single(b => b.IsLocal && b.Name == "with-sub");
+            var targetProbeCheckout = new SourceGit.ViewModels.Checkout(initVm, withSubBranch)
+            {
+                UpdateSubmodulesAfterSwitch = true,
+            };
+            var initPhase1 = await targetProbeCheckout.Sure();
+            Check(!initPhase1 &&
+                  targetProbeCheckout.IsAwaitingSubmoduleConfirm &&
+                  targetProbeCheckout.HasUninitializedSubmodules &&
+                  targetProbeCheckout.AffectedSubmodules.Contains("deps/added"),
+                  "Switching into branch with uninitialized submodule requires explicit --init confirmation");
+            var initPhase2 = await targetProbeCheckout.Sure();
+            var addedHead = (await GitAsync(realGit, "-C", Path.Combine(initRepo, "deps", "added"), "rev-parse", "HEAD")).Trim();
+            Check(initPhase2 && addedHead == nestedV2,
+                  "Confirming uninitialized submodule update initializes and checks out target commit");
+        }
+        finally
+        {
+            initVm.Close();
+            await Task.Delay(200);
+        }
     }
 
     private static async Task<(int ExitCode, string StdOut, string StdErr)> GitAllowFailureAsync(string git, params string[] arguments)

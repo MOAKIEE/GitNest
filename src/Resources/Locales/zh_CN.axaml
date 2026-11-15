@@ -102,7 +102,6 @@
   <x:String x:Key="Text.Checkout.LocalChanges" xml:space="preserve">未提交更改 ：</x:String>
   <x:String x:Key="Text.Checkout.Target" xml:space="preserve">目标分支 ：</x:String>
   <x:String x:Key="Text.Checkout.WarnLostCommits" xml:space="preserve">您当前游离的HEAD包含未被任何分支及标签引用的提交！是否继续？</x:String>
-  <x:String x:Key="Text.Checkout.WarnUpdatingSubmodules" xml:space="preserve">以下子模块需要更新：{0}是否立即更新？</x:String>
   <x:String x:Key="Text.Checkout.WithFastForward" xml:space="preserve">检出分支并快进</x:String>
   <x:String x:Key="Text.Checkout.WithFastForward.Upstream" xml:space="preserve">上游分支 ：</x:String>
   <x:String x:Key="Text.CheckoutBranchFromStash" xml:space="preserve">从所选贮藏检出分支</x:String>
@@ -179,12 +178,10 @@
   <x:String x:Key="Text.Configure.Email" xml:space="preserve">电子邮箱</x:String>
   <x:String x:Key="Text.Configure.Email.Placeholder" xml:space="preserve">邮箱地址</x:String>
   <x:String x:Key="Text.Configure.Git" xml:space="preserve">GIT配置</x:String>
-  <x:String x:Key="Text.Configure.Git.AskBeforeAutoUpdatingSubmodules" xml:space="preserve">在自动更新子模块前询问用户</x:String>
   <x:String x:Key="Text.Configure.Git.AutoFetch" xml:space="preserve">启用定时自动拉取远程更新</x:String>
   <x:String x:Key="Text.Configure.Git.AutoFetchIntervalSuffix" xml:space="preserve">分钟</x:String>
   <x:String x:Key="Text.Configure.Git.ConventionalTypesOverride" xml:space="preserve">自定义规范化提交类型</x:String>
   <x:String x:Key="Text.Configure.Git.DefaultRemote" xml:space="preserve">默认远程</x:String>
-  <x:String x:Key="Text.Configure.Git.EnableRecursiveWhenAutoUpdatingSubmodules" xml:space="preserve">自动更新子模块时启用 '--recursive' 选项</x:String>
   <x:String x:Key="Text.Configure.Git.PreferredMergeMode" xml:space="preserve">默认合并方式</x:String>
   <x:String x:Key="Text.Configure.IssueTracker" xml:space="preserve">ISSUE追踪</x:String>
   <x:String x:Key="Text.Configure.IssueTracker.AddSampleAzure" xml:space="preserve">新增匹配Azure DevOps规则</x:String>
@@ -490,21 +487,11 @@
   <x:String x:Key="Text.GitLFS.AddTrackPattern.IsFilename" xml:space="preserve">匹配完整文件名</x:String>
   <x:String x:Key="Text.GitLFS.AddTrackPattern.Pattern" xml:space="preserve">规则 ：</x:String>
   <x:String x:Key="Text.GitLFS.AddTrackPattern.Title" xml:space="preserve">添加LFS追踪文件规则</x:String>
+  <x:String x:Key="Text.GitLFS.Advanced" xml:space="preserve">高级 LFS 操作</x:String>
   <x:String x:Key="Text.GitLFS.Fetch" xml:space="preserve">拉取LFS对象 (fetch)</x:String>
   <x:String x:Key="Text.GitLFS.Fetch.Tips" xml:space="preserve">执行`git lfs fetch`命令，下载远程LFS对象，但不会更新工作副本。</x:String>
   <x:String x:Key="Text.GitLFS.Fetch.Title" xml:space="preserve">拉取LFS对象</x:String>
   <x:String x:Key="Text.GitLFS.Install" xml:space="preserve">启用Git LFS支持</x:String>
-  <x:String x:Key="Text.GitLFS.Locks" xml:space="preserve">显示LFS对象锁</x:String>
-  <x:String x:Key="Text.GitLFS.Locks.Empty" xml:space="preserve">没有锁定的LFS文件</x:String>
-  <x:String x:Key="Text.GitLFS.Locks.Lock" xml:space="preserve">锁定</x:String>
-  <x:String x:Key="Text.GitLFS.Locks.OnlyMine" xml:space="preserve">仅显示被我锁定的文件</x:String>
-  <x:String x:Key="Text.GitLFS.Locks.Title" xml:space="preserve">LFS对象锁状态</x:String>
-  <x:String x:Key="Text.GitLFS.Locks.Unlock" xml:space="preserve">解锁</x:String>
-  <x:String x:Key="Text.GitLFS.Locks.UnlockAllMyLocks" xml:space="preserve">解锁所有被我锁定的文件</x:String>
-  <x:String x:Key="Text.GitLFS.Locks.UnlockAllMyLocks.Confirm" xml:space="preserve">确定要解锁所有被您锁定的文件吗？</x:String>
-  <x:String x:Key="Text.GitLFS.Locks.UnlockForce" xml:space="preserve">强制解锁</x:String>
-  <x:String x:Key="Text.GitLFS.Prune" xml:space="preserve">精简本地LFS对象存储</x:String>
-  <x:String x:Key="Text.GitLFS.Prune.Tips" xml:space="preserve">运行`git lfs prune`命令，从本地存储中精简当前版本不需要的LFS对象</x:String>
   <x:String x:Key="Text.GitLFS.Pull" xml:space="preserve">拉回LFS对象 (pull)</x:String>
   <x:String x:Key="Text.GitLFS.Pull.Tips" xml:space="preserve">运行`git lfs pull`命令，下载远程LFS对象并更新工作副本。</x:String>
   <x:String x:Key="Text.GitLFS.Pull.Title" xml:space="preserve">拉回LFS对象</x:String>
@@ -512,6 +499,8 @@
   <x:String x:Key="Text.GitLFS.Push.Tips" xml:space="preserve">将排队的大文件推送到Git LFS远程服务</x:String>
   <x:String x:Key="Text.GitLFS.Push.Title" xml:space="preserve">推送LFS对象</x:String>
   <x:String x:Key="Text.GitLFS.Remote" xml:space="preserve">远程 ：</x:String>
+  <x:String x:Key="Text.GitLFS.Status.Enabled" xml:space="preserve">状态：Git LFS 已启用（仅显式手动操作）</x:String>
+  <x:String x:Key="Text.GitLFS.Status.NotInstalled" xml:space="preserve">状态：未安装 Git LFS 钩子</x:String>
   <x:String x:Key="Text.GitLFS.Track" xml:space="preserve">跟踪名为'{0}'的文件</x:String>
   <x:String x:Key="Text.GitLFS.TrackByExtension" xml:space="preserve">跟踪所有 *{0} 文件</x:String>
   <x:String x:Key="Text.GotoRevisionSelector" xml:space="preserve">选择前往的提交</x:String>
@@ -1339,6 +1328,19 @@
   <x:String x:Key="Text.Checkout.Result.StashRetainedTitle" xml:space="preserve">已切换分支，但自动恢复改动冲突 — 贮藏已保留</x:String>
   <x:String x:Key="Text.Checkout.Result.FailedTitle" xml:space="preserve">切换分支未能成功</x:String>
   <x:String x:Key="Text.Checkout.Result.RetainedStashSha" xml:space="preserve">保留贮藏校验和：{0}（可在侧边栏 Stashes 中查看并在解决冲突后清理）</x:String>
+  <x:String x:Key="Text.Checkout.Submodules" xml:space="preserve">子模块 ：</x:String>
+  <x:String x:Key="Text.Checkout.UpdateSubmodulesAfterSwitch" xml:space="preserve">切换后更新子模块</x:String>
+  <x:String x:Key="Text.Checkout.UpdateSubmodulesRecursive" xml:space="preserve">启用 --recursive 递归更新嵌套子模块</x:String>
+  <x:String x:Key="Text.Checkout.UpdateSubmodulesHint" xml:space="preserve">勾选后，将在主分支切换成功时列出受影响子模块路径并需二次确认后才会更新。</x:String>
+  <x:String x:Key="Text.Checkout.Submodules.ConfirmTitle" xml:space="preserve">确认更新子模块</x:String>
+  <x:String x:Key="Text.Checkout.Submodules.ConfirmSummary" xml:space="preserve">主分支已切换至“{0}”。请核对以下受影响子模块路径及递归选项，确认后才会执行更新：</x:String>
+  <x:String x:Key="Text.Checkout.Submodules.ConfirmInitNotice" xml:space="preserve">提示：包含当前分支尚未初始化的子模块，确认后将附带 --init 初始化并更新。</x:String>
+  <x:String x:Key="Text.Checkout.Submodules.ConfirmUpdate" xml:space="preserve">确认更新子模块</x:String>
+  <x:String x:Key="Text.Checkout.Submodules.SkipAndClose" xml:space="preserve">跳过更新</x:String>
+  <x:String x:Key="Text.Checkout.Result.SubmoduleUpdateFailedTitle" xml:space="preserve">主分支切换成功，子模块更新失败</x:String>
+  <x:String x:Key="Text.Checkout.Result.SubmoduleUpdateFailedSummary" xml:space="preserve">主分支已成功切换至“{0}”，但随后的子模块更新失败；已为你刷新主仓库与子模块的真实状态。</x:String>
+  <x:String x:Key="Text.Checkout.Result.MainBranchSucceededLabel" xml:space="preserve">主分支结果：已成功切换至“{0}”。</x:String>
+  <x:String x:Key="Text.Checkout.Result.SubmoduleFailedLabel" xml:space="preserve">子模块结果：更新失败 — {0}</x:String>
 
   <x:String x:Key="Text.AddToIgnore.Confirm" xml:space="preserve">写入忽略规则</x:String>
   <x:String x:Key="Text.AddToIgnore.Applying" xml:space="preserve">正在写入忽略规则...</x:String>

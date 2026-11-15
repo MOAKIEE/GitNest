@@ -623,34 +623,6 @@ namespace SourceGit.ViewModels
             return succ;
         }
 
-        public async Task<bool> LockLFSFileAsync(string remote, string path)
-        {
-            var log = CreateLog("Lock LFS File");
-            var succ = await new Commands.LFS(FullPath)
-                .Use(log)
-                .LockAsync(remote, path);
-
-            if (succ)
-                SendNotification($"Lock file successfully! File: {path}");
-
-            log.Complete();
-            return succ;
-        }
-
-        public async Task<bool> UnlockLFSFileAsync(string remote, string path, bool force, bool notify)
-        {
-            var log = CreateLog("Unlock LFS File");
-            var succ = await new Commands.LFS(FullPath)
-                .Use(log)
-                .UnlockAsync(remote, path, force);
-
-            if (succ && notify)
-                SendNotification($"Unlock file successfully! File: {path}");
-
-            log.Complete();
-            return succ;
-        }
-
         public CommandLog CreateLog(string name)
         {
             var log = new CommandLog(name);
@@ -865,14 +837,17 @@ namespace SourceGit.ViewModels
         {
             _watcher?.MarkBranchUpdated();
 
-            if (_currentBranch.IsDetachedHead)
+            if (_currentBranch != null)
             {
-                _branches.Remove(_currentBranch);
-            }
-            else
-            {
-                _currentBranch.IsCurrent = false;
-                _currentBranch.WorktreePath = null;
+                if (_currentBranch.IsDetachedHead)
+                {
+                    _branches.Remove(_currentBranch);
+                }
+                else
+                {
+                    _currentBranch.IsCurrent = false;
+                    _currentBranch.WorktreePath = null;
+                }
             }
 
             checkouted.IsCurrent = true;
@@ -1520,7 +1495,7 @@ namespace SourceGit.ViewModels
                 if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _submodulesGeneration))
                     return;
 
-                Dispatcher.UIThread.Invoke(() =>
+                Action applySubmodules = () =>
                 {
                     if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _submodulesGeneration))
                         return;
@@ -1554,7 +1529,12 @@ namespace SourceGit.ViewModels
                         Submodules = submodules;
                         VisibleSubmodules = BuildVisibleSubmodules();
                     }
-                });
+                };
+
+                if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+                    applySubmodules();
+                else
+                    Dispatcher.UIThread.Invoke(applySubmodules);
             }, token);
         }
 
@@ -1727,32 +1707,9 @@ namespace SourceGit.ViewModels
                 remote.DisableAutoFetch = !remote.DisableAutoFetch;
         }
 
-        public async Task AutoUpdateSubmodulesAsync(Models.ICommandLog log)
+        public void MarkSubmodulesDirtyAfterResetOrSwitch()
         {
-            var submodules = await new Commands.QueryUpdatableSubmodules(FullPath, false).GetResultAsync();
-            if (submodules.Count == 0)
-                return;
-
-            do
-            {
-                if (_settings.AskBeforeAutoUpdatingSubmodules)
-                {
-                    var builder = new StringBuilder();
-                    builder.Append("\n\n");
-                    foreach (var s in submodules)
-                        builder.Append("- ").Append(s).Append('\n');
-                    builder.Append("\n");
-
-                    var msg = App.Text("Checkout.WarnUpdatingSubmodules", builder.ToString());
-                    var shouldContinue = await App.AskConfirmAsync(msg, Models.ConfirmButtonType.YesNo);
-                    if (!shouldContinue)
-                        break;
-                }
-
-                await new Commands.Submodule(FullPath)
-                    .Use(log)
-                    .UpdateAsync(submodules, false, _settings.EnableRecursiveWhenAutoUpdatingSubmodules, false);
-            } while (false);
+            MarkSubmodulesDirtyManually();
         }
 
         public void OpenSubmodule(string submodule)

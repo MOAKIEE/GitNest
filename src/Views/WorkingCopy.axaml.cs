@@ -578,13 +578,13 @@ namespace SourceGit.Views
 
                     if (!selection.HasFolder && File.Exists(path) && repo.IsLFSEnabled())
                     {
-                        var lfs = new MenuItem();
-                        lfs.Header = App.Text("GitLFS");
-                        lfs.Icon = this.CreateMenuIcon("Icons.LFS");
-
                         var isLFSFiltered = new Commands.IsLFSFiltered(repo.FullPath, change.Path).GetResult();
                         if (!isLFSFiltered)
                         {
+                            var lfs = new MenuItem();
+                            lfs.Header = App.Text("GitLFS");
+                            lfs.Icon = this.CreateMenuIcon("Icons.LFS");
+
                             var filename = Path.GetFileName(change.Path);
                             var lfsTrackThisFile = new MenuItem();
                             lfsTrackThisFile.Header = App.Text("GitLFS.Track", filename);
@@ -607,69 +607,9 @@ namespace SourceGit.Views
                                 lfs.Items.Add(lfsTrackByExtension);
                             }
 
-                            lfs.Items.Add(new MenuItem() { Header = "-" });
+                            menu.Items.Add(lfs);
+                            hasExtra = true;
                         }
-
-                        var lfsLock = new MenuItem();
-                        lfsLock.Header = App.Text("GitLFS.Locks.Lock");
-                        lfsLock.Icon = this.CreateMenuIcon("Icons.Lock");
-                        lfsLock.IsEnabled = repo.Remotes.Count > 0;
-                        if (repo.Remotes.Count == 1)
-                        {
-                            lfsLock.Click += async (_, e) =>
-                            {
-                                await repo.LockLFSFileAsync(repo.Remotes[0].Name, change.Path);
-                                e.Handled = true;
-                            };
-                        }
-                        else
-                        {
-                            foreach (var remote in repo.Remotes)
-                            {
-                                var remoteName = remote.Name;
-                                var lockRemote = new MenuItem();
-                                lockRemote.Header = remoteName;
-                                lockRemote.Click += async (_, e) =>
-                                {
-                                    await repo.LockLFSFileAsync(remoteName, change.Path);
-                                    e.Handled = true;
-                                };
-                                lfsLock.Items.Add(lockRemote);
-                            }
-                        }
-                        lfs.Items.Add(lfsLock);
-
-                        var lfsUnlock = new MenuItem();
-                        lfsUnlock.Header = App.Text("GitLFS.Locks.Unlock");
-                        lfsUnlock.Icon = this.CreateMenuIcon("Icons.Unlock");
-                        lfsUnlock.IsEnabled = repo.Remotes.Count > 0;
-                        if (repo.Remotes.Count == 1)
-                        {
-                            lfsUnlock.Click += async (_, e) =>
-                            {
-                                await repo.UnlockLFSFileAsync(repo.Remotes[0].Name, change.Path, false, true);
-                                e.Handled = true;
-                            };
-                        }
-                        else
-                        {
-                            foreach (var remote in repo.Remotes)
-                            {
-                                var remoteName = remote.Name;
-                                var unlockRemote = new MenuItem();
-                                unlockRemote.Header = remoteName;
-                                unlockRemote.Click += async (_, e) =>
-                                {
-                                    await repo.UnlockLFSFileAsync(remoteName, change.Path, false, true);
-                                    e.Handled = true;
-                                };
-                                lfsUnlock.Items.Add(unlockRemote);
-                            }
-                        }
-                        lfs.Items.Add(lfsUnlock);
-
-                        menu.Items.Add(lfs);
-                        hasExtra = true;
                     }
 
                     if (hasExtra)
@@ -977,74 +917,6 @@ namespace SourceGit.Views
                 menu.Items.Add(discardToHead);
                 menu.Items.Add(stash);
                 menu.Items.Add(new MenuItem() { Header = "-" });
-
-                if (!selection.HasFolder && File.Exists(path) && repo.IsLFSEnabled())
-                {
-                    var lfs = new MenuItem();
-                    lfs.Header = App.Text("GitLFS");
-                    lfs.Icon = this.CreateMenuIcon("Icons.LFS");
-
-                    var lfsLock = new MenuItem();
-                    lfsLock.Header = App.Text("GitLFS.Locks.Lock");
-                    lfsLock.Icon = this.CreateMenuIcon("Icons.Lock");
-                    lfsLock.IsEnabled = repo.Remotes.Count > 0;
-                    if (repo.Remotes.Count == 1)
-                    {
-                        lfsLock.Click += async (_, e) =>
-                        {
-                            await repo.LockLFSFileAsync(repo.Remotes[0].Name, change.Path);
-                            e.Handled = true;
-                        };
-                    }
-                    else
-                    {
-                        foreach (var remote in repo.Remotes)
-                        {
-                            var remoteName = remote.Name;
-                            var lockRemote = new MenuItem();
-                            lockRemote.Header = remoteName;
-                            lockRemote.Click += async (_, e) =>
-                            {
-                                await repo.LockLFSFileAsync(remoteName, change.Path);
-                                e.Handled = true;
-                            };
-                            lfsLock.Items.Add(lockRemote);
-                        }
-                    }
-                    lfs.Items.Add(lfsLock);
-
-                    var lfsUnlock = new MenuItem();
-                    lfsUnlock.Header = App.Text("GitLFS.Locks.Unlock");
-                    lfsUnlock.Icon = this.CreateMenuIcon("Icons.Unlock");
-                    lfsUnlock.IsEnabled = repo.Remotes.Count > 0;
-                    if (repo.Remotes.Count == 1)
-                    {
-                        lfsUnlock.Click += async (_, e) =>
-                        {
-                            await repo.UnlockLFSFileAsync(repo.Remotes[0].Name, change.Path, false, true);
-                            e.Handled = true;
-                        };
-                    }
-                    else
-                    {
-                        foreach (var remote in repo.Remotes)
-                        {
-                            var remoteName = remote.Name;
-                            var unlockRemote = new MenuItem();
-                            unlockRemote.Header = remoteName;
-                            unlockRemote.Click += async (_, e) =>
-                            {
-                                await repo.UnlockLFSFileAsync(remoteName, change.Path, false, true);
-                                e.Handled = true;
-                            };
-                            lfsUnlock.Items.Add(unlockRemote);
-                        }
-                    }
-                    lfs.Items.Add(lfsUnlock);
-
-                    menu.Items.Add(lfs);
-                    menu.Items.Add(new MenuItem() { Header = "-" });
-                }
 
                 if (selection.IsSingleFolder)
                 {

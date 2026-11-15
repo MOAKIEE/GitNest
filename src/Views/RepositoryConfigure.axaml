@@ -582,7 +582,7 @@
             </Grid>
 
             <Grid IsVisible="{Binding #AdvancedExpander.IsChecked}"
-                  ColumnDefinitions="144,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8" Margin="0,2,0,0">
+                  ColumnDefinitions="144,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8" Margin="0,2,0,0">
               <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Top" Margin="0,4,12,0"
                          HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
                          Text="{DynamicResource Text.Configure.Advanced.AutoCrlf}"/>
@@ -652,17 +652,10 @@
                 </TextBox.InnerRightContent>
               </TextBox>
 
-              <CheckBox Grid.Row="6" Grid.Column="1"
-                        Content="{DynamicResource Text.Configure.Git.EnableRecursiveWhenAutoUpdatingSubmodules}"
-                        IsChecked="{Binding EnableRecursiveWhenAutoUpdatingSubmodules, Mode=TwoWay}"/>
-              <CheckBox Grid.Row="7" Grid.Column="1"
-                        Content="{DynamicResource Text.Configure.Git.AskBeforeAutoUpdatingSubmodules}"
-                        IsChecked="{Binding AskBeforeAutoUpdatingSubmodules, Mode=TwoWay}"/>
-
-              <TextBlock Grid.Row="8" Grid.Column="0" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
+              <TextBlock Grid.Row="6" Grid.Column="0" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap"
                          VerticalAlignment="Top" Margin="0,4,12,0"
                          Text="{DynamicResource Text.Configure.Advanced.Diagnostics}"/>
-              <StackPanel Grid.Row="8" Grid.Column="1" Spacing="4">
+              <StackPanel Grid.Row="6" Grid.Column="1" Spacing="4">
                 <TextBox Height="96"
                          FontFamily="{DynamicResource Fonts.Monospace}"
                          IsReadOnly="True"

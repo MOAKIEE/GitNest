@@ -98,7 +98,6 @@
   <x:String x:Key="Text.Checkout.LocalChanges" xml:space="preserve">Local Changes:</x:String>
   <x:String x:Key="Text.Checkout.Target" xml:space="preserve">Branch:</x:String>
   <x:String x:Key="Text.Checkout.WarnLostCommits" xml:space="preserve">Your current HEAD contains commit(s) not connected to any branches/tags! Do you want to continue?</x:String>
-  <x:String x:Key="Text.Checkout.WarnUpdatingSubmodules" xml:space="preserve">The following submodules need to be updated:{0}Do you want to update them?</x:String>
   <x:String x:Key="Text.Checkout.WithFastForward" xml:space="preserve">Checkout &amp; Fast-Forward</x:String>
   <x:String x:Key="Text.Checkout.WithFastForward.Upstream" xml:space="preserve">Fast-Forward to:</x:String>
   <x:String x:Key="Text.CheckoutBranchFromStash" xml:space="preserve">Checkout Branch From Stash</x:String>
@@ -175,12 +174,10 @@
   <x:String x:Key="Text.Configure.Email" xml:space="preserve">Email Address</x:String>
   <x:String x:Key="Text.Configure.Email.Placeholder" xml:space="preserve">Email address</x:String>
   <x:String x:Key="Text.Configure.Git" xml:space="preserve">GIT</x:String>
-  <x:String x:Key="Text.Configure.Git.AskBeforeAutoUpdatingSubmodules" xml:space="preserve">Ask before auto-updating submodules</x:String>
   <x:String x:Key="Text.Configure.Git.AutoFetch" xml:space="preserve">Fetch remotes automatically</x:String>
   <x:String x:Key="Text.Configure.Git.AutoFetchIntervalSuffix" xml:space="preserve">Minute(s)</x:String>
   <x:String x:Key="Text.Configure.Git.ConventionalTypesOverride" xml:space="preserve">Conventional Commit Types</x:String>
   <x:String x:Key="Text.Configure.Git.DefaultRemote" xml:space="preserve">Default Remote</x:String>
-  <x:String x:Key="Text.Configure.Git.EnableRecursiveWhenAutoUpdatingSubmodules" xml:space="preserve">Enable `--recursive` when auto-updating submodules</x:String>
   <x:String x:Key="Text.Configure.Git.PreferredMergeMode" xml:space="preserve">Preferred Merge Mode</x:String>
   <x:String x:Key="Text.Configure.IssueTracker" xml:space="preserve">ISSUE TRACKER</x:String>
   <x:String x:Key="Text.Configure.IssueTracker.AddSampleAzure" xml:space="preserve">Add Azure DevOps Rule</x:String>
@@ -486,21 +483,11 @@
   <x:String x:Key="Text.GitLFS.AddTrackPattern.IsFilename" xml:space="preserve">Pattern is file name</x:String>
   <x:String x:Key="Text.GitLFS.AddTrackPattern.Pattern" xml:space="preserve">Custom Pattern:</x:String>
   <x:String x:Key="Text.GitLFS.AddTrackPattern.Title" xml:space="preserve">Add Track Pattern to Git LFS</x:String>
+  <x:String x:Key="Text.GitLFS.Advanced" xml:space="preserve">Advanced LFS Operations</x:String>
   <x:String x:Key="Text.GitLFS.Fetch" xml:space="preserve">Fetch</x:String>
   <x:String x:Key="Text.GitLFS.Fetch.Tips" xml:space="preserve">Run `git lfs fetch` to download Git LFS objects. This does not update the working copy.</x:String>
   <x:String x:Key="Text.GitLFS.Fetch.Title" xml:space="preserve">Fetch LFS Objects</x:String>
   <x:String x:Key="Text.GitLFS.Install" xml:space="preserve">Install Git LFS hooks</x:String>
-  <x:String x:Key="Text.GitLFS.Locks" xml:space="preserve">Show Locks</x:String>
-  <x:String x:Key="Text.GitLFS.Locks.Empty" xml:space="preserve">No Locked Files</x:String>
-  <x:String x:Key="Text.GitLFS.Locks.Lock" xml:space="preserve">Lock</x:String>
-  <x:String x:Key="Text.GitLFS.Locks.OnlyMine" xml:space="preserve">Show only my locks</x:String>
-  <x:String x:Key="Text.GitLFS.Locks.Title" xml:space="preserve">LFS Locks</x:String>
-  <x:String x:Key="Text.GitLFS.Locks.Unlock" xml:space="preserve">Unlock</x:String>
-  <x:String x:Key="Text.GitLFS.Locks.UnlockAllMyLocks" xml:space="preserve">Unlock all of my locks</x:String>
-  <x:String x:Key="Text.GitLFS.Locks.UnlockAllMyLocks.Confirm" xml:space="preserve">Are you sure you want to unlock all your locked files?</x:String>
-  <x:String x:Key="Text.GitLFS.Locks.UnlockForce" xml:space="preserve">Force Unlock</x:String>
-  <x:String x:Key="Text.GitLFS.Prune" xml:space="preserve">Prune</x:String>
-  <x:String x:Key="Text.GitLFS.Prune.Tips" xml:space="preserve">Run `git lfs prune` to delete old LFS files from local storage</x:String>
   <x:String x:Key="Text.GitLFS.Pull" xml:space="preserve">Pull</x:String>
   <x:String x:Key="Text.GitLFS.Pull.Tips" xml:space="preserve">Run `git lfs pull` to download all Git LFS files for current ref &amp; checkout</x:String>
   <x:String x:Key="Text.GitLFS.Pull.Title" xml:space="preserve">Pull LFS Objects</x:String>
@@ -508,6 +495,8 @@
   <x:String x:Key="Text.GitLFS.Push.Tips" xml:space="preserve">Push queued large files to the Git LFS endpoint</x:String>
   <x:String x:Key="Text.GitLFS.Push.Title" xml:space="preserve">Push LFS Objects</x:String>
   <x:String x:Key="Text.GitLFS.Remote" xml:space="preserve">Remote:</x:String>
+  <x:String x:Key="Text.GitLFS.Status.Enabled" xml:space="preserve">Status: Git LFS Enabled (manual operations only)</x:String>
+  <x:String x:Key="Text.GitLFS.Status.NotInstalled" xml:space="preserve">Status: Git LFS Hooks Not Installed</x:String>
   <x:String x:Key="Text.GitLFS.Track" xml:space="preserve">Track files named '{0}'</x:String>
   <x:String x:Key="Text.GitLFS.TrackByExtension" xml:space="preserve">Track all *{0} files</x:String>
   <x:String x:Key="Text.GotoRevisionSelector" xml:space="preserve">Select Commit</x:String>
@@ -1335,6 +1324,19 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.Checkout.Result.StashRetainedTitle" xml:space="preserve">Branch Switched With Conflicts — Auto-Stash Retained</x:String>
   <x:String x:Key="Text.Checkout.Result.FailedTitle" xml:space="preserve">Branch Switch Failed</x:String>
   <x:String x:Key="Text.Checkout.Result.RetainedStashSha" xml:space="preserve">Retained Stash SHA: {0} (resolve conflicts or inspect under Stashes before dropping)</x:String>
+  <x:String x:Key="Text.Checkout.Submodules" xml:space="preserve">Submodules:</x:String>
+  <x:String x:Key="Text.Checkout.UpdateSubmodulesAfterSwitch" xml:space="preserve">Update submodules after switching</x:String>
+  <x:String x:Key="Text.Checkout.UpdateSubmodulesRecursive" xml:space="preserve">Enable --recursive for nested submodules</x:String>
+  <x:String x:Key="Text.Checkout.UpdateSubmodulesHint" xml:space="preserve">When checked, affected submodule paths will be shown for confirmation after switching.</x:String>
+  <x:String x:Key="Text.Checkout.Submodules.ConfirmTitle" xml:space="preserve">Confirm Submodule Update</x:String>
+  <x:String x:Key="Text.Checkout.Submodules.ConfirmSummary" xml:space="preserve">Main branch switched to '{0}'. Review the affected submodules below and confirm before updating:</x:String>
+  <x:String x:Key="Text.Checkout.Submodules.ConfirmInitNotice" xml:space="preserve">Includes newly introduced uninitialized submodule(s); updating will run with --init.</x:String>
+  <x:String x:Key="Text.Checkout.Submodules.ConfirmUpdate" xml:space="preserve">Update Submodules</x:String>
+  <x:String x:Key="Text.Checkout.Submodules.SkipAndClose" xml:space="preserve">Skip Update</x:String>
+  <x:String x:Key="Text.Checkout.Result.SubmoduleUpdateFailedTitle" xml:space="preserve">Branch Switched — Submodule Update Failed</x:String>
+  <x:String x:Key="Text.Checkout.Result.SubmoduleUpdateFailedSummary" xml:space="preserve">Main branch '{0}' switched cleanly, but updating submodules failed. Actual repository and submodule states have been refreshed.</x:String>
+  <x:String x:Key="Text.Checkout.Result.MainBranchSucceededLabel" xml:space="preserve">Main branch: Switched cleanly to '{0}'.</x:String>
+  <x:String x:Key="Text.Checkout.Result.SubmoduleFailedLabel" xml:space="preserve">Submodule update: Failed — {0}</x:String>
 
   <x:String x:Key="Text.AddToIgnore.Confirm" xml:space="preserve">ADD RULE</x:String>
   <x:String x:Key="Text.AddToIgnore.Applying" xml:space="preserve">Writing ignore rule...</x:String>

@@ -40,6 +40,12 @@ namespace SourceGit.Commands
 
         public async Task<bool> ExecAsync()
         {
+            var (success, _) = await ExecDetailedAsync().ConfigureAwait(false);
+            return success;
+        }
+
+        protected async Task<(bool Success, string ErrorMessage)> ExecDetailedAsync()
+        {
             Log?.AppendLine($"$ git {Args}\n");
 
             var errs = new List<string>();
@@ -74,7 +80,7 @@ namespace SourceGit.Commands
                     RaiseException(e.Message);
 
                 Log?.AppendLine(string.Empty);
-                return false;
+                return (false, e.Message);
             }
 
             proc.BeginOutputReadLine();
@@ -98,17 +104,17 @@ namespace SourceGit.Commands
 
             if (!CancellationToken.IsCancellationRequested && proc.ExitCode != 0)
             {
-                if (RaiseError)
-                {
-                    var errMsg = string.Join("\n", errs).Trim();
-                    if (!string.IsNullOrEmpty(errMsg))
-                        RaiseException(errMsg);
-                }
+                var errMsg = string.Join("\n", errs).Trim();
+                if (RaiseError && !string.IsNullOrEmpty(errMsg))
+                    RaiseException(errMsg);
 
-                return false;
+                if (string.IsNullOrEmpty(errMsg))
+                    errMsg = $"git {Args} exited with code {proc.ExitCode}.";
+
+                return (false, errMsg);
             }
 
-            return true;
+            return (true, string.Empty);
         }
 
         protected Result ReadToEnd()

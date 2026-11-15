@@ -238,139 +238,114 @@ namespace SourceGit.Views
         {
             if (DataContext is ViewModels.Repository repo && sender is Control control)
             {
-                var menu = new ContextMenu();
-                menu.Placement = PlacementMode.BottomEdgeAlignedLeft;
-
-                if (repo.IsLFSEnabled())
-                {
-                    var addPattern = new MenuItem();
-                    addPattern.Header = App.Text("GitLFS.AddTrackPattern");
-                    addPattern.Icon = this.CreateMenuIcon("Icons.File.Add");
-                    addPattern.Click += (_, e) =>
-                    {
-                        if (repo.CanCreatePopup())
-                            repo.ShowPopup(new ViewModels.LFSTrackCustomPattern(repo));
-
-                        e.Handled = true;
-                    };
-                    menu.Items.Add(addPattern);
-                    menu.Items.Add(new MenuItem() { Header = "-" });
-
-                    var fetch = new MenuItem();
-                    fetch.Header = App.Text("GitLFS.Fetch");
-                    fetch.Icon = this.CreateMenuIcon("Icons.Fetch");
-                    fetch.IsEnabled = repo.Remotes.Count > 0;
-                    fetch.Click += async (_, e) =>
-                    {
-                        if (repo.CanCreatePopup())
-                        {
-                            if (repo.Remotes.Count == 1)
-                                await repo.ShowAndStartPopupAsync(new ViewModels.LFSFetch(repo));
-                            else
-                                repo.ShowPopup(new ViewModels.LFSFetch(repo));
-                        }
-
-                        e.Handled = true;
-                    };
-                    menu.Items.Add(fetch);
-
-                    var pull = new MenuItem();
-                    pull.Header = App.Text("GitLFS.Pull");
-                    pull.Icon = this.CreateMenuIcon("Icons.Pull");
-                    pull.IsEnabled = repo.Remotes.Count > 0;
-                    pull.Click += async (_, e) =>
-                    {
-                        if (repo.CanCreatePopup())
-                        {
-                            if (repo.Remotes.Count == 1)
-                                await repo.ShowAndStartPopupAsync(new ViewModels.LFSPull(repo));
-                            else
-                                repo.ShowPopup(new ViewModels.LFSPull(repo));
-                        }
-
-                        e.Handled = true;
-                    };
-                    menu.Items.Add(pull);
-
-                    var push = new MenuItem();
-                    push.Header = App.Text("GitLFS.Push");
-                    push.Icon = this.CreateMenuIcon("Icons.Push");
-                    push.IsEnabled = repo.Remotes.Count > 0;
-                    push.Click += async (_, e) =>
-                    {
-                        if (repo.CanCreatePopup())
-                        {
-                            if (repo.Remotes.Count == 1)
-                                await repo.ShowAndStartPopupAsync(new ViewModels.LFSPush(repo));
-                            else
-                                repo.ShowPopup(new ViewModels.LFSPush(repo));
-                        }
-
-                        e.Handled = true;
-                    };
-                    menu.Items.Add(push);
-
-                    var prune = new MenuItem();
-                    prune.Header = App.Text("GitLFS.Prune");
-                    prune.Icon = this.CreateMenuIcon("Icons.Clean");
-                    prune.Click += async (_, e) =>
-                    {
-                        if (repo.CanCreatePopup())
-                            await repo.ShowAndStartPopupAsync(new ViewModels.LFSPrune(repo));
-
-                        e.Handled = true;
-                    };
-                    menu.Items.Add(new MenuItem() { Header = "-" });
-                    menu.Items.Add(prune);
-
-                    var locks = new MenuItem();
-                    locks.Header = App.Text("GitLFS.Locks");
-                    locks.Icon = this.CreateMenuIcon("Icons.Lock");
-                    locks.IsEnabled = repo.Remotes.Count > 0;
-                    if (repo.Remotes.Count == 1)
-                    {
-                        locks.Click += async (_, e) =>
-                        {
-                            await this.ShowDialogAsync(new ViewModels.LFSLocks(repo, repo.Remotes[0].Name));
-                            e.Handled = true;
-                        };
-                    }
-                    else
-                    {
-                        foreach (var remote in repo.Remotes)
-                        {
-                            var remoteName = remote.Name;
-                            var lockRemote = new MenuItem();
-                            lockRemote.Header = remoteName;
-                            lockRemote.Click += async (_, e) =>
-                            {
-                                await this.ShowDialogAsync(new ViewModels.LFSLocks(repo, remoteName));
-                                e.Handled = true;
-                            };
-                            locks.Items.Add(lockRemote);
-                        }
-                    }
-
-                    menu.Items.Add(new MenuItem() { Header = "-" });
-                    menu.Items.Add(locks);
-                }
-                else
-                {
-                    var install = new MenuItem();
-                    install.Header = App.Text("GitLFS.Install");
-                    install.Icon = this.CreateMenuIcon("Icons.Init");
-                    install.Click += async (_, e) =>
-                    {
-                        await repo.InstallLFSAsync();
-                        e.Handled = true;
-                    };
-                    menu.Items.Add(install);
-                }
-
+                var menu = CreateGitLFSMenu(repo);
                 menu.Open(control);
             }
 
             ev.Handled = true;
+        }
+
+        internal ContextMenu CreateGitLFSMenu(ViewModels.Repository repo)
+        {
+            var menu = new ContextMenu();
+            menu.Placement = PlacementMode.BottomEdgeAlignedLeft;
+
+            var isEnabled = repo.IsLFSEnabled();
+            var status = new MenuItem();
+            status.Header = App.Text(isEnabled ? "GitLFS.Status.Enabled" : "GitLFS.Status.NotInstalled");
+            status.Icon = this.CreateMenuIcon("Icons.LFS");
+            status.IsEnabled = false;
+            menu.Items.Add(status);
+            menu.Items.Add(new MenuItem() { Header = "-" });
+
+            var advanced = new MenuItem();
+            advanced.Header = App.Text("GitLFS.Advanced");
+            advanced.Icon = this.CreateMenuIcon("Icons.LFS");
+
+            if (isEnabled)
+            {
+                var addPattern = new MenuItem();
+                addPattern.Header = App.Text("GitLFS.AddTrackPattern");
+                addPattern.Icon = this.CreateMenuIcon("Icons.File.Add");
+                addPattern.Click += (_, e) =>
+                {
+                    if (repo.CanCreatePopup())
+                        repo.ShowPopup(new ViewModels.LFSTrackCustomPattern(repo));
+
+                    e.Handled = true;
+                };
+                advanced.Items.Add(addPattern);
+                advanced.Items.Add(new MenuItem() { Header = "-" });
+
+                var fetch = new MenuItem();
+                fetch.Header = App.Text("GitLFS.Fetch");
+                fetch.Icon = this.CreateMenuIcon("Icons.Fetch");
+                fetch.IsEnabled = repo.Remotes.Count > 0;
+                fetch.Click += async (_, e) =>
+                {
+                    if (repo.CanCreatePopup())
+                    {
+                        if (repo.Remotes.Count == 1)
+                            await repo.ShowAndStartPopupAsync(new ViewModels.LFSFetch(repo));
+                        else
+                            repo.ShowPopup(new ViewModels.LFSFetch(repo));
+                    }
+
+                    e.Handled = true;
+                };
+                advanced.Items.Add(fetch);
+
+                var pull = new MenuItem();
+                pull.Header = App.Text("GitLFS.Pull");
+                pull.Icon = this.CreateMenuIcon("Icons.Pull");
+                pull.IsEnabled = repo.Remotes.Count > 0;
+                pull.Click += async (_, e) =>
+                {
+                    if (repo.CanCreatePopup())
+                    {
+                        if (repo.Remotes.Count == 1)
+                            await repo.ShowAndStartPopupAsync(new ViewModels.LFSPull(repo));
+                        else
+                            repo.ShowPopup(new ViewModels.LFSPull(repo));
+                    }
+
+                    e.Handled = true;
+                };
+                advanced.Items.Add(pull);
+
+                var push = new MenuItem();
+                push.Header = App.Text("GitLFS.Push");
+                push.Icon = this.CreateMenuIcon("Icons.Push");
+                push.IsEnabled = repo.Remotes.Count > 0;
+                push.Click += async (_, e) =>
+                {
+                    if (repo.CanCreatePopup())
+                    {
+                        if (repo.Remotes.Count == 1)
+                            await repo.ShowAndStartPopupAsync(new ViewModels.LFSPush(repo));
+                        else
+                            repo.ShowPopup(new ViewModels.LFSPush(repo));
+                    }
+
+                    e.Handled = true;
+                };
+                advanced.Items.Add(push);
+            }
+            else
+            {
+                var install = new MenuItem();
+                install.Header = App.Text("GitLFS.Install");
+                install.Icon = this.CreateMenuIcon("Icons.Init");
+                install.Click += async (_, e) =>
+                {
+                    await repo.InstallLFSAsync();
+                    e.Handled = true;
+                };
+                advanced.Items.Add(install);
+            }
+
+            menu.Items.Add(advanced);
+            return menu;
         }
 
         private async void OpenGitLogs(object sender, RoutedEventArgs e)

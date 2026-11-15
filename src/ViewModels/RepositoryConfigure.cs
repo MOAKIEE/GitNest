@@ -213,32 +213,6 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public bool AskBeforeAutoUpdatingSubmodules
-        {
-            get => _repo.Settings.AskBeforeAutoUpdatingSubmodules;
-            set
-            {
-                if (_repo.Settings.AskBeforeAutoUpdatingSubmodules != value)
-                {
-                    _repo.Settings.AskBeforeAutoUpdatingSubmodules = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        public bool EnableRecursiveWhenAutoUpdatingSubmodules
-        {
-            get => _repo.Settings.EnableRecursiveWhenAutoUpdatingSubmodules;
-            set
-            {
-                if (_repo.Settings.EnableRecursiveWhenAutoUpdatingSubmodules != value)
-                {
-                    _repo.Settings.EnableRecursiveWhenAutoUpdatingSubmodules = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
         public AvaloniaList<Models.IssueTracker> IssueTrackers { get; } = [];
 
         public Models.IssueTracker SelectedIssueTracker

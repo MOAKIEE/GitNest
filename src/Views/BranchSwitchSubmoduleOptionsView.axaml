@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:SourceGit.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="96"
+             x:Class="SourceGit.Views.BranchSwitchSubmoduleOptionsView"
+             x:Name="ThisControl"
+             x:DataType="vm:BranchSwitchPopup"
+             IsVisible="{Binding ShowSubmoduleUpdateOption, Mode=OneWay}">
+  <Grid Margin="0,8,0,0">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="Auto"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+
+    <Border Grid.Column="0"
+            MinWidth="{Binding #ThisControl.LabelWidth}"
+            Height="28"
+            VerticalAlignment="Top">
+      <TextBlock HorizontalAlignment="Right"
+                 VerticalAlignment="Center"
+                 Margin="0,0,8,0"
+                 Text="{DynamicResource Text.Checkout.Submodules}"/>
+    </Border>
+
+    <StackPanel Grid.Column="1" Orientation="Vertical" Spacing="4">
+      <CheckBox IsChecked="{Binding UpdateSubmodulesAfterSwitch, Mode=TwoWay}">
+        <TextBlock Text="{DynamicResource Text.Checkout.UpdateSubmodulesAfterSwitch}" TextWrapping="Wrap"/>
+      </CheckBox>
+
+      <StackPanel Margin="22,0,0,0"
+                  Orientation="Vertical"
+                  Spacing="4"
+                  IsVisible="{Binding UpdateSubmodulesAfterSwitch, Mode=OneWay}">
+        <CheckBox IsChecked="{Binding RecursiveSubmoduleUpdate, Mode=TwoWay}">
+          <TextBlock Text="{DynamicResource Text.Checkout.UpdateSubmodulesRecursive}" TextWrapping="Wrap"/>
+        </CheckBox>
+        <TextBlock FontSize="11"
+                   Foreground="{DynamicResource Brush.FG2}"
+                   TextWrapping="Wrap"
+                   Text="{DynamicResource Text.Checkout.UpdateSubmodulesHint}"/>
+      </StackPanel>
+    </StackPanel>
+  </Grid>
+</UserControl>

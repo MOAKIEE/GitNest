@@ -27,18 +27,6 @@ namespace SourceGit.Models
             set;
         } = string.Empty;
 
-        public bool EnableRecursiveWhenAutoUpdatingSubmodules
-        {
-            get;
-            set;
-        } = true;
-
-        public bool AskBeforeAutoUpdatingSubmodules
-        {
-            get;
-            set;
-        } = false;
-
         public static RepositorySettings Get(string gitCommonDir)
         {
             var fileInfo = new FileInfo(Path.Combine(gitCommonDir, "gitnest.settings"));
@@ -46,7 +34,7 @@ namespace SourceGit.Models
             if (_cache.TryGetValue(fullpath, out var setting))
                 return setting;
 
-            var hasLegacyCommitTemplates = false;
+            var hasLegacySettings = false;
             if (!File.Exists(fullpath))
             {
                 setting = new();
@@ -62,9 +50,9 @@ namespace SourceGit.Models
                     {
                         foreach (var prop in doc.RootElement.EnumerateObject())
                         {
-                            if (string.Equals(prop.Name, "CommitTemplates", StringComparison.OrdinalIgnoreCase))
+                            if (IsLegacySettingKey(prop.Name))
                             {
-                                hasLegacyCommitTemplates = true;
+                                hasLegacySettings = true;
                                 break;
                             }
                         }
@@ -78,7 +66,7 @@ namespace SourceGit.Models
 
             var formatted = JsonSerializer.Serialize(setting, JsonCodeGen.Default.RepositorySettings);
             setting._orgHash = HashContent(formatted);
-            setting._pendingLegacyTemplateMigration = hasLegacyCommitTemplates;
+            setting._pendingLegacyMigration = hasLegacySettings;
             setting._file = fullpath;
             _cache[fullpath] = setting;
             return setting;
@@ -90,9 +78,9 @@ namespace SourceGit.Models
             {
                 var content = JsonSerializer.Serialize(this, JsonCodeGen.Default.RepositorySettings);
                 var hash = HashContent(content);
-                if (!hash.Equals(_orgHash, StringComparison.Ordinal) || _pendingLegacyTemplateMigration)
+                if (!hash.Equals(_orgHash, StringComparison.Ordinal) || _pendingLegacyMigration)
                 {
-                    if (_pendingLegacyTemplateMigration && File.Exists(_file))
+                    if (_pendingLegacyMigration && File.Exists(_file))
                     {
                         var backupFile = GetLegacyBackupPath(_file);
                         File.Copy(_file, backupFile, false);
@@ -102,13 +90,20 @@ namespace SourceGit.Models
                     File.WriteAllText(tmpfile, content);
                     File.Move(tmpfile, _file, true);
                     _orgHash = hash;
-                    _pendingLegacyTemplateMigration = false;
+                    _pendingLegacyMigration = false;
                 }
             }
             catch
             {
                 // Ignore save errors
             }
+        }
+
+        private static bool IsLegacySettingKey(string name)
+        {
+            return string.Equals(name, "CommitTemplates", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(name, "EnableRecursiveWhenAutoUpdatingSubmodules", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(name, "AskBeforeAutoUpdatingSubmodules", StringComparison.OrdinalIgnoreCase);
         }
 
         internal static void ClearCacheForRepository(string gitCommonDir)
@@ -174,6 +169,6 @@ namespace SourceGit.Models
         private static Dictionary<string, RepositorySettings> _cache = new();
         private string _file = string.Empty;
         private string _orgHash = string.Empty;
-        private bool _pendingLegacyTemplateMigration = false;
+        private bool _pendingLegacyMigration = false;
     }
 }

@@ -309,6 +309,196 @@ internal static partial class Program
         Screenshot(prefWin, "trim-preferences-tabs-light");
         prefWin.Close();
 
+        // Batch 4: Narrowed LFS toolbar menu, removed legacy submodule auto-update UI, and Checkout submodule opt-in + 2-step confirm
+        static List<string> CollectAllMenuTexts(MenuItem root)
+        {
+            var texts = new List<string>();
+            if (root.Header != null)
+                texts.Add(root.Header.ToString() ?? string.Empty);
+            foreach (var child in root.Items.OfType<MenuItem>())
+                texts.AddRange(CollectAllMenuTexts(child));
+            return texts;
+        }
+
+        static List<string> CollectContextMenuTexts(ContextMenu menu) =>
+            menu.Items.OfType<MenuItem>().SelectMany(CollectAllMenuTexts).ToList();
+
+        App.SetLocale("zh_CN");
+        var toolbar = repoView.GetVisualDescendants().OfType<Views.RepositoryToolbar>().FirstOrDefault()
+            ?? new Views.RepositoryToolbar();
+        var lfsMenuBeforeInstallZh = toolbar.CreateGitLFSMenu(repo);
+        var lfsLabelsBeforeZh = CollectContextMenuTexts(lfsMenuBeforeInstallZh);
+        Check(!lfsLabelsBeforeZh.Any(t => t.Contains("精简", StringComparison.Ordinal) || t.Contains('锁') || t.Contains("Prune", StringComparison.OrdinalIgnoreCase)),
+              "Zh un-installed Git LFS toolbar menu omits Prune and Locks");
+        Check(lfsLabelsBeforeZh.Any(t => t.Contains("状态：", StringComparison.Ordinal)) &&
+              lfsLabelsBeforeZh.Any(t => t.Contains("高级 LFS 操作", StringComparison.Ordinal)) &&
+              lfsLabelsBeforeZh.Any(t => t.Contains("启用Git LFS支持", StringComparison.Ordinal)),
+              "Zh un-installed Git LFS toolbar menu shows status and puts Install under 高级 LFS 操作");
+
+        var installTask = repo.InstallLFSAsync();
+        Await(() => installTask.IsCompleted);
+        Check(installTask.IsCompletedSuccessfully && repo.IsLFSEnabled(), "Installing Git LFS in UI probe repo succeeds");
+
+        var lfsMenuZh = toolbar.CreateGitLFSMenu(repo);
+        var lfsMenuLabelsZh = CollectContextMenuTexts(lfsMenuZh);
+        Check(!lfsMenuLabelsZh.Any(t => t.Contains("精简", StringComparison.Ordinal) || t.Contains('锁') || t.Contains("Prune", StringComparison.OrdinalIgnoreCase)),
+              "Zh Git LFS toolbar menu omits Prune and Locks");
+        Check(lfsMenuLabelsZh.Any(t => t.Contains("高级 LFS 操作", StringComparison.Ordinal)) &&
+              lfsMenuLabelsZh.Any(t => t.Contains("状态：", StringComparison.Ordinal)) &&
+              lfsMenuLabelsZh.Any(t => t.Contains("添加追踪文件规则", StringComparison.Ordinal)) &&
+              lfsMenuLabelsZh.Any(t => t.Contains("fetch", StringComparison.OrdinalIgnoreCase)) &&
+              lfsMenuLabelsZh.Any(t => t.Contains("pull", StringComparison.OrdinalIgnoreCase)),
+              "Zh Git LFS toolbar menu keeps explicit status and groups operations under 高级 LFS 操作");
+
+        App.SetLocale("en_US");
+        var lfsMenuEn = toolbar.CreateGitLFSMenu(repo);
+        var lfsMenuLabelsEn = CollectContextMenuTexts(lfsMenuEn);
+        Check(!lfsMenuLabelsEn.Any(t => t.Contains("Prune", StringComparison.OrdinalIgnoreCase) || t.Contains("Lock", StringComparison.OrdinalIgnoreCase)),
+              "En Git LFS toolbar menu omits Prune and Locks");
+        Check(lfsMenuLabelsEn.Any(t => t.Contains("Advanced LFS Operations", StringComparison.Ordinal)) &&
+              lfsMenuLabelsEn.Any(t => t.Contains("Status:", StringComparison.Ordinal)) &&
+              lfsMenuLabelsEn.Any(t => t.Contains("Add Track Pattern", StringComparison.Ordinal)) &&
+              lfsMenuLabelsEn.Any(t => t == "Fetch") &&
+              lfsMenuLabelsEn.Any(t => t == "Pull") &&
+              lfsMenuLabelsEn.Any(t => t == "Push"),
+              "En Git LFS toolbar menu keeps explicit status and groups operations under Advanced LFS Operations");
+
+        // Verify RepositoryConfigure Advanced section omits removed submodule auto-update checkboxes
+        App.SetLocale("zh_CN");
+        var cfgBatch4Vm = new VM.RepositoryConfigure(repo);
+        var cfgBatch4Win = new Views.RepositoryConfigure
+        {
+            DataContext = cfgBatch4Vm,
+            Width = 760,
+            Height = 620,
+            ShowInTaskbar = false,
+            Title = "Batch4 RepositoryConfigure Check",
+        };
+        _window = cfgBatch4Win;
+        cfgBatch4Win.Show();
+        Pump();
+        var allCfgTexts = cfgBatch4Win.GetVisualDescendants().OfType<TextBlock>()
+            .Select(tb => tb.Text ?? string.Empty)
+            .Concat(cfgBatch4Win.GetVisualDescendants().OfType<CheckBox>().Select(cb => cb.Content?.ToString() ?? string.Empty))
+            .ToList();
+        Check(!allCfgTexts.Any(t => t.Contains("自动更新子模块", StringComparison.Ordinal) || t.Contains("auto-updating submodules", StringComparison.OrdinalIgnoreCase)),
+              "RepositoryConfigure omits legacy submodule auto-update settings");
+        cfgBatch4Win.Close();
+
+        // Prepare second submodule commit and broken submodule commit for Checkout opt-in UI probe
+        Git(_root, "config", "--global", "protocol.file.allow", "always");
+        File.WriteAllText(Path.Combine(subOrigin, "core.txt"), "lib v2\n");
+        Git(subOrigin, "add", ".");
+        Git(subOrigin, "commit", "-m", "sub v2");
+
+        // Reset clean main worktree on repoPath (undo sample README append so direct checkout works cleanly)
+        Git(repoPath, "checkout", "--", "README.md");
+        Git(repoPath, "checkout", "-b", "feat/sub-bump");
+        Git(Path.Combine(repoPath, "deps", "lib-core"), "pull", subOrigin, "main");
+        Git(repoPath, "add", "deps/lib-core");
+        Git(repoPath, "commit", "-m", "bump deps/lib-core to v2");
+        Git(repoPath, "checkout", "-b", "feat/sub-broken");
+        Git(repoPath, "update-index", "--add", "--cacheinfo", "160000,0123456789abcdef0123456789abcdef01234567,deps/lib-core");
+        Git(repoPath, "commit", "-m", "broken deps/lib-core pointer");
+        Git(repoPath, "checkout", "main");
+        Git(repoPath, "submodule", "update", "--recursive");
+
+        repo.MarkBranchesDirtyManually();
+        Await(() => repo.Branches.Any(b => b.IsLocal && b.Name == "feat/sub-bump") &&
+                    repo.Branches.Any(b => b.IsLocal && b.Name == "feat/sub-broken"));
+
+        var bumpBranch = repo.Branches.Single(b => b.IsLocal && b.Name == "feat/sub-bump");
+        var brokenBranch = repo.Branches.Single(b => b.IsLocal && b.Name == "feat/sub-broken");
+
+        var checkoutVm = new VM.Checkout(repo, bumpBranch);
+        Check(!checkoutVm.UpdateSubmodulesAfterSwitch && checkoutVm.ShowSubmoduleUpdateOption,
+              "Checkout popup defaults UpdateSubmodulesAfterSwitch to false when submodules exist");
+
+        App.SetTheme("Light", "");
+        App.SetLocale("zh_CN");
+        launcher.ActivePage.Popup = checkoutVm;
+        var checkoutHostWin = new Window
+        {
+            Content = new Views.LauncherPage { DataContext = launcher.ActivePage },
+            Width = 960,
+            Height = 560,
+            ShowInTaskbar = false,
+            Title = "Batch4 Checkout Default Opt-In Probe",
+        };
+        _window = checkoutHostWin;
+        checkoutHostWin.Show();
+        Pump();
+
+        var defaultOptionCheck = checkoutHostWin.GetVisualDescendants()
+            .OfType<CheckBox>()
+            .FirstOrDefault(cb => cb.GetVisualDescendants().OfType<TextBlock>().Any(tb => tb.Text == App.Text("Checkout.UpdateSubmodulesAfterSwitch")));
+        Check(defaultOptionCheck != null && defaultOptionCheck.IsChecked == false,
+              "Checkout popup renders unchecked '切换后更新子模块' checkbox by default");
+        Screenshot(checkoutHostWin, "trim-checkout-submodule-default-light");
+
+        // Tick opt-in, execute phase 1 (switches main branch and opens phase 2 confirm) in narrow Dark theme
+        checkoutVm.UpdateSubmodulesAfterSwitch = true;
+        Pump();
+        var phase1Done = launcher.ActivePage.ProcessPopupAsync();
+        Await(() => phase1Done.IsCompleted);
+        Pump();
+        Check(checkoutVm.IsAwaitingSubmoduleConfirm &&
+              checkoutVm.AffectedSubmodules.Contains("deps/lib-core") &&
+              checkoutVm.ConfirmButtonText == App.Text("Checkout.Submodules.ConfirmUpdate") &&
+              checkoutVm.CancelButtonText == App.Text("Checkout.Submodules.SkipAndClose"),
+              "Phase 1 switches main branch and shows affected submodule paths & recursive confirmation card");
+
+        App.SetTheme("Dark", "");
+        checkoutHostWin.Width = 600;
+        checkoutHostWin.Height = 560;
+        Pump();
+        var popupPanel = checkoutHostWin.GetVisualDescendants().OfType<ContentControl>().First(c => c.Name == "PopupPanel");
+        var overflowTexts = new List<string>();
+        foreach (var tb in popupPanel.GetVisualDescendants().OfType<TextBlock>().Where(t => t.IsVisible && t.Bounds.Width > 0))
+        {
+            var topLeft = tb.TranslatePoint(new Point(0, 0), checkoutHostWin);
+            if (topLeft.HasValue && topLeft.Value.X + tb.Bounds.Width > checkoutHostWin.Bounds.Width + 2)
+                overflowTexts.Add($"{tb.Text} ({topLeft.Value.X + tb.Bounds.Width:F1} > {checkoutHostWin.Bounds.Width:F1})");
+        }
+        Check(overflowTexts.Count == 0,
+              $"Dark narrow submodule confirm popup fits within 600px window bounds without horizontal clipping (overflows: {string.Join("; ", overflowTexts)})");
+        Screenshot(checkoutHostWin, "trim-checkout-submodule-confirm-dark-narrow");
+
+        // Complete phase 2 confirm on feat/sub-bump
+        checkoutVm.RecursiveSubmoduleUpdate = true;
+        var phase2Done = launcher.ActivePage.ProcessPopupAsync();
+        Await(() => phase2Done.IsCompleted);
+        Pump();
+        Check(launcher.ActivePage.Popup == null,
+              "Confirming phase 2 submodule update succeeds and closes checkout popup");
+
+        // Now probe broken submodule update partial failure card (Light, en_US)
+        App.SetTheme("Light", "");
+        App.SetLocale("en_US");
+        checkoutHostWin.Width = 680;
+        var failCheckoutVm = new VM.Checkout(repo, brokenBranch)
+        {
+            UpdateSubmodulesAfterSwitch = true,
+        };
+        launcher.ActivePage.Popup = failCheckoutVm;
+        Pump();
+        var failPhase1 = launcher.ActivePage.ProcessPopupAsync();
+        Await(() => failPhase1.IsCompleted);
+        Pump();
+        Check(failCheckoutVm.IsAwaitingSubmoduleConfirm, "Broken submodule checkout enters phase 2 confirm");
+        var failPhase2 = launcher.ActivePage.ProcessPopupAsync();
+        Await(() => failPhase2.IsCompleted);
+        Pump();
+        Check(failCheckoutVm.HasResultView &&
+              failCheckoutVm.IsSubmoduleFailureResult &&
+              launcher.ActivePage.Popup == failCheckoutVm,
+              "Broken submodule update keeps popup open and displays separated main-success / submodule-failure result");
+        Screenshot(checkoutHostWin, "trim-checkout-submodule-partial-failure-light");
+        checkoutHostWin.Close();
+        launcher.ActivePage.Popup = null;
+        App.SetTheme("Light", "");
+        App.SetLocale("zh_CN");
+
         App.SetLocale("en_US");
         var release = new SourceGit.Models.Version
         {
