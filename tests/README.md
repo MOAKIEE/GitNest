@@ -12,6 +12,12 @@
 
 临时路径固定在系统临时目录下的 `GitNest-tests-<随机标识>/`，清理前验证路径；测试进程退出前恢复覆盖的环境变量。
 
+仅运行丢弃与恢复审查回归（包括基础 Git 检查）：
+
+```powershell
+./.tools/dotnet/dotnet.exe run --project tests/GitNest.IntegrationTests -c Release -- --review-discard
+```
+
 ## 界面探针
 
 ```powershell

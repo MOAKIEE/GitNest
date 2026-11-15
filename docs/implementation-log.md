@@ -330,3 +330,8 @@
   - `.\build\scripts\build-installer.ps1 -SkipPublish` 生成最终安装包 `artifacts/installer/GitNest-Setup-0.1.0-dev-win-x64.exe`（`35.95 MB`，SHA-256 `2072815A74402B908A2340AAD605F115B93E4081E5CCD39F236DD41D8B53BEDF`）；
   - `.\build\scripts\verify-installer.ps1` 全流程 **38 / 38** 通过，并将 `%TEMP%\*GitNest*` 与阶段二遗留 `artifacts/smoke/` 送入系统回收站（`0` 残留测试目录，唯一本地 `main` 分支与单主工作树）。
 - 撰写总验报告 [phase-4.3.md](verification/phase-4.3.md) 与 [发行记录](release-notes.md)，阶段一至阶段四全部批次完成。
+
+## 2026-11-15 · 整体审查修复一：丢弃与恢复
+
+- 修复重命名原路径新文件被覆盖、已删除文件无法恢复及索引删除状态恢复错误；补齐双路径备份、锁内快照复核、恢复失败结果检查及仓库归属检查。
+- 新增 11 项真实 Git 回归检查。完整集成检查 399/399 通过，最终代码定向检查 37/37 通过；验证细节见 [审查修复记录](verification/review-fixes.md)。

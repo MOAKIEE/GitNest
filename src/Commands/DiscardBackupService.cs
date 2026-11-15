@@ -59,6 +59,7 @@ namespace SourceGit.Commands
             var untracked = new List<Models.DiscardTargetItem>();
             var skippedSubmodules = new List<string>();
             var indexAddedOnly = new List<string>();
+            var renameCollisions = new List<string>();
 
             var repoRootFull = Path.TrimEndingDirectorySeparator(Path.GetFullPath(repoPath));
 
@@ -99,6 +100,12 @@ namespace SourceGit.Commands
                 }
                 else
                 {
+                    if (baseline == Models.DiscardBaselineKind.RestoreToHead &&
+                        (c.Index == Models.ChangeState.Renamed || c.WorkTree == Models.ChangeState.Renamed) && !string.IsNullOrEmpty(origPath) &&
+                        !indexInfo.ContainsKey(origPath) &&
+                        (File.Exists(Path.Combine(repoRootFull, origPath)) || Directory.Exists(Path.Combine(repoRootFull, origPath))))
+                        renameCollisions.Add(origPath);
+
                     if (baseline == Models.DiscardBaselineKind.RestoreToHead && !headPaths.Contains(relPath))
                     {
                         item.IsIndexAddedOnly = true;
@@ -110,7 +117,9 @@ namespace SourceGit.Commands
             }
 
             var confirmationPaths = tracked
-                .Select(t => t.Path)
+                .SelectMany(t => baseline == Models.DiscardBaselineKind.RestoreToHead && HasRenameSource(t)
+                    ? new[] { t.Path, t.OriginalPath }
+                    : new[] { t.Path })
                 .Concat(untracked.Select(u => u.Path))
                 .Where(p => !string.IsNullOrWhiteSpace(p))
                 .Distinct(PathComparer)
@@ -148,13 +157,15 @@ namespace SourceGit.Commands
             return new Models.DiscardPreflight
             {
                 Baseline = baseline,
-                CanProceed = tracked.Count > 0,
+                CanProceed = tracked.Count > 0 && renameCollisions.Count == 0,
                 HasUnbornHead = !hasHead,
-                BlockingReason = tracked.Count > 0
-                    ? string.Empty
-                    : skippedSubmodules.Count > 0
-                        ? "暂不支持按文件恢复库直接覆盖子模块变更。"
-                        : "所选条目中没有符合当前基线的已跟踪文件修改。",
+                BlockingReason = renameCollisions.Count > 0
+                    ? $"重命名的原路径包含新文件或目录，请先移走或保存后再恢复：{string.Join("、", renameCollisions)}"
+                    : tracked.Count > 0
+                        ? string.Empty
+                        : skippedSubmodules.Count > 0
+                            ? "暂不支持按文件恢复库直接覆盖子模块变更。"
+                            : "所选条目中没有符合当前基线的已跟踪文件修改。",
                 TrackedTargets = tracked,
                 UntrackedTargets = untracked,
                 SkippedSubmodulePaths = skippedSubmodules,
@@ -175,36 +186,6 @@ namespace SourceGit.Commands
             CancellationToken cancellationToken = default,
             Models.DiscardPreflight expectedPreflight = null)
         {
-            if (expectedPreflight?.ConfirmationSnapshot != null)
-            {
-                var verify = await CaptureOperationSnapshot.VerifyAsync(
-                    expectedPreflight.ConfirmationSnapshot,
-                    new Models.OperationSnapshotVerifyOptions
-                    {
-                        RequireSameRepoIdentity = true,
-                        RequireSameHead = true,
-                        RequireSameInProgressState = true,
-                        RequireSameStagedFingerprint = true,
-                        RequireSameWatchedRefs = false,
-                        RequireSameTargetFiles = true,
-                        CheckGitLocks = false,
-                        CheckIndexLock = false,
-                    },
-                    cancellationToken).ConfigureAwait(false);
-                if (!verify.IsValid)
-                {
-                    return new Models.DiscardExecutionResult
-                    {
-                        Success = false,
-                        BlockedBySnapshot = true,
-                        Baseline = baseline,
-                        Summary = string.IsNullOrWhiteSpace(verify.Summary)
-                            ? "确认弹窗打开期间工作区或仓库状态已发生外部变更，已中止丢弃并刷新列表。"
-                            : $"确认弹窗打开期间仓库或目标文件已发生外部变更（{verify.Summary}），已取消本次丢弃并为您重新检查。",
-                    };
-                }
-            }
-
             var preflight = await InspectDiscardAsync(repoPath, targets, baseline, cancellationToken).ConfigureAwait(false);
             if (!preflight.CanProceed)
             {
@@ -224,7 +205,8 @@ namespace SourceGit.Commands
                     recycleHandler,
                     journalStore,
                     outerLog,
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken,
+                    expectedPreflight?.ConfirmationSnapshot ?? preflight.ConfirmationSnapshot).ConfigureAwait(false);
             }
 
             var effectiveStore = backupStore ?? Models.DiscardBackupStore.Instance;
@@ -242,9 +224,18 @@ namespace SourceGit.Commands
                 {
                     // 1. Capture live disk content & index entries BEFORE altering working tree or index.
                     var indexInfo = await ReadIndexEntriesAsync(repoPath, cancellationToken).ConfigureAwait(false);
-                    var captureInputs = new List<Models.DiscardBackupCaptureInput>(preflight.TrackedTargets.Count);
+                    var backupTargets = preflight.TrackedTargets.ToList();
+                    if (baseline == Models.DiscardBaselineKind.RestoreToHead)
+                    {
+                        foreach (var original in preflight.TrackedTargets.Where(HasRenameSource).Select(t => t.OriginalPath))
+                        {
+                            if (!backupTargets.Any(t => PathComparer.Equals(t.Path, original)))
+                                backupTargets.Add(new Models.DiscardTargetItem { Path = original });
+                        }
+                    }
+                    var captureInputs = new List<Models.DiscardBackupCaptureInput>(backupTargets.Count);
 
-                    foreach (var target in preflight.TrackedTargets)
+                    foreach (var target in backupTargets)
                     {
                         var absPath = ResolveSafeRepoPathAny(repoPath, target.Path);
                         if (absPath == null)
@@ -344,7 +335,7 @@ namespace SourceGit.Commands
                         {
                             if (!t.IsIndexAddedOnly)
                                 headRestoreSet.Add(t.Path);
-                            else if (!string.IsNullOrEmpty(t.OriginalPath))
+                            if (HasRenameSource(t))
                                 headRestoreSet.Add(t.OriginalPath);
                         }
 
@@ -435,7 +426,7 @@ namespace SourceGit.Commands
                     // Record exact post-discard disk + index hashes so subsequent-modification detection works accurately.
                     var postIndex = await ReadIndexEntriesAsync(repoPath, cancellationToken).ConfigureAwait(false);
                     var postStates = new Dictionary<string, (string WorktreeSha256, string IndexBlobOid)>(PathComparer);
-                    foreach (var t in preflight.TrackedTargets)
+                    foreach (var t in backupTargets)
                     {
                         var abs = ResolveSafeRepoPathAny(repoPath, t.Path);
                         var wtSha = abs != null && File.Exists(abs)
@@ -470,6 +461,8 @@ namespace SourceGit.Commands
                         },
                     };
                 },
+                expectedSnapshot: expectedPreflight?.ConfirmationSnapshot ?? preflight.ConfirmationSnapshot,
+                verifyOptions: DiscardVerifyOptions(),
                 journalStore: journalStore,
                 outerLog: outerLog,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -477,6 +470,7 @@ namespace SourceGit.Commands
             return exec.Payload ?? new Models.DiscardExecutionResult
             {
                 Success = exec.Succeeded,
+                BlockedBySnapshot = exec.BlockedBySnapshot,
                 Baseline = baseline,
                 Summary = exec.Summary,
                 OperationRecordId = exec.Record?.OperationId ?? string.Empty,
@@ -489,7 +483,8 @@ namespace SourceGit.Commands
             Func<string, (bool Success, string Error)> recycleHandler,
             Models.OperationJournalStore journalStore,
             Models.ICommandLog outerLog,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Models.OperationConfirmationSnapshot expectedSnapshot)
         {
             var effectiveRecycle = recycleHandler ?? DefaultRecycleHandler;
             var title = $"将 {untrackedTargets.Count} 个未跟踪项目移至回收站";
@@ -570,6 +565,8 @@ namespace SourceGit.Commands
                         },
                     };
                 },
+                expectedSnapshot: expectedSnapshot,
+                verifyOptions: DiscardVerifyOptions(),
                 journalStore: journalStore,
                 outerLog: outerLog,
                 cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -577,6 +574,7 @@ namespace SourceGit.Commands
             return exec.Payload ?? new Models.DiscardExecutionResult
             {
                 Success = exec.Succeeded,
+                BlockedBySnapshot = exec.BlockedBySnapshot,
                 Baseline = Models.DiscardBaselineKind.MoveUntrackedToRecycleBin,
                 Summary = exec.Summary,
                 OperationRecordId = exec.Record?.OperationId ?? string.Empty,
@@ -604,6 +602,16 @@ namespace SourceGit.Commands
 
             var nowUtc = utcNowOverride ?? DateTime.UtcNow;
             var isExpired = entry.ExpiresAtUtc <= nowUtc;
+            var (_, commonDir) = await Models.RepositoryWriteGuard.ResolveGitDirectoriesAsync(repoPath, cancellationToken).ConfigureAwait(false);
+            if (!Models.WorktreeTaskStore.PathsEqual(entry.GitCommonDir, commonDir) ||
+                !Models.WorktreeTaskStore.PathsEqual(entry.WorktreePath, repoPath))
+            {
+                return new Models.DiscardBackupRestoreCheck
+                {
+                    Found = false,
+                    BlockingReason = "恢复记录属于其他仓库或工作树，已停止恢复。",
+                };
+            }
 
             var integrityOk = store.VerifyPayloadIntegrity(entry, out var missingPayloads);
             var liveIndex = await ReadIndexEntriesAsync(repoPath, cancellationToken).ConfigureAwait(false);
@@ -711,6 +719,25 @@ namespace SourceGit.Commands
                 {
                     var restoredPaths = new List<string>();
                     var indexRestoredCount = 0;
+                    var hasMutated = false;
+                    OperationActionOutcome<Models.DiscardBackupRestoreResult> FailedRestore(string reason) => new()
+                    {
+                        Stage = hasMutated ? Models.GitOperationStage.PartialSuccess : Models.GitOperationStage.Failed,
+                        Summary = reason,
+                        Payload = new Models.DiscardBackupRestoreResult
+                        {
+                            Success = false,
+                            BackupId = backupId,
+                            RestoredPaths = restoredPaths,
+                            IndexRestoredCount = indexRestoredCount,
+                            Summary = reason,
+                        },
+                    };
+
+                    var liveCheck = await InspectBackupRestoreAsync(repoPath, backupId, store, utcNowOverride, cancellationToken).ConfigureAwait(false);
+                    if (!liveCheck.Found || liveCheck.IsExpired || liveCheck.HasPayloadIntegrityError ||
+                        (liveCheck.HasSubsequentModifications && !allowOverwriteSubsequentEdits))
+                        return FailedRestore(liveCheck.BlockingReason);
 
                     foreach (var file in entry.Files)
                     {
@@ -725,6 +752,7 @@ namespace SourceGit.Commands
                             };
                         }
 
+                        hasMutated = true;
                         if (file.ExistsInWorktree && !file.IsSymlink)
                         {
                             var bytes = store.ReadWorktreePayloadBytes(file, out var readErr);
@@ -751,7 +779,11 @@ namespace SourceGit.Commands
                                 Directory.CreateDirectory(parent);
 
                             if (File.Exists(absPath) || Directory.Exists(absPath))
-                                effectiveRecycle(absPath);
+                            {
+                                var (ok, err) = effectiveRecycle(absPath);
+                                if (!ok)
+                                    return FailedRestore($"恢复符号链接前移至回收站失败：{err}");
+                            }
 
                             File.CreateSymbolicLink(absPath, file.SymlinkTarget);
                         }
@@ -775,48 +807,48 @@ namespace SourceGit.Commands
                             if (file.ExistsInIndex)
                             {
                                 var idxBytes = store.ReadIndexPayloadBytes(file, out var idxErr);
-                                string targetBlobOid = file.IndexBlobOid;
-                                if (idxBytes != null && string.IsNullOrEmpty(idxErr))
-                                {
-                                    var hashRes = await Command.RunGitDirectWithInputAsync(
-                                        repoPath,
-                                        TimeSpan.FromSeconds(15),
-                                        idxBytes,
-                                        cancellationToken,
-                                        "hash-object",
-                                        "-w",
-                                        "--stdin").ConfigureAwait(false);
-                                    if (hashRes.IsSuccess && !string.IsNullOrWhiteSpace(hashRes.StdOut))
-                                        targetBlobOid = hashRes.StdOut.Trim();
-                                }
+                                if (idxBytes == null || !string.IsNullOrEmpty(idxErr))
+                                    return FailedRestore(string.IsNullOrEmpty(idxErr) ? $"缺少索引恢复载荷：{file.RelativePath}" : idxErr);
 
-                                if (!string.IsNullOrEmpty(targetBlobOid))
-                                {
-                                    var mode = string.IsNullOrEmpty(file.IndexMode) ? "100644" : file.IndexMode;
-                                    var upd = await Command.RunGitDirectAsync(
-                                        repoPath,
-                                        TimeSpan.FromSeconds(15),
-                                        cancellationToken,
-                                        "--literal-pathspecs",
-                                        "update-index",
-                                        "--add",
-                                        "--cacheinfo",
-                                        $"{mode},{targetBlobOid},{file.RelativePath}").ConfigureAwait(false);
-                                    if (upd.IsSuccess)
-                                        indexRestoredCount++;
-                                }
+                                var hashRes = await Command.RunGitDirectWithInputAsync(
+                                    repoPath,
+                                    TimeSpan.FromSeconds(15),
+                                    idxBytes,
+                                    cancellationToken,
+                                    "hash-object",
+                                    "-w",
+                                    "--stdin").ConfigureAwait(false);
+                                if (!hashRes.IsSuccess || string.IsNullOrWhiteSpace(hashRes.StdOut))
+                                    return FailedRestore(CombineError(hashRes, $"写入索引恢复对象失败：{file.RelativePath}"));
+                                var targetBlobOid = hashRes.StdOut.Trim();
+                                var mode = string.IsNullOrEmpty(file.IndexMode) ? "100644" : file.IndexMode;
+                                var upd = await Command.RunGitDirectAsync(
+                                    repoPath,
+                                    TimeSpan.FromSeconds(15),
+                                    cancellationToken,
+                                    "--literal-pathspecs",
+                                    "update-index",
+                                    "--add",
+                                    "--cacheinfo",
+                                    $"{mode},{targetBlobOid},{file.RelativePath}").ConfigureAwait(false);
+                                if (!upd.IsSuccess)
+                                    return FailedRestore(CombineError(upd, $"恢复索引条目失败：{file.RelativePath}"));
+                                indexRestoredCount++;
                             }
                             else
                             {
-                                await Command.RunGitDirectAsync(
+                                var remove = await Command.RunGitDirectAsync(
                                     repoPath,
                                     TimeSpan.FromSeconds(10),
                                     cancellationToken,
                                     "--literal-pathspecs",
-                                    "reset",
-                                    "-q",
+                                    "update-index",
+                                    "--force-remove",
                                     "--",
                                     file.RelativePath).ConfigureAwait(false);
+                                if (!remove.IsSuccess)
+                                    return FailedRestore(CombineError(remove, $"恢复索引删除状态失败：{file.RelativePath}"));
+                                indexRestoredCount++;
                             }
                         }
 
@@ -862,34 +894,14 @@ namespace SourceGit.Commands
         {
             try
             {
-                var existsOnDisk = File.Exists(absPath);
-                var isSymlink = false;
-                var symlinkTarget = string.Empty;
+                var fi = new FileInfo(absPath);
+                var symlinkTarget = fi.LinkTarget ?? string.Empty;
+                var isSymlink = !string.IsNullOrEmpty(symlinkTarget);
+                var existsOnDisk = fi.Exists || isSymlink;
                 byte[] wtBytes = null;
 
-                if (existsOnDisk)
-                {
-                    var fi = new FileInfo(absPath);
-                    if (!string.IsNullOrEmpty(fi.LinkTarget))
-                    {
-                        isSymlink = true;
-                        symlinkTarget = fi.LinkTarget;
-                    }
-                    else
-                    {
-                        wtBytes = await File.ReadAllBytesAsync(absPath, cancellationToken).ConfigureAwait(false);
-                    }
-                }
-                else
-                {
-                    var symCheck = File.ResolveLinkTarget(absPath, false);
-                    if (symCheck != null)
-                    {
-                        existsOnDisk = true;
-                        isSymlink = true;
-                        symlinkTarget = symCheck.FullName;
-                    }
-                }
+                if (existsOnDisk && !isSymlink)
+                    wtBytes = await File.ReadAllBytesAsync(absPath, cancellationToken).ConfigureAwait(false);
 
                 var hasIndex = indexInfo.TryGetValue(target.Path, out var idx);
                 byte[] idxBytes = null;
@@ -1059,6 +1071,22 @@ namespace SourceGit.Commands
                 return null;
             }
         }
+
+        private static bool HasRenameSource(Models.DiscardTargetItem target) =>
+            !string.IsNullOrEmpty(target.OriginalPath) &&
+            (target.Index == Models.ChangeState.Renamed || target.WorkTree == Models.ChangeState.Renamed);
+
+        private static Models.OperationSnapshotVerifyOptions DiscardVerifyOptions() => new()
+        {
+            RequireSameRepoIdentity = true,
+            RequireSameHead = true,
+            RequireSameInProgressState = true,
+            RequireSameStagedFingerprint = true,
+            RequireSameTargetFiles = true,
+            RequireSameWatchedRefs = false,
+            CheckGitLocks = true,
+            CheckIndexLock = true,
+        };
 
         private static string NormalizeRelPath(string path) => path.Trim().Replace('\\', '/').TrimEnd('/');
 

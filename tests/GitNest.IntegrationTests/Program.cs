@@ -9,9 +9,15 @@ internal static partial class Program
 {
     private const string FakeModeVariable = "GITNEST_TEST_GIT_MODE";
     private static int _checks;
+    private static bool _reviewDiscardOnly;
 
     public static async Task<int> Main(string[] args)
     {
+        if (args is ["--review-discard"])
+        {
+            _reviewDiscardOnly = true;
+            args = [];
+        }
         if (args.Length > 0)
         {
             if (string.Equals(Environment.GetEnvironmentVariable(FakeModeVariable), "gpg-fail", StringComparison.Ordinal))
@@ -159,6 +165,9 @@ internal static partial class Program
             Check(!identity.IsReadable, "Invalid Git configuration is reported as a read failure");
 
             File.WriteAllText(global, string.Empty);
+            await RunReviewDiscardSafetyTestsAsync(realGit, root);
+            if (_reviewDiscardOnly)
+                return;
             await RunWorktreeTestsAsync(realGit, root);
             await RunComparisonTestsAsync(realGit, root);
             await RunConfigTestsAsync(realGit, root);
