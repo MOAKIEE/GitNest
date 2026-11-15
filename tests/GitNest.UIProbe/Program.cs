@@ -90,6 +90,10 @@ internal static partial class Program
             {
                 RunTrimSurface();
             }
+            else if (args.Contains("--high-dpi"))
+            {
+                RunHighDpi();
+            }
             else
             {
                 RunOverview();
@@ -381,5 +385,6 @@ internal static partial class Program
     static partial void RunStashDiscardIgnore();
     static partial void RunResetRewrite();
     static partial void RunTrimSurface();
+    static partial void RunHighDpi();
 
 }
