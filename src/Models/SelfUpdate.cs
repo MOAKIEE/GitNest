@@ -19,21 +19,26 @@ namespace SourceGit.Models
         public string Body { get; set; }
 
         [JsonIgnore]
-        public System.Version CurrentVersion { get; }
+        public string CurrentVersionStr { get; }
 
         [JsonIgnore]
-        public string CurrentVersionStr => $"v{CurrentVersion.Major}.{CurrentVersion.Minor:D2}";
-
-        [JsonIgnore]
-        public bool IsNewVersion => CurrentVersion.CompareTo(new System.Version(TagName.Substring(1))) < 0;
+        public bool IsNewVersion => ReleaseVersion.TryCompare(TagName, CurrentVersionStr, out var comparison) && comparison > 0;
 
         [JsonIgnore]
         public string ReleaseDateStr => DateTimeFormat.Format(PublishedAt, true);
 
         public Version()
         {
-            var assembly = Assembly.GetExecutingAssembly().GetName();
-            CurrentVersion = assembly.Version ?? new System.Version();
+            var assembly = Assembly.GetExecutingAssembly();
+            CurrentVersionStr = $"v{assembly.GetName().Version?.ToString(3) ?? "0.0.0"}";
+            foreach (var metadata in assembly.GetCustomAttributes<AssemblyMetadataAttribute>())
+            {
+                if (metadata.Key == "FriendlyVersion" && ReleaseVersion.TryCompare(metadata.Value, metadata.Value, out _))
+                {
+                    CurrentVersionStr = metadata.Value;
+                    break;
+                }
+            }
         }
     }
 

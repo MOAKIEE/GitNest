@@ -172,8 +172,36 @@ internal static partial class Program
         var prefTabControl = prefWin.GetVisualDescendants().OfType<TabControl>().First();
         Check(prefTabControl.Items.Count == 5,
               $"Preferences exposes exactly 5 tabs after removing CustomAction and AI (actual={prefTabControl.Items.Count})");
+        var languagePicker = prefWin.GetVisualDescendants().OfType<ComboBox>()
+            .Single(c => ReferenceEquals(c.ItemsSource, Locale.Supported));
+        Check(languagePicker.Items.Count == 2, "Language picker exposes Simplified Chinese and English");
         Screenshot(prefWin, "trim-preferences-tabs-light");
         prefWin.Close();
+
+        App.SetLocale("en_US");
+        var release = new SourceGit.Models.Version
+        {
+            TagName = "v0.2.0",
+            PublishedAt = DateTime.UtcNow,
+            Body = "# GitNest 0.2.0\n\nReview changes and download the new version from GitNest Releases.",
+        };
+        var updateVm = new VM.SelfUpdate { Data = release };
+        var updateWin = new Views.SelfUpdate { DataContext = updateVm, ShowInTaskbar = false };
+        _window = updateWin;
+        updateWin.Show();
+        Pump();
+        Check(updateWin.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == "v0.2.0"),
+              "GitNest update dialog displays the release tag");
+        Screenshot(updateWin, "gitnest-update-light");
+
+        App.SetTheme("Dark", "");
+        App.SetLocale("zh_CN");
+        updateVm.Data = new SelfUpdateFailed(new InvalidOperationException(App.Text("SelfUpdate.Unavailable")));
+        Pump();
+        Check(updateWin.GetVisualDescendants().OfType<Button>().Any(b => b.Content as string == "打开 GitNest 发行页"),
+              "Unavailable private or unpublished release offers the GitNest releases page");
+        Screenshot(updateWin, "gitnest-update-unavailable-dark");
+        updateWin.Close();
         _window = null;
     }
 }

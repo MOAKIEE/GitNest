@@ -1444,4 +1444,7 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.OperationRecovery.RestoreModeExistingBranch" xml:space="preserve">Safely restore onto original branch (blocked if dirty or newer commits exist)</x:String>
   <x:String x:Key="Text.OperationRecovery.RestoreNewerCommitsWarning" xml:space="preserve">Warning: {0} newer commit(s) were made after the reset; restoring onto a new recovery branch preserves them.</x:String>
   <x:String x:Key="Text.OperationRecovery.InspectingBackup" xml:space="preserve">Inspecting backup ref and branch recovery safety checks...</x:String>
+  <x:String x:Key="Text.SelfUpdate.Unavailable" xml:space="preserve">No accessible release was found. The repository may be private or have no published releases. Open the GitNest releases page to check.</x:String>
+  <x:String x:Key="Text.SelfUpdate.InvalidVersion" xml:space="preserve">The release tag is not a valid version. Expected a tag such as v0.1.0.</x:String>
+  <x:String x:Key="Text.SelfUpdate.ReleasePage" xml:space="preserve">Open GitNest Releases</x:String>
 </ResourceDictionary>

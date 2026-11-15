@@ -1448,4 +1448,7 @@
   <x:String x:Key="Text.OperationRecovery.RestoreModeExistingBranch" xml:space="preserve">安全覆盖原分支（仅工作区洁净、无新提交且无文件冲突时允许）</x:String>
   <x:String x:Key="Text.OperationRecovery.RestoreNewerCommitsWarning" xml:space="preserve">原分支在撤回后已新增 {0} 个提交，直接覆写会导致这些新提交丢失；建议新建恢复分支以保留全部进度。</x:String>
   <x:String x:Key="Text.OperationRecovery.InspectingBackup" xml:space="preserve">正在校验备份引用与目标分支安全状态...</x:String>
+  <x:String x:Key="Text.SelfUpdate.Unavailable" xml:space="preserve">未找到可访问的发行版本。仓库可能为私有，或尚未发布版本，请打开 GitNest 发行页查看。</x:String>
+  <x:String x:Key="Text.SelfUpdate.InvalidVersion" xml:space="preserve">发行标签不是有效版本号，请使用 v0.1.0 等格式。</x:String>
+  <x:String x:Key="Text.SelfUpdate.ReleasePage" xml:space="preserve">打开 GitNest 发行页</x:String>
 </ResourceDictionary>

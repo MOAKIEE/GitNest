@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace SourceGit.Commands
@@ -82,28 +80,6 @@ namespace SourceGit.Commands
             else
                 Args = $"worktree add -b {name} {fullpath.Quoted()}";
 
-            return await ExecAsync().ConfigureAwait(false);
-        }
-
-        public async Task<bool> AddWithLocalBranchAsync(string fullpath, string localBranch)
-        {
-            Args = $"worktree add -B {localBranch} {fullpath.Quoted()} {localBranch}";
-            return await ExecAsync().ConfigureAwait(false);
-        }
-
-        public async Task<bool> AddWithRemoteBranchAsync(string fullpath, string name, string remoteBranch, bool tracking)
-        {
-            var builder = new StringBuilder(1024);
-            builder.Append("worktree add ");
-
-            if (tracking)
-                builder.Append("--track -b ").Append(string.IsNullOrEmpty(name) ? Path.GetFileName(fullpath) : name).Append(' ');
-            else if (!string.IsNullOrEmpty(name))
-                builder.Append("-b ").Append(name).Append(' ');
-
-            builder.Append(fullpath.Quoted()).Append(' ').Append(remoteBranch);
-
-            Args = builder.ToString();
             return await ExecAsync().ConfigureAwait(false);
         }
 

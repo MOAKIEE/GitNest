@@ -36,8 +36,9 @@ namespace SourceGit.ViewModels
             get => _locale;
             set
             {
-                if (SetProperty(ref _locale, value) && !_isLoading)
-                    App.SetLocale(value);
+                var locale = Models.Locale.ResolveKey(value);
+                if (SetProperty(ref _locale, locale) && !_isLoading)
+                    App.SetLocale(locale);
             }
         }
 

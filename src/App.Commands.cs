@@ -25,18 +25,6 @@ namespace SourceGit
             private Action<object> _action = null;
         }
 
-        public static bool IsCheckForUpdateCommandVisible
-        {
-            get
-            {
-#if DISABLE_UPDATE_DETECTION
-                return false;
-#else
-                return true;
-#endif
-            }
-        }
-
         public static readonly Command OpenPreferencesCommand = new Command(async _ =>
         {
             if (Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } owner })

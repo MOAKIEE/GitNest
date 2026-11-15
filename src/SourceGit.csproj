@@ -6,7 +6,7 @@
     <RootNamespace>SourceGit</RootNamespace>
     <ApplicationManifest>App.manifest</ApplicationManifest>
     <ApplicationIcon>App.ico</ApplicationIcon>
-    <Version>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)\\..\\VERSION"))</Version>
+    <Version>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)\\..\\VERSION").Trim())</Version>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
     <InvariantGlobalization>false</InvariantGlobalization>
@@ -20,7 +20,6 @@
     <RepositoryUrl>https://github.com/MOAKIEE/GitNest.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <DisableAOT Condition="'$(DisableAOT)' == ''">true</DisableAOT>
-    <DisableUpdateDetection>true</DisableUpdateDetection>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(DisableAOT)' != 'true'">
@@ -31,10 +30,6 @@
 
   <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
     <SupportedOSPlatformVersion>13.0</SupportedOSPlatformVersion>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(DisableUpdateDetection)' == 'true'">
-    <DefineConstants>$(DefineConstants);DISABLE_UPDATE_DETECTION</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

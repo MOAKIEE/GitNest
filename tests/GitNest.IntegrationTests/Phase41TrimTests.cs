@@ -103,6 +103,10 @@ internal static partial class Program
         var enKeys = ReadLocaleKeys(Path.Combine(repoRoot!, "src", "Resources", "Locales", "en_US.axaml"), xNs);
         var zhKeys = ReadLocaleKeys(Path.Combine(repoRoot!, "src", "Resources", "Locales", "zh_CN.axaml"), xNs);
         Check(enKeys.SetEquals(zhKeys), $"en_US ({enKeys.Count}) and zh_CN ({zhKeys.Count}) locale key sets have zero parity diff");
+        var preferences = System.Text.Json.JsonSerializer.Deserialize<VM.Preferences>("{\"Locale\":\"zh_TW\"}");
+        Check(preferences?.Locale == "zh_CN", "Saved settings in a removed locale migrate to Simplified Chinese");
+        preferences = System.Text.Json.JsonSerializer.Deserialize<VM.Preferences>("{\"Locale\":\"EN_us\"}");
+        Check(preferences?.Locale == "en_US", "Saved English settings retain their canonical locale key");
         Check(enKeys.Contains("Text.Tag.Annotated") && zhKeys.Contains("Text.Tag.Annotated"),
               "Added Text.Tag.Annotated exists symmetrically in en_US and zh_CN for read-only TagsView");
 

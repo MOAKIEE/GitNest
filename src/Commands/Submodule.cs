@@ -33,16 +33,6 @@ namespace SourceGit.Commands
             return await ExecAsync().ConfigureAwait(false);
         }
 
-        public async Task<bool> SetBranchAsync(string path, string branch)
-        {
-            if (string.IsNullOrEmpty(branch))
-                Args = $"submodule set-branch -d -- {path.Quoted()}";
-            else
-                Args = $"submodule set-branch -b {branch.Quoted()} -- {path.Quoted()}";
-
-            return await ExecAsync().ConfigureAwait(false);
-        }
-
         public async Task<bool> UpdateAsync(List<string> modules, bool init, bool recursive, bool useRemote)
         {
             var builder = new StringBuilder();
@@ -62,12 +52,6 @@ namespace SourceGit.Commands
             }
 
             Args = builder.ToString();
-            return await ExecAsync().ConfigureAwait(false);
-        }
-
-        public async Task<bool> DeinitAsync(string module, bool force)
-        {
-            Args = force ? $"submodule deinit -f -- {module.Quoted()}" : $"submodule deinit -- {module.Quoted()}";
             return await ExecAsync().ConfigureAwait(false);
         }
 

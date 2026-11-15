@@ -123,6 +123,13 @@
 
               <TextBlock Text="{Binding Reason}" MaxWidth="500" TextWrapping="Wrap" Margin="0,8"/>
 
+              <Button Classes="flat"
+                      Height="30"
+                      Margin="4,0,4,8"
+                      Click="GotoDownload"
+                      Content="{DynamicResource Text.SelfUpdate.ReleasePage}"
+                      HorizontalAlignment="Center"/>
+
               <Button Classes="flat primary"
                       Height="30"
                       Margin="4,0"

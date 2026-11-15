@@ -97,8 +97,7 @@ namespace SourceGit
 
         public static void SetLocale(string localeKey)
         {
-            var locale = Models.Locale.Supported.Find(x => x.Key.Equals(localeKey, StringComparison.OrdinalIgnoreCase));
-            var finalLocaleKey = locale?.Key ?? "en_US";
+            var finalLocaleKey = Models.Locale.ResolveKey(localeKey);
 
             if (Current is not App app ||
                 app.Resources[finalLocaleKey] is not ResourceDictionary targetLocale ||
@@ -462,10 +461,8 @@ namespace SourceGit
                 });
             };
 
-#if !DISABLE_UPDATE_DETECTION
             if (pref.ShouldCheck4UpdateOnStartup())
                 Check4Update();
-#endif
         }
         #endregion
 
@@ -483,10 +480,7 @@ namespace SourceGit
                     using var client = new HttpClient();
                     client.Timeout = TimeSpan.FromSeconds(5);
 
-                    var data = await client.GetStringAsync("https://sourcegit-scm.github.io/data/version.json");
-                    var ver = JsonSerializer.Deserialize(data, JsonCodeGen.Default.Version);
-                    if (ver == null)
-                        return;
+                    var ver = await Models.UpdateChecker.ReadLatestAsync(client);
 
                     if (manually)
                     {
