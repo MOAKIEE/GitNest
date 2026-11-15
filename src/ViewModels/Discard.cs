@@ -311,9 +311,21 @@ namespace SourceGit.ViewModels
                 backupStore: _backupStore ?? Models.DiscardBackupStore.Instance,
                 recycleHandler: _recycleHandler,
                 journalStore: Models.OperationJournalStore.Instance,
-                outerLog: log).ConfigureAwait(false);
+                outerLog: log,
+                expectedPreflight: _preflight).ConfigureAwait(false);
 
             log.Complete();
+
+            if (res.BlockedBySnapshot)
+            {
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    LoadErrorMessage = res.Summary;
+                    _repo.MarkWorkingCopyDirtyManually();
+                });
+                await LoadPreflightAsync(preserveLoadError: true).ConfigureAwait(false);
+                return false;
+            }
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
@@ -348,11 +360,12 @@ namespace SourceGit.ViewModels
             return false;
         }
 
-        private async Task LoadPreflightAsync()
+        private async Task LoadPreflightAsync(bool preserveLoadError = false)
         {
             var seq = Interlocked.Increment(ref _preflightSeq);
             IsLoadingPreflight = true;
-            LoadErrorMessage = string.Empty;
+            if (!preserveLoadError)
+                LoadErrorMessage = string.Empty;
 
             try
             {

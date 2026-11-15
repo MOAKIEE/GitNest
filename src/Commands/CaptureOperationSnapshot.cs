@@ -325,9 +325,26 @@ namespace SourceGit.Commands
             if (!computeHash)
                 return (true, info.Length, string.Empty);
 
-            await using var stream = File.OpenRead(abs);
-            var hash = await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false);
-            return (true, info.Length, Convert.ToHexStringLower(hash));
+            try
+            {
+                await using var stream = new FileStream(
+                    abs,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.ReadWrite | FileShare.Delete,
+                    bufferSize: 4096,
+                    useAsync: true);
+                var hash = await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false);
+                return (true, info.Length, Convert.ToHexStringLower(hash));
+            }
+            catch (IOException)
+            {
+                return (true, info.Length, $"unreadable:{info.LastWriteTimeUtc.Ticks}");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return (true, info.Length, $"unreadable:{info.LastWriteTimeUtc.Ticks}");
+            }
         }
 
         private static async Task<Dictionary<string, string>> ReadIndexBlobOidsAsync(

@@ -133,10 +133,60 @@ namespace SourceGit.Models
             string repoPath,
             bool checkIndexLock = true,
             string branchNameToUpdate = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            bool checkConfigLock = false)
         {
             var (gitDir, commonDir) = await ResolveGitDirectoriesAsync(repoPath, cancellationToken).ConfigureAwait(false);
-            return InspectLocksFromDirectories(gitDir, commonDir, checkIndexLock, branchNameToUpdate);
+            return InspectLocksFromDirectories(gitDir, commonDir, checkIndexLock, branchNameToUpdate, checkConfigLock);
+        }
+
+        public static GitLockDetectionResult InspectGlobalConfigLock(string explicitGlobalConfigPath = null)
+        {
+            var candidates = new List<string>();
+            if (!string.IsNullOrWhiteSpace(explicitGlobalConfigPath))
+            {
+                candidates.Add(explicitGlobalConfigPath.Trim() + ".lock");
+            }
+            else
+            {
+                var envGlobal = Environment.GetEnvironmentVariable("GIT_CONFIG_GLOBAL");
+                if (envGlobal != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(envGlobal))
+                        candidates.Add(envGlobal.Trim() + ".lock");
+                }
+                else
+                {
+                    var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    if (!string.IsNullOrWhiteSpace(userProfile))
+                    {
+                        candidates.Add(Path.Combine(userProfile, ".gitconfig.lock"));
+                        candidates.Add(Path.Combine(userProfile, ".config", "git", "config.lock"));
+                    }
+
+                    var xdgConfig = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+                    if (!string.IsNullOrWhiteSpace(xdgConfig))
+                        candidates.Add(Path.Combine(xdgConfig.Trim(), "git", "config.lock"));
+                }
+            }
+
+            var found = new List<string>();
+            var seen = new HashSet<string>(PathComparer);
+            foreach (var candidate in candidates)
+            {
+                var normalized = NormalizePath(candidate);
+                if (!string.IsNullOrEmpty(normalized) && seen.Add(normalized) && File.Exists(normalized))
+                    found.Add(normalized);
+            }
+
+            if (found.Count == 0)
+                return new GitLockDetectionResult();
+
+            return new GitLockDetectionResult
+            {
+                BlockingLockFiles = found,
+                Summary = $"检测到全局 Git 配置锁文件，请等待其他 Git 进程完成后重试（不会自动删除锁文件）：{string.Join(", ", found)}",
+            };
         }
 
         public static async Task<RepositoryWriteGuardAcquireResult> TryEnterAsync(
@@ -144,7 +194,8 @@ namespace SourceGit.Models
             string operationName,
             bool checkIndexLock = true,
             string branchNameToUpdate = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            bool checkConfigLock = false)
         {
             var (gitDir, commonDir) = await ResolveGitDirectoriesAsync(repoPath, cancellationToken).ConfigureAwait(false);
             var key = string.IsNullOrEmpty(commonDir) ? NormalizePath(repoPath) : commonDir;
@@ -153,7 +204,7 @@ namespace SourceGit.Models
             await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                var locks = InspectLocksFromDirectories(gitDir, commonDir, checkIndexLock, branchNameToUpdate);
+                var locks = InspectLocksFromDirectories(gitDir, commonDir, checkIndexLock, branchNameToUpdate, checkConfigLock);
                 if (locks.IsLocked)
                 {
                     gate.Release();
@@ -181,7 +232,8 @@ namespace SourceGit.Models
             string gitDir,
             string commonDir,
             bool checkIndexLock,
-            string branchNameToUpdate)
+            string branchNameToUpdate,
+            bool checkConfigLock = false)
         {
             var found = new List<string>();
             var candidates = new List<string>();
@@ -191,12 +243,16 @@ namespace SourceGit.Models
                 if (checkIndexLock)
                     candidates.Add(Path.Combine(gitDir, "index.lock"));
                 candidates.Add(Path.Combine(gitDir, "HEAD.lock"));
+                if (checkConfigLock)
+                    candidates.Add(Path.Combine(gitDir, "config.worktree.lock"));
             }
 
             if (!string.IsNullOrEmpty(commonDir))
             {
                 candidates.Add(Path.Combine(commonDir, "packed-refs.lock"));
                 candidates.Add(Path.Combine(commonDir, "shallow.lock"));
+                if (checkConfigLock)
+                    candidates.Add(Path.Combine(commonDir, "config.lock"));
 
                 if (!string.IsNullOrWhiteSpace(branchNameToUpdate))
                 {

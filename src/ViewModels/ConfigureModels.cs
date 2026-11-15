@@ -474,6 +474,57 @@ namespace SourceGit.ViewModels
             };
         }
 
+        public ConfigFieldDraftMemento CaptureDraftState()
+        {
+            return new ConfigFieldDraftMemento(
+                IsBoolean,
+                _editText,
+                _editBool,
+                _pendingUnset,
+                _pendingExplicitEmpty,
+                _pendingForceOverride);
+        }
+
+        public void RestoreDraftState(ConfigFieldDraftMemento state)
+        {
+            if (state == null)
+                return;
+
+            _isUpdatingFromModel = true;
+            try
+            {
+                _pendingUnset = state.PendingUnset;
+                _pendingExplicitEmpty = state.PendingExplicitEmpty;
+                _pendingForceOverride = state.PendingForceOverride;
+
+                if (IsBoolean)
+                    SetProperty(ref _editBool, state.EditBool, nameof(EditBool));
+                else
+                    SetProperty(ref _editText, state.EditText ?? string.Empty, nameof(EditText));
+            }
+            finally
+            {
+                _isUpdatingFromModel = false;
+            }
+
+            NotifyStateChanged();
+        }
+
+        public string DescribeCurrentDraft()
+        {
+            if (_pendingUnset)
+                return ConfigureLocalizer.Text("Configure.External.DraftUnset", "移除此作用域条目");
+            if (_pendingExplicitEmpty)
+                return ConfigureLocalizer.Text("Configure.External.DraftExplicitEmpty", "\"\"（显式空值）");
+            if (IsBoolean)
+                return EditBool ? "true" : "false";
+            if (string.IsNullOrEmpty(EditText))
+                return ConfigureLocalizer.Text("Configure.External.DraftEmpty", "（清空）");
+            return IsSecret && !string.Equals(EditText, _maskedBaseline, StringComparison.Ordinal)
+                ? Models.GitConfigSnapshot.RedactText(EditText)
+                : EditText;
+        }
+
         private void NotifyStateChanged()
         {
             NotifyDerivedProperties();
@@ -708,6 +759,34 @@ namespace SourceGit.ViewModels
             return draft;
         }
 
+        public RemoteConfigDraftMemento CaptureDraftState()
+        {
+            return new RemoteConfigDraftMemento(
+                OriginalName,
+                IsNew,
+                _name,
+                _primaryFetchUrl,
+                _primaryPushUrl,
+                _isMarkedForRemoval);
+        }
+
+        public void RestoreDraftState(RemoteConfigDraftMemento state)
+        {
+            if (state == null)
+                return;
+
+            _name = state.Name ?? string.Empty;
+            _primaryFetchUrl = state.PrimaryFetchUrl ?? string.Empty;
+            _primaryPushUrl = state.PrimaryPushUrl ?? string.Empty;
+            _isMarkedForRemoval = state.IsMarkedForRemoval;
+
+            OnPropertyChanged(nameof(Name));
+            OnPropertyChanged(nameof(PrimaryFetchUrl));
+            OnPropertyChanged(nameof(PrimaryPushUrl));
+            OnPropertyChanged(nameof(IsMarkedForRemoval));
+            NotifyChange();
+        }
+
         private void NotifyChange()
         {
             OnPropertyChanged(nameof(PendingBadgeText));
@@ -776,5 +855,44 @@ namespace SourceGit.ViewModels
         public bool HasFailureAndConflictLines => FailureAndConflictLines.Count > 0;
         public bool HasShadowedLines => ShadowedLines.Count > 0;
         public bool ShowSecondaryShadowedHeader => HasShadowedLines && (FailedCount > 0 || ConflictCount > 0);
+    }
+
+    public sealed record ConfigFieldDraftMemento(
+        bool IsBoolean,
+        string EditText,
+        bool EditBool,
+        bool PendingUnset,
+        bool PendingExplicitEmpty,
+        bool PendingForceOverride);
+
+    public sealed record RemoteConfigDraftMemento(
+        string OriginalName,
+        bool IsNew,
+        string Name,
+        string PrimaryFetchUrl,
+        string PrimaryPushUrl,
+        bool IsMarkedForRemoval);
+
+    public sealed class ExternalConfigDiffItem
+    {
+        public string TargetName { get; init; } = string.Empty;
+        public string ScopeLabel { get; init; } = string.Empty;
+        public string PreviousDisplay { get; init; } = string.Empty;
+        public string ExternalDisplay { get; init; } = string.Empty;
+        public string DraftDisplay { get; init; } = string.Empty;
+        public string ExternalOrigin { get; init; } = string.Empty;
+        public bool HasUserConflict { get; init; }
+
+        public string SummaryLine
+        {
+            get
+            {
+                var originSuffix = string.IsNullOrWhiteSpace(ExternalOrigin) ? string.Empty : $" ({ExternalOrigin})";
+                if (HasUserConflict)
+                    return $"[草稿冲突] {TargetName} [{ScopeLabel}]: 原值 {PreviousDisplay} -> 外部 {ExternalDisplay}{originSuffix} | 草稿 {DraftDisplay}";
+
+                return $"[外部变化] {TargetName} [{ScopeLabel}]: {PreviousDisplay} -> {ExternalDisplay}{originSuffix}";
+            }
+        }
     }
 }

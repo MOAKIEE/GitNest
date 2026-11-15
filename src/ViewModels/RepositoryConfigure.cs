@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Avalonia;
@@ -320,6 +322,8 @@ namespace SourceGit.ViewModels
                         SyncOptionSelectionsFromFields();
                     }
 
+                    OnPropertyChanged(nameof(GlobalScopeTargetHint));
+
                     UpdateSigningPreview();
                     OnAnyDraftStateChanged();
                 }
@@ -335,6 +339,51 @@ namespace SourceGit.ViewModels
         public bool ShowWorktreeDisabledHint => !WorktreeConfigEnabled;
         public bool ShowGlobalScopeWarning => TargetScope == Models.GitConfigWriteScope.Global;
         public string ScopeDescription => SelectedScopeOption?.Description ?? string.Empty;
+
+        public string GlobalScopeTargetHint
+        {
+            get
+            {
+                var envGlobal = Environment.GetEnvironmentVariable("GIT_CONFIG_GLOBAL");
+                string targetPath;
+                if (!string.IsNullOrWhiteSpace(envGlobal))
+                {
+                    targetPath = envGlobal.Trim();
+                }
+                else
+                {
+                    var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    targetPath = string.IsNullOrWhiteSpace(profile)
+                        ? "~/.gitconfig"
+                        : Path.Combine(profile, ".gitconfig");
+                }
+
+                return ConfigureLocalizer.Text(
+                    "Configure.Scope.GlobalTargetFormat",
+                    "写入目标：{0}（将影响当前用户账户下的所有 Git 仓库）",
+                    targetPath);
+            }
+        }
+
+        public bool HasExternalConfigChanges
+        {
+            get => _hasExternalConfigChanges;
+            private set => SetProperty(ref _hasExternalConfigChanges, value);
+        }
+
+        public string ExternalChangeHeadline
+        {
+            get => _externalChangeHeadline;
+            private set => SetProperty(ref _externalChangeHeadline, value ?? string.Empty);
+        }
+
+        public string ExternalChangeDetail
+        {
+            get => _externalChangeDetail;
+            private set => SetProperty(ref _externalChangeDetail, value ?? string.Empty);
+        }
+
+        public AvaloniaList<ExternalConfigDiffItem> ExternalConfigDiffItems { get; } = [];
 
         public bool IsLoading
         {
@@ -604,28 +653,181 @@ namespace SourceGit.ViewModels
 
         public Task EnsureLoadedAsync() => _loadTask ?? Task.CompletedTask;
 
+        public void AttachExternalChangeMonitor()
+        {
+            if (_externalMonitorAttached)
+                return;
+
+            _externalMonitorAttached = true;
+            _repo.ConfigurationStateChanged += OnRepoConfigurationStateChanged;
+        }
+
+        public void DetachExternalChangeMonitor()
+        {
+            if (!_externalMonitorAttached)
+                return;
+
+            _externalMonitorAttached = false;
+            _repo.ConfigurationStateChanged -= OnRepoConfigurationStateChanged;
+        }
+
+        public async Task ManualRefreshAsync()
+        {
+            if (PendingChangesCount == 0)
+            {
+                await ReloadAsync();
+                return;
+            }
+
+            await CheckExternalChangesAsync();
+        }
+
         public async Task ReloadAsync()
         {
+            var generation = Interlocked.Increment(ref _loadGeneration);
             IsLoading = true;
             try
             {
                 var snapshot = await new Commands.Config(_repo.FullPath).ReadSnapshotAsync();
+                if (generation != Interlocked.Read(ref _loadGeneration))
+                    return;
+
                 var branches = snapshot.IsReadable
                     ? await new Commands.QueryBranches(_repo.FullPath).GetResultAsync()
                     : [];
+                if (generation != Interlocked.Read(ref _loadGeneration))
+                    return;
+
                 var protectionCandidates = snapshot.IsReadable
                     ? await Commands.BranchProtectionPolicy.InspectProtectedCandidatesAsync(
                         _repo.FullPath,
                         branches.Where(b => b.IsLocal).Select(b => b.Name))
                     : [];
+                if (generation != Interlocked.Read(ref _loadGeneration))
+                    return;
 
+                _unreviewedConflictKeys.Clear();
+                ClearExternalChangeNotice();
                 ApplySnapshot(snapshot, branches);
                 ApplyProtectedBranches(protectionCandidates);
             }
             finally
             {
-                IsLoading = false;
+                if (generation == Interlocked.Read(ref _loadGeneration))
+                    IsLoading = false;
             }
+        }
+
+        public async Task CheckExternalChangesAsync()
+        {
+            if (_snapshot == null || IsLoading || IsSaving)
+                return;
+
+            var baselineGen = Interlocked.Read(ref _loadGeneration);
+            var snapshot = await new Commands.Config(_repo.FullPath).ReadSnapshotAsync();
+            if (IsLoading || IsSaving || baselineGen != Interlocked.Read(ref _loadGeneration))
+                return;
+
+            if (!snapshot.IsReadable)
+            {
+                if (PendingChangesCount == 0)
+                {
+                    _unreviewedConflictKeys.Clear();
+                    ClearExternalChangeNotice();
+                    ApplySnapshot(snapshot, []);
+                }
+                else
+                {
+                    _pendingExternalSnapshot = snapshot;
+                    _pendingExternalBranches = [];
+                    _pendingExternalProtection = [];
+                    ExternalConfigDiffItems.Clear();
+                    ExternalChangeHeadline = ConfigureLocalizer.Text("Configure.External.BannerHeadline", "检测到外部配置或当前分支（includeIf）已变化，且当前存在未保存草稿");
+                    ExternalChangeDetail = string.IsNullOrWhiteSpace(snapshot.Error)
+                        ? "外部配置文件当前无法读取；你的草稿已完整保留。"
+                        : $"外部配置文件当前无法读取（{snapshot.Error}）；你的草稿已完整保留。";
+                    HasExternalConfigChanges = true;
+                }
+
+                return;
+            }
+
+            var branches = await new Commands.QueryBranches(_repo.FullPath).GetResultAsync();
+            if (IsLoading || IsSaving || baselineGen != Interlocked.Read(ref _loadGeneration))
+                return;
+
+            var protectionCandidates = await Commands.BranchProtectionPolicy.InspectProtectedCandidatesAsync(
+                _repo.FullPath,
+                branches.Where(b => b.IsLocal).Select(b => b.Name));
+            if (IsLoading || IsSaving || baselineGen != Interlocked.Read(ref _loadGeneration))
+                return;
+
+            if (!HaveSnapshotsChanged(_snapshot, snapshot))
+            {
+                if (_unreviewedConflictKeys.Count == 0)
+                    ClearExternalChangeNotice();
+                return;
+            }
+
+            if (PendingChangesCount == 0)
+            {
+                _unreviewedConflictKeys.Clear();
+                ClearExternalChangeNotice();
+                ApplySnapshot(snapshot, branches);
+                ApplyProtectedBranches(protectionCandidates);
+                return;
+            }
+
+            PresentExternalChangeDiffBanner(_snapshot, snapshot, branches, protectionCandidates);
+        }
+
+        public async Task AcceptExternalReloadAsync()
+        {
+            if (IsLoading || IsSaving)
+                return;
+
+            _unreviewedConflictKeys.Clear();
+            var cachedSnapshot = _pendingExternalSnapshot;
+            var cachedBranches = _pendingExternalBranches;
+            var cachedProtection = _pendingExternalProtection;
+            ClearExternalChangeNotice();
+
+            if (cachedSnapshot != null && cachedSnapshot.IsReadable)
+            {
+                Interlocked.Increment(ref _loadGeneration);
+                ApplySnapshot(cachedSnapshot, cachedBranches ?? []);
+                ApplyProtectedBranches(cachedProtection ?? []);
+                return;
+            }
+
+            await ReloadAsync();
+        }
+
+        public async Task KeepDraftsWithExternalBaselineAsync()
+        {
+            if (IsLoading || IsSaving)
+                return;
+
+            var captured = CaptureAllPendingDrafts();
+            var liveSnapshot = _pendingExternalSnapshot is { IsReadable: true }
+                ? _pendingExternalSnapshot
+                : await new Commands.Config(_repo.FullPath).ReadSnapshotAsync();
+            if (!liveSnapshot.IsReadable)
+                return;
+
+            var liveBranches = _pendingExternalBranches ?? await new Commands.QueryBranches(_repo.FullPath).GetResultAsync();
+            var liveProtection = _pendingExternalProtection
+                ?? await Commands.BranchProtectionPolicy.InspectProtectedCandidatesAsync(
+                    _repo.FullPath,
+                    liveBranches.Where(b => b.IsLocal).Select(b => b.Name));
+
+            Interlocked.Increment(ref _loadGeneration);
+            _unreviewedConflictKeys.Clear();
+            ClearExternalChangeNotice();
+
+            ApplySnapshot(liveSnapshot, liveBranches);
+            ApplyProtectedBranches(liveProtection);
+            RestoreCapturedDrafts(captured, restoreAll: true, failedOrConflictTargets: null);
         }
 
         public void StageAddRemote()
@@ -807,13 +1009,61 @@ namespace SourceGit.ViewModels
                     return notEnabled;
                 }
 
+                var hasFieldWrites = _fields.Any(f => f.ComputePendingOperation().Kind != ConfigPendingOperationKind.None);
+                var hasGlobalWrites = TargetScope == Models.GitConfigWriteScope.Global && hasFieldWrites;
+                var hasRepoConfigWrites =
+                    (TargetScope != Models.GitConfigWriteScope.Global && hasFieldWrites) ||
+                    RemotesDrafts.Any(r => r.HasPendingChange) ||
+                    HasUpstreamPendingChange;
+
+                if (hasGlobalWrites)
+                {
+                    var globalLock = Models.RepositoryWriteGuard.InspectGlobalConfigLock();
+                    if (globalLock.IsLocked)
+                    {
+                        var lockedSummary = new ConfigSaveSummary
+                        {
+                            Severity = ConfigFeedbackSeverity.Error,
+                            Headline = ConfigureLocalizer.Text("Configure.Save.LockBlocked", "检测到 Git 配置锁文件占用，已中止写入（绝不自动删除锁文件）："),
+                            FailedCount = 1,
+                        };
+                        lockedSummary.FailureAndConflictLines.Add(globalLock.Summary);
+                        SaveFeedback = lockedSummary;
+                        return lockedSummary;
+                    }
+                }
+
+                await using var repoWriteGuard = hasRepoConfigWrites
+                    ? await Models.RepositoryWriteGuard.TryEnterAsync(
+                        _repo.FullPath,
+                        "保存仓库配置",
+                        checkIndexLock: false,
+                        checkConfigLock: true)
+                    : null;
+
+                if (repoWriteGuard != null && !repoWriteGuard.Acquired)
+                {
+                    var lockedSummary = new ConfigSaveSummary
+                    {
+                        Severity = ConfigFeedbackSeverity.Error,
+                        Headline = ConfigureLocalizer.Text("Configure.Save.LockBlocked", "检测到 Git 配置锁文件占用，已中止写入（绝不自动删除锁文件）："),
+                        FailedCount = 1,
+                    };
+                    lockedSummary.FailureAndConflictLines.Add(repoWriteGuard.LockDetection.Summary);
+                    SaveFeedback = lockedSummary;
+                    return lockedSummary;
+                }
+
+                var preSaveBaseSnapshot = _snapshot;
+                var capturedDraftsBeforeSave = CaptureAllPendingDrafts();
+
                 var results = new List<ConfigSaveItemResult>();
                 var attemptedKeys = new List<(string Key, string IntendedValue, bool WasUnset)>();
 
                 await SaveBranchProtectionOverridesAsync(results);
-                await SaveScalarFieldsAsync(preSaveSnapshot, _snapshot, configCmd, results, attemptedKeys);
-                await SaveRemoteDraftsAsync(preSaveSnapshot, _snapshot, results);
-                await SaveUpstreamAsync(preSaveSnapshot, _snapshot, results);
+                await SaveScalarFieldsAsync(preSaveSnapshot, preSaveBaseSnapshot, configCmd, results, attemptedKeys);
+                await SaveRemoteDraftsAsync(preSaveSnapshot, preSaveBaseSnapshot, results);
+                await SaveUpstreamAsync(preSaveSnapshot, preSaveBaseSnapshot, results);
 
                 var refreshedSnapshot = await configCmd.ReadSnapshotAsync();
                 var refreshedBranches = refreshedSnapshot.IsReadable
@@ -827,9 +1077,38 @@ namespace SourceGit.ViewModels
 
                 if (refreshedSnapshot.IsReadable)
                 {
+                    Interlocked.Increment(ref _loadGeneration);
                     ApplySnapshot(refreshedSnapshot, refreshedBranches);
                     ApplyProtectedBranches(refreshedProtection);
                     RefreshRepoRemotesAndBranches(refreshedSnapshot);
+
+                    var failedOrConflictTargets = results
+                        .Where(r => !r.Succeeded)
+                        .Select(r => r.TargetName)
+                        .Where(t => !string.IsNullOrWhiteSpace(t))
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                    if (failedOrConflictTargets.Count > 0)
+                    {
+                        RestoreCapturedDrafts(capturedDraftsBeforeSave, restoreAll: false, failedOrConflictTargets);
+                    }
+
+                    var conflictTargets = results
+                        .Where(r => r.SkippedConflict && !string.IsNullOrWhiteSpace(r.TargetName))
+                        .Select(r => r.TargetName)
+                        .ToList();
+
+                    foreach (var target in conflictTargets)
+                        _unreviewedConflictKeys.Add(target);
+
+                    if (conflictTargets.Count > 0 && preSaveBaseSnapshot != null)
+                    {
+                        PresentExternalChangeDiffBanner(preSaveBaseSnapshot, refreshedSnapshot, refreshedBranches, refreshedProtection);
+                    }
+                    else if (_unreviewedConflictKeys.Count == 0)
+                    {
+                        ClearExternalChangeNotice();
+                    }
                 }
 
                 var summary = BuildSaveSummary(refreshedSnapshot, results, attemptedKeys);
@@ -870,6 +1149,18 @@ namespace SourceGit.ViewModels
                     continue;
                 }
 
+                if (_unreviewedConflictKeys.Contains(field.Key))
+                {
+                    results.Add(new ConfigSaveItemResult
+                    {
+                        TargetName = field.Key,
+                        Succeeded = false,
+                        SkippedConflict = true,
+                        Detail = "存在尚未复核的外部变更冲突，请先在上方差异提示区确认保留草稿或重新读取后再保存。",
+                    });
+                    continue;
+                }
+
                 if (HasTargetScopeConflict(baseSnapshot, preSaveSnapshot, field.Key, TargetScope, out var conflictDetail))
                 {
                     results.Add(new ConfigSaveItemResult
@@ -887,7 +1178,8 @@ namespace SourceGit.ViewModels
                     field.Key,
                     op.Value,
                     unset: op.Kind == ConfigPendingOperationKind.Unset,
-                    allowEmpty: op.AllowEmpty);
+                    allowEmpty: op.AllowEmpty,
+                    acquireWriteGuard: false);
 
                 if (writeRes.IsSuccess)
                 {
@@ -941,7 +1233,7 @@ namespace SourceGit.ViewModels
                         continue;
                     }
 
-                    var addRes = await remoteCmd.AddTargetedAsync(addName, addUrl);
+                    var addRes = await remoteCmd.AddTargetedAsync(addName, addUrl, acquireWriteGuard: false);
                     results.Add(new ConfigSaveItemResult
                     {
                         TargetName = $"remote.{addName}",
@@ -951,7 +1243,7 @@ namespace SourceGit.ViewModels
 
                     if (addRes.IsSuccess && !string.IsNullOrWhiteSpace(draft.PrimaryPushUrl))
                     {
-                        var pushRes = await remoteCmd.SetUrlTargetedAsync(addName, draft.PrimaryPushUrl.Trim(), null, isPush: true, isDelete: false);
+                        var pushRes = await remoteCmd.SetUrlTargetedAsync(addName, draft.PrimaryPushUrl.Trim(), null, isPush: true, isDelete: false, acquireWriteGuard: false);
                         results.Add(new ConfigSaveItemResult
                         {
                             TargetName = $"remote.{addName}.pushurl",
@@ -976,7 +1268,7 @@ namespace SourceGit.ViewModels
 
                 if (draft.IsMarkedForRemoval)
                 {
-                    var delRes = await remoteCmd.DeleteTargetedAsync(draft.OriginalName);
+                    var delRes = await remoteCmd.DeleteTargetedAsync(draft.OriginalName, acquireWriteGuard: false);
                     results.Add(new ConfigSaveItemResult
                     {
                         TargetName = $"remote.{draft.OriginalName}",
@@ -990,7 +1282,7 @@ namespace SourceGit.ViewModels
                 if (draft.IsRenamed)
                 {
                     var nextName = draft.Name.Trim();
-                    var renameRes = await remoteCmd.RenameTargetedAsync(draft.OriginalName, nextName);
+                    var renameRes = await remoteCmd.RenameTargetedAsync(draft.OriginalName, nextName, acquireWriteGuard: false);
                     results.Add(new ConfigSaveItemResult
                     {
                         TargetName = $"remote.{draft.OriginalName} -> {nextName}",
@@ -1026,7 +1318,8 @@ namespace SourceGit.ViewModels
                             draft.PrimaryFetchUrl.Trim(),
                             draft.OriginalPrimaryFetchUrl,
                             isPush: false,
-                            isDelete: false);
+                            isDelete: false,
+                            acquireWriteGuard: false);
                         results.Add(new ConfigSaveItemResult
                         {
                             TargetName = $"remote.{activeName}.url",
@@ -1058,9 +1351,9 @@ namespace SourceGit.ViewModels
                         Commands.Command.Result pushRes;
 
                         if (nextPush.Length == 0 && hasOriginalPush)
-                            pushRes = await remoteCmd.SetUrlTargetedAsync(activeName, null, draft.OriginalPrimaryPushUrl, isPush: true, isDelete: true);
+                            pushRes = await remoteCmd.SetUrlTargetedAsync(activeName, null, draft.OriginalPrimaryPushUrl, isPush: true, isDelete: true, acquireWriteGuard: false);
                         else
-                            pushRes = await remoteCmd.SetUrlTargetedAsync(activeName, nextPush, hasOriginalPush ? draft.OriginalPrimaryPushUrl : null, isPush: true, isDelete: false);
+                            pushRes = await remoteCmd.SetUrlTargetedAsync(activeName, nextPush, hasOriginalPush ? draft.OriginalPrimaryPushUrl : null, isPush: true, isDelete: false, acquireWriteGuard: false);
 
                         results.Add(new ConfigSaveItemResult
                         {
@@ -1083,7 +1376,8 @@ namespace SourceGit.ViewModels
 
             var remoteKey = $"branch.{CurrentBranchName}.remote";
             var mergeKey = $"branch.{CurrentBranchName}.merge";
-            if (!string.Equals(preSaveSnapshot.CurrentBranch, CurrentBranchName, StringComparison.Ordinal) ||
+            if (_unreviewedConflictKeys.Contains($"branch.{CurrentBranchName}.upstream") ||
+                !string.Equals(preSaveSnapshot.CurrentBranch, CurrentBranchName, StringComparison.Ordinal) ||
                 HasEffectiveValueChanged(baseSnapshot, preSaveSnapshot, remoteKey) ||
                 HasEffectiveValueChanged(baseSnapshot, preSaveSnapshot, mergeKey))
             {
@@ -1103,7 +1397,7 @@ namespace SourceGit.ViewModels
 
             if (targetRemote.Length == 0 && targetBranch.Length == 0)
             {
-                var unsetRes = await branchCmd.UnsetUpstreamTargetedAsync();
+                var unsetRes = await branchCmd.UnsetUpstreamTargetedAsync(acquireWriteGuard: false);
                 results.Add(new ConfigSaveItemResult
                 {
                     TargetName = $"branch.{CurrentBranchName}.upstream",
@@ -1124,7 +1418,7 @@ namespace SourceGit.ViewModels
                 return;
             }
 
-            var setRes = await branchCmd.SetUpstreamTargetedAsync(targetRemote, targetBranch);
+            var setRes = await branchCmd.SetUpstreamTargetedAsync(targetRemote, targetBranch, acquireWriteGuard: false);
             results.Add(new ConfigSaveItemResult
             {
                 TargetName = $"branch.{CurrentBranchName}.upstream",
@@ -1891,6 +2185,381 @@ namespace SourceGit.ViewModels
                 });
             }
         }
+
+        private void OnRepoConfigurationStateChanged()
+        {
+            Dispatcher.UIThread.Post(() => _ = CheckExternalChangesAsync());
+        }
+
+        private void ClearExternalChangeNotice()
+        {
+            _pendingExternalSnapshot = null;
+            _pendingExternalBranches = null;
+            _pendingExternalProtection = null;
+            ExternalConfigDiffItems.Clear();
+            ExternalChangeHeadline = string.Empty;
+            ExternalChangeDetail = string.Empty;
+            HasExternalConfigChanges = false;
+        }
+
+        private void PresentExternalChangeDiffBanner(
+            Models.GitConfigSnapshot baselineSnapshot,
+            Models.GitConfigSnapshot liveSnapshot,
+            List<Models.Branch> liveBranches,
+            IReadOnlyList<Models.BranchProtectionStatus> liveProtection)
+        {
+            _pendingExternalSnapshot = liveSnapshot;
+            _pendingExternalBranches = liveBranches;
+            _pendingExternalProtection = liveProtection;
+
+            var diffs = BuildExternalDiffItems(baselineSnapshot, liveSnapshot);
+            ExternalConfigDiffItems.Clear();
+            foreach (var item in diffs)
+                ExternalConfigDiffItems.Add(item);
+
+            var changedFiles = GetChangedFingerprintNames(baselineSnapshot, liveSnapshot);
+            var branchNote = !string.Equals(baselineSnapshot.CurrentBranch, liveSnapshot.CurrentBranch, StringComparison.Ordinal)
+                ? $"当前分支由 {FormatBranchLabel(baselineSnapshot.CurrentBranch)} 切换为 {FormatBranchLabel(liveSnapshot.CurrentBranch)}（includeIf 条件生效项已刷新）"
+                : string.Empty;
+            var fileNote = changedFiles.Count > 0
+                ? $"变更文件：{string.Join("、", changedFiles)}"
+                : string.Empty;
+
+            ExternalChangeHeadline = ConfigureLocalizer.Text(
+                "Configure.External.BannerHeadline",
+                "检测到外部配置或当前分支（includeIf）已变化，且当前存在未保存草稿");
+            ExternalChangeDetail = string.Join("；", new[] { branchNote, fileNote }.Where(s => !string.IsNullOrEmpty(s)));
+            HasExternalConfigChanges = true;
+        }
+
+        private List<ExternalConfigDiffItem> BuildExternalDiffItems(
+            Models.GitConfigSnapshot baseSnapshot,
+            Models.GitConfigSnapshot liveSnapshot)
+        {
+            var items = new List<ExternalConfigDiffItem>();
+            var unsetLabel = ConfigureLocalizer.Text("Configure.External.UnsetValue", "(未设置)");
+
+            if (!string.Equals(baseSnapshot.CurrentBranch, liveSnapshot.CurrentBranch, StringComparison.Ordinal))
+            {
+                items.Add(new ExternalConfigDiffItem
+                {
+                    TargetName = "HEAD (includeIf)",
+                    ScopeLabel = "Branch",
+                    PreviousDisplay = FormatBranchLabel(baseSnapshot.CurrentBranch),
+                    ExternalDisplay = FormatBranchLabel(liveSnapshot.CurrentBranch),
+                    HasUserConflict = HasUpstreamPendingChange,
+                    DraftDisplay = HasUpstreamPendingChange ? $"{SelectedUpstreamRemote}/{UpstreamTargetBranch}".Trim('/') : string.Empty,
+                });
+            }
+
+            if (baseSnapshot.WorktreeConfigEnabled != liveSnapshot.WorktreeConfigEnabled)
+            {
+                items.Add(new ExternalConfigDiffItem
+                {
+                    TargetName = "extensions.worktreeConfig",
+                    ScopeLabel = "Local",
+                    PreviousDisplay = baseSnapshot.WorktreeConfigEnabled ? "true" : "false",
+                    ExternalDisplay = liveSnapshot.WorktreeConfigEnabled ? "true" : "false",
+                    HasUserConflict = TargetScope == Models.GitConfigWriteScope.Worktree && _fields.Any(f => f.HasPendingChange),
+                    DraftDisplay = TargetScope == Models.GitConfigWriteScope.Worktree ? "当前目标为 --worktree" : string.Empty,
+                });
+            }
+
+            var targetConfigScope = ConfigureLocalizer.ToConfigScope(TargetScope);
+            foreach (var field in _fields)
+            {
+                var baseEffective = baseSnapshot.GetEffectiveEntry(field.Key);
+                var liveEffective = liveSnapshot.GetEffectiveEntry(field.Key);
+                var baseTargetEntries = baseSnapshot.GetEntriesInScope(field.Key, targetConfigScope, includeIncluded: false);
+                var liveTargetEntries = liveSnapshot.GetEntriesInScope(field.Key, targetConfigScope, includeIncluded: false);
+
+                var effectiveChanged = !AreEntriesEquivalent(baseEffective, liveEffective);
+                var targetChanged = !AreEntryListsEquivalent(baseTargetEntries, liveTargetEntries);
+                var isConflict = _unreviewedConflictKeys.Contains(field.Key) || (field.HasPendingChange && (effectiveChanged || targetChanged));
+
+                if (!effectiveChanged && !targetChanged && !isConflict)
+                    continue;
+
+                var prevDisplay = baseEffective?.DisplayValue;
+                if (string.IsNullOrEmpty(prevDisplay) && baseEffective == null)
+                    prevDisplay = unsetLabel;
+                else if (baseEffective is { HasValue: true, Value.Length: 0 })
+                    prevDisplay = "\"\"";
+
+                var extDisplay = liveEffective?.DisplayValue;
+                if (string.IsNullOrEmpty(extDisplay) && liveEffective == null)
+                    extDisplay = unsetLabel;
+                else if (liveEffective is { HasValue: true, Value.Length: 0 })
+                    extDisplay = "\"\"";
+
+                if (!effectiveChanged && targetChanged)
+                {
+                    prevDisplay = baseTargetEntries.Count == 0 ? unsetLabel : string.Join(", ", baseTargetEntries.Select(e => e.DisplayValue));
+                    extDisplay = liveTargetEntries.Count == 0 ? unsetLabel : string.Join(", ", liveTargetEntries.Select(e => e.DisplayValue));
+                }
+
+                items.Add(new ExternalConfigDiffItem
+                {
+                    TargetName = field.Key,
+                    ScopeLabel = liveEffective != null && effectiveChanged
+                        ? liveEffective.Scope.ToString()
+                        : TargetScope.ToString(),
+                    PreviousDisplay = prevDisplay ?? unsetLabel,
+                    ExternalDisplay = extDisplay ?? unsetLabel,
+                    ExternalOrigin = liveEffective?.Origin ?? string.Empty,
+                    HasUserConflict = isConflict,
+                    DraftDisplay = isConflict ? field.DescribeCurrentDraft() : string.Empty,
+                });
+            }
+
+            var baseRemotes = baseSnapshot.GetRemotes().ToDictionary(r => r.Name, StringComparer.Ordinal);
+            var liveRemotes = liveSnapshot.GetRemotes().ToDictionary(r => r.Name, StringComparer.Ordinal);
+            var allRemoteNames = baseRemotes.Keys.Union(liveRemotes.Keys, StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal);
+            foreach (var rName in allRemoteNames)
+            {
+                baseRemotes.TryGetValue(rName, out var bRemote);
+                liveRemotes.TryGetValue(rName, out var lRemote);
+
+                var bFetch = bRemote?.FetchUrls.FirstOrDefault()?.DisplayValue ?? unsetLabel;
+                var lFetch = lRemote?.FetchUrls.FirstOrDefault()?.DisplayValue ?? unsetLabel;
+                var bPush = bRemote?.PushUrls.FirstOrDefault()?.DisplayValue ?? unsetLabel;
+                var lPush = lRemote?.PushUrls.FirstOrDefault()?.DisplayValue ?? unsetLabel;
+                if ((bRemote == null) == (lRemote == null) &&
+                    string.Equals(bFetch, lFetch, StringComparison.Ordinal) &&
+                    string.Equals(bPush, lPush, StringComparison.Ordinal))
+                    continue;
+
+                var draft = RemotesDrafts.FirstOrDefault(r =>
+                    (!r.IsNew && string.Equals(r.OriginalName, rName, StringComparison.Ordinal)) ||
+                    string.Equals(r.Name.Trim(), rName, StringComparison.Ordinal));
+                var hasDraftConflict = draft != null && draft.HasPendingChange;
+                items.Add(new ExternalConfigDiffItem
+                {
+                    TargetName = $"remote.{rName}",
+                    ScopeLabel = "Local",
+                    PreviousDisplay = bRemote == null ? unsetLabel : bFetch,
+                    ExternalDisplay = lRemote == null ? unsetLabel : lFetch,
+                    HasUserConflict = hasDraftConflict,
+                    DraftDisplay = hasDraftConflict
+                        ? (draft!.IsMarkedForRemoval ? "(待删除)" : draft.PrimaryFetchUrl)
+                        : string.Empty,
+                });
+            }
+
+            return items;
+        }
+
+        private CapturedConfigDrafts CaptureAllPendingDrafts()
+        {
+            var captured = new CapturedConfigDrafts();
+            foreach (var field in _fields)
+            {
+                if (field.HasPendingChange)
+                    captured.Fields[field.Key] = field.CaptureDraftState();
+            }
+
+            foreach (var draft in RemotesDrafts)
+            {
+                if (draft.HasPendingChange)
+                    captured.Remotes.Add(draft.CaptureDraftState());
+            }
+
+            if (HasUpstreamPendingChange && !IsDetachedHead)
+            {
+                captured.HasUpstreamDraft = true;
+                captured.UpstreamRemote = SelectedUpstreamRemote;
+                captured.UpstreamBranch = UpstreamTargetBranch;
+            }
+
+            foreach (var prot in ProtectedBranches)
+            {
+                if (prot.HasPendingChange)
+                    captured.BranchProtectionDrafts[prot.BranchName] = prot.AllowDestructiveHistoryRewrite;
+            }
+
+            return captured;
+        }
+
+        private void RestoreCapturedDrafts(
+            CapturedConfigDrafts captured,
+            bool restoreAll,
+            HashSet<string> failedOrConflictTargets)
+        {
+            if (captured == null)
+                return;
+
+            foreach (var field in _fields)
+            {
+                if (!captured.Fields.TryGetValue(field.Key, out var memento))
+                    continue;
+
+                if (restoreAll || (failedOrConflictTargets != null && failedOrConflictTargets.Contains(field.Key)))
+                    field.RestoreDraftState(memento);
+            }
+
+            foreach (var remMemento in captured.Remotes)
+            {
+                var shouldRestore = restoreAll || IsRemoteDraftMatched(remMemento, failedOrConflictTargets);
+                if (!shouldRestore)
+                    continue;
+
+                if (remMemento.IsNew)
+                {
+                    var newDraft = RemoteConfigDraft.CreateNew(remMemento.Name, remMemento.PrimaryFetchUrl);
+                    newDraft.StateChanged += OnAnyDraftStateChanged;
+                    newDraft.RestoreDraftState(remMemento);
+                    RemotesDrafts.Add(newDraft);
+                    SelectedRemoteDraft = newDraft;
+                }
+                else
+                {
+                    var existing = RemotesDrafts.FirstOrDefault(r =>
+                        !r.IsNew && string.Equals(r.OriginalName, remMemento.OriginalName, StringComparison.Ordinal));
+                    if (existing != null)
+                        existing.RestoreDraftState(remMemento);
+                }
+            }
+
+            if (captured.HasUpstreamDraft && !IsDetachedHead &&
+                (restoreAll || (failedOrConflictTargets != null && failedOrConflictTargets.Contains($"branch.{CurrentBranchName}.upstream"))))
+            {
+                SelectedUpstreamRemote = captured.UpstreamRemote ?? string.Empty;
+                UpstreamTargetBranch = captured.UpstreamBranch ?? string.Empty;
+            }
+
+            if (restoreAll)
+            {
+                foreach (var prot in ProtectedBranches)
+                {
+                    if (captured.BranchProtectionDrafts.TryGetValue(prot.BranchName, out var allow))
+                        prot.AllowDestructiveHistoryRewrite = allow;
+                }
+            }
+
+            OnPropertyChanged(nameof(HasNoRemotes));
+            UpdatePendingChangesCount();
+        }
+
+        private static bool IsRemoteDraftMatched(RemoteConfigDraftMemento rem, HashSet<string> targets)
+        {
+            if (targets == null || targets.Count == 0)
+                return false;
+
+            var candidates = new[]
+            {
+                $"remote.{rem.OriginalName}",
+                $"remote.{rem.OriginalName}.url",
+                $"remote.{rem.OriginalName}.pushurl",
+                $"remote.{rem.Name?.Trim()}",
+                $"remote.{rem.Name?.Trim()}.url",
+                $"remote.{rem.Name?.Trim()}.pushurl",
+                $"remote.{rem.OriginalName} -> {rem.Name?.Trim()}",
+            };
+
+            return candidates.Any(targets.Contains);
+        }
+
+        private static bool HaveSnapshotsChanged(Models.GitConfigSnapshot a, Models.GitConfigSnapshot b)
+        {
+            if (a == null || b == null)
+                return a != b;
+
+            if (!string.Equals(a.CurrentBranch, b.CurrentBranch, StringComparison.Ordinal) ||
+                a.WorktreeConfigEnabled != b.WorktreeConfigEnabled ||
+                a.FileFingerprints.Count != b.FileFingerprints.Count ||
+                a.Entries.Count != b.Entries.Count)
+                return true;
+
+            foreach (var kv in a.FileFingerprints)
+            {
+                if (!b.FileFingerprints.TryGetValue(kv.Key, out var bVal) ||
+                    !string.Equals(kv.Value, bVal, StringComparison.Ordinal))
+                    return true;
+            }
+
+            for (var i = 0; i < a.Entries.Count; i++)
+            {
+                var ae = a.Entries[i];
+                var be = b.Entries[i];
+                if (!string.Equals(ae.NormalizedKey, be.NormalizedKey, StringComparison.Ordinal) ||
+                    !string.Equals(ae.Value, be.Value, StringComparison.Ordinal) ||
+                    ae.HasValue != be.HasValue ||
+                    ae.Scope != be.Scope ||
+                    ae.IsIncluded != be.IsIncluded ||
+                    !string.Equals(ae.OriginPath, be.OriginPath, StringComparison.Ordinal))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static List<string> GetChangedFingerprintNames(Models.GitConfigSnapshot a, Models.GitConfigSnapshot b)
+        {
+            var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+            var allPaths = new HashSet<string>(a.FileFingerprints.Keys, comparer);
+            allPaths.UnionWith(b.FileFingerprints.Keys);
+
+            var changed = new List<string>();
+            foreach (var path in allPaths)
+            {
+                a.FileFingerprints.TryGetValue(path, out var av);
+                b.FileFingerprints.TryGetValue(path, out var bv);
+                if (!string.Equals(av, bv, StringComparison.Ordinal))
+                    changed.Add(Path.GetFileName(path));
+            }
+
+            return changed.Distinct(comparer).ToList();
+        }
+
+        private static bool AreEntriesEquivalent(Models.GitConfigEntry a, Models.GitConfigEntry b)
+        {
+            if (a == null && b == null)
+                return true;
+            if (a == null || b == null)
+                return false;
+
+            return a.Scope == b.Scope &&
+                   a.HasValue == b.HasValue &&
+                   string.Equals(a.Value, b.Value, StringComparison.Ordinal) &&
+                   string.Equals(a.OriginPath, b.OriginPath, StringComparison.Ordinal);
+        }
+
+        private static bool AreEntryListsEquivalent(IReadOnlyList<Models.GitConfigEntry> a, IReadOnlyList<Models.GitConfigEntry> b)
+        {
+            if (a.Count != b.Count)
+                return false;
+
+            for (var i = 0; i < a.Count; i++)
+            {
+                if (!AreEntriesEquivalent(a[i], b[i]))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static string FormatBranchLabel(string branch)
+            => string.IsNullOrWhiteSpace(branch) ? "(HEAD detached / unborn)" : branch;
+
+        private sealed class CapturedConfigDrafts
+        {
+            public Dictionary<string, ConfigFieldDraftMemento> Fields { get; } = new(StringComparer.Ordinal);
+            public List<RemoteConfigDraftMemento> Remotes { get; } = [];
+            public bool HasUpstreamDraft { get; set; }
+            public string UpstreamRemote { get; set; } = string.Empty;
+            public string UpstreamBranch { get; set; } = string.Empty;
+            public Dictionary<string, bool> BranchProtectionDrafts { get; } = new(StringComparer.Ordinal);
+        }
+
+        private long _loadGeneration;
+        private bool _externalMonitorAttached;
+        private bool _hasExternalConfigChanges;
+        private string _externalChangeHeadline = string.Empty;
+        private string _externalChangeDetail = string.Empty;
+        private Models.GitConfigSnapshot _pendingExternalSnapshot;
+        private List<Models.Branch> _pendingExternalBranches;
+        private IReadOnlyList<Models.BranchProtectionStatus> _pendingExternalProtection;
+        private readonly HashSet<string> _unreviewedConflictKeys = new(StringComparer.OrdinalIgnoreCase);
 
         private Models.CustomAction _selectedCustomAction = null;
     }

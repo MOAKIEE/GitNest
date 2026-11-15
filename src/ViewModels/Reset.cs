@@ -283,6 +283,12 @@ namespace SourceGit.ViewModels
 
         public bool HasResultSteps => _resultSteps.Count > 0;
 
+        public bool CanRefreshFromResult
+        {
+            get => _canRefreshFromResult;
+            private set => SetProperty(ref _canRefreshFromResult, value);
+        }
+
         public override bool ShowConfirmButton => !HasResultView;
         public override string ConfirmButtonText => AlsoRewriteRemote ? App.Text("Reset.ConfirmWithRemote") : App.Text("Reset.Confirm");
         public override string CancelButtonText => HasResultView ? App.Text("Revert.CloseResult") : App.Text("Cancel");
@@ -311,6 +317,13 @@ namespace SourceGit.ViewModels
         public Task EnsureLoadedAsync()
         {
             return _preflightTask ?? Task.CompletedTask;
+        }
+
+        public async Task RefreshFromResultAsync()
+        {
+            HasResultView = false;
+            CanRefreshFromResult = false;
+            await StartPreflightAsync().ConfigureAwait(true);
         }
 
         public override async Task<bool> Sure()
@@ -539,6 +552,7 @@ namespace SourceGit.ViewModels
             CollaboratorCommitsPreserved = outcome.CollaboratorCommitsPreserved;
             ResultBackupRef = outcome.BackupRefName ?? string.Empty;
             ResultSteps = steps;
+            CanRefreshFromResult = !outcome.Succeeded && !outcome.LocalBranchReset;
             HasResultView = true;
         }
 
@@ -575,6 +589,7 @@ namespace SourceGit.ViewModels
         private bool _hasPreflight;
         private bool _alsoRewriteRemote;
         private bool _hasResultView;
+        private bool _canRefreshFromResult;
         private bool _isResultError;
         private bool _isResultWarning;
         private bool _collaboratorCommitsPreserved;

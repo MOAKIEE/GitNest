@@ -54,6 +54,10 @@ internal static partial class Program
             {
                 RunConfig();
             }
+            else if (args.Contains("--config-refresh"))
+            {
+                RunConfigRefresh();
+            }
             else if (args.Contains("--commit-sync"))
             {
                 RunCommitSync();
@@ -364,6 +368,7 @@ internal static partial class Program
 
     static partial void RunComparison();
     static partial void RunConfig();
+    static partial void RunConfigRefresh();
     static partial void RunCommitSync();
     static partial void RunOperationRecovery();
     static partial void RunBranchDelete();

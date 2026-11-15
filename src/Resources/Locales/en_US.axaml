@@ -399,6 +399,15 @@
   <x:String x:Key="Text.Configure.Save.HigherOverrideWarning" xml:space="preserve">Notice: Written to target scope, but still shadowed by higher-priority scope(s):</x:String>
   <x:String x:Key="Text.Configure.Save.ExternalConflict" xml:space="preserve">External config changed before save; skipped overwrite for conflicting key(s):</x:String>
   <x:String x:Key="Text.Configure.Save.NothingToSave" xml:space="preserve">No Git config changes to apply (repository preferences synced).</x:String>
+  <x:String x:Key="Text.Configure.Save.LockBlocked" xml:space="preserve">Git config lock file detected; write aborted without deleting lock files:</x:String>
+  <x:String x:Key="Text.Configure.Scope.GlobalTargetFormat" xml:space="preserve">Target file: {0} (affects all repositories of this user account)</x:String>
+  <x:String x:Key="Text.Configure.External.BannerHeadline" xml:space="preserve">External configuration or branch context changed while drafts are pending</x:String>
+  <x:String x:Key="Text.Configure.External.AcceptReload" xml:space="preserve">Reload External Config (Discard Drafts)</x:String>
+  <x:String x:Key="Text.Configure.External.KeepDrafts" xml:space="preserve">Keep My Drafts (Rebase onto New State)</x:String>
+  <x:String x:Key="Text.Configure.External.DraftUnset" xml:space="preserve">(Unset in target scope)</x:String>
+  <x:String x:Key="Text.Configure.External.DraftExplicitEmpty" xml:space="preserve">"" (explicit empty)</x:String>
+  <x:String x:Key="Text.Configure.External.DraftEmpty" xml:space="preserve">(empty)</x:String>
+  <x:String x:Key="Text.Configure.External.UnsetValue" xml:space="preserve">(unset)</x:String>
   <x:String x:Key="Text.ConfigureCustomActionControls" xml:space="preserve">Edit Custom Action Controls</x:String>
   <x:String x:Key="Text.ConfigureCustomActionControls.CheckedValue" xml:space="preserve">Checked Value:</x:String>
   <x:String x:Key="Text.ConfigureCustomActionControls.CheckedValue.Tip" xml:space="preserve">When checked, this value will be used in command-line arguments</x:String>
@@ -1627,6 +1636,7 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.Reset.Result.CollaboratorHint" xml:space="preserve">Collaborator commits on the remote were preserved intact because the lease check rejected overwriting newer remote work.</x:String>
   <x:String x:Key="Text.Reset.Result.BackupRefLabel" xml:space="preserve">Backup Ref:</x:String>
   <x:String x:Key="Text.Reset.Result.OpenRecoveryLogs" xml:space="preserve">Open Operations &amp; Recovery Log</x:String>
+  <x:String x:Key="Text.Reset.Result.RefreshSnapshot" xml:space="preserve">Re-check Repository State</x:String>
 
   <x:String x:Key="Text.RewriteRemote.Title" xml:space="preserve">Rewrite Remote Branch History</x:String>
   <x:String x:Key="Text.RewriteRemote.Confirm" xml:space="preserve">REWRITE REMOTE HISTORY</x:String>

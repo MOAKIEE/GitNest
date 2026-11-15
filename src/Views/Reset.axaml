@@ -310,10 +310,17 @@
                 </StackPanel>
               </Border>
 
-              <Button Classes="flat primary"
-                      Height="28" Padding="12,0" HorizontalAlignment="Left"
-                      Content="{DynamicResource Text.Reset.Result.OpenRecoveryLogs}"
-                      Click="OnOpenRecoveryLogsClicked"/>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="flat primary"
+                        Height="28" Padding="12,0" HorizontalAlignment="Left"
+                        Content="{DynamicResource Text.Reset.Result.OpenRecoveryLogs}"
+                        Click="OnOpenRecoveryLogsClicked"/>
+                <Button Classes="flat"
+                        Height="28" Padding="12,0"
+                        IsVisible="{Binding CanRefreshFromResult, Mode=OneWay}"
+                        Content="{DynamicResource Text.Reset.Result.RefreshSnapshot}"
+                        Click="OnRefreshFromResultClicked"/>
+              </StackPanel>
 
               <!-- Step results stacked cleanly for narrow/wide layouts -->
               <ItemsControl ItemsSource="{Binding ResultSteps, Mode=OneWay}" IsVisible="{Binding HasResultSteps, Mode=OneWay}">

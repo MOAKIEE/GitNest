@@ -403,6 +403,15 @@
   <x:String x:Key="Text.Configure.Save.HigherOverrideWarning" xml:space="preserve">请注意：以下项目已写入目标作用域，但仍被更高优先级配置覆盖，暂未作为有效值生效：</x:String>
   <x:String x:Key="Text.Configure.Save.ExternalConflict" xml:space="preserve">保存前核对发现外部配置已变更，以下项目已跳过覆盖（请重新读取后再确认）：</x:String>
   <x:String x:Key="Text.Configure.Save.NothingToSave" xml:space="preserve">未检测到需要写入 Git 配置的更改（仓库本地偏好已同步）。</x:String>
+  <x:String x:Key="Text.Configure.Save.LockBlocked" xml:space="preserve">检测到 Git 配置锁文件占用，已中止写入（绝不自动删除锁文件）：</x:String>
+  <x:String x:Key="Text.Configure.Scope.GlobalTargetFormat" xml:space="preserve">写入目标：{0}（将影响当前用户账户下的所有 Git 仓库）</x:String>
+  <x:String x:Key="Text.Configure.External.BannerHeadline" xml:space="preserve">检测到外部配置或当前分支（includeIf）已变化，且当前存在未保存草稿</x:String>
+  <x:String x:Key="Text.Configure.External.AcceptReload" xml:space="preserve">丢弃冲突草稿并重新加载</x:String>
+  <x:String x:Key="Text.Configure.External.KeepDrafts" xml:space="preserve">保留我的草稿（按最新外部状态重设基线）</x:String>
+  <x:String x:Key="Text.Configure.External.DraftUnset" xml:space="preserve">(从此作用域移除)</x:String>
+  <x:String x:Key="Text.Configure.External.DraftExplicitEmpty" xml:space="preserve">""（显式空值）</x:String>
+  <x:String x:Key="Text.Configure.External.DraftEmpty" xml:space="preserve">（已清空）</x:String>
+  <x:String x:Key="Text.Configure.External.UnsetValue" xml:space="preserve">(未设置)</x:String>
   <x:String x:Key="Text.ConfigureCustomActionControls" xml:space="preserve">编辑自定义操作输入控件</x:String>
   <x:String x:Key="Text.ConfigureCustomActionControls.CheckedValue" xml:space="preserve">启用时命令行参数 ：</x:String>
   <x:String x:Key="Text.ConfigureCustomActionControls.CheckedValue.Tip" xml:space="preserve">此CheckBox勾选后，该值会被应用于命令行参数</x:String>
@@ -1631,6 +1640,7 @@
   <x:String x:Key="Text.Reset.Result.CollaboratorHint" xml:space="preserve">已完整保留远端上的协作者新提交，租约校验已阻止覆盖他人成果。</x:String>
   <x:String x:Key="Text.Reset.Result.BackupRefLabel" xml:space="preserve">本地备份引用 ：</x:String>
   <x:String x:Key="Text.Reset.Result.OpenRecoveryLogs" xml:space="preserve">打开操作与恢复日志</x:String>
+  <x:String x:Key="Text.Reset.Result.RefreshSnapshot" xml:space="preserve">重新检查当前仓库状态</x:String>
 
   <x:String x:Key="Text.RewriteRemote.Title" xml:space="preserve">改写远程分支历史</x:String>
   <x:String x:Key="Text.RewriteRemote.Confirm" xml:space="preserve">确认改写远程历史</x:String>

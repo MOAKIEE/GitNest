@@ -169,6 +169,7 @@ internal static partial class Program
             await RunMergeRevertTestsAsync(realGit, root);
             await RunStashDiscardIgnoreTestsAsync(realGit, root);
             await RunHistoryResetRewriteTestsAsync(realGit, root);
+            await RunPhase37SyncTestsAsync(realGit, root);
         }
         finally
         {

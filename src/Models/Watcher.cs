@@ -226,6 +226,15 @@ namespace SourceGit.Models
 
             if (refreshCommits)
                 _repo.RefreshCommits();
+
+            var oldUpdateConfig = Interlocked.Exchange(ref _updateConfig, -1);
+            if (oldUpdateConfig > 0)
+            {
+                if (now > oldUpdateConfig)
+                    _repo.RefreshConfigurationState();
+                else
+                    Interlocked.CompareExchange(ref _updateConfig, oldUpdateConfig, -1);
+            }
         }
 
         private void OnRepositoryChanged(object o, FileSystemEventArgs e)
@@ -256,6 +265,7 @@ namespace SourceGit.Models
             Interlocked.Exchange(ref _updateWC, desired);
             if (_repo.MayHaveSubmodules())
                 Interlocked.Exchange(ref _updateSubmodules, desired);
+            Interlocked.Exchange(ref _updateConfig, desired);
         }
 
         private void OnGitDirChanged(object o, FileSystemEventArgs e)
@@ -322,12 +332,18 @@ namespace SourceGit.Models
                 name.StartsWith("refs/heads/", StringComparison.Ordinal) ||
                 name.StartsWith("refs/remotes/", StringComparison.Ordinal) ||
                 (name.StartsWith("worktrees/", StringComparison.Ordinal) &&
-                 (name.EndsWith("/HEAD", StringComparison.Ordinal) || IsOperationStateFile(GetWorktreeRelativeGitPath(name)))))
+                 (IsWorktreeAdminChange(name) || IsOperationStateFile(GetWorktreeRelativeGitPath(name)))))
             {
                 var desired = DateTime.Now.AddSeconds(.5).ToFileTime();
                 Interlocked.Exchange(ref _updateBranch, desired);
                 if (name.StartsWith("worktrees/", StringComparison.Ordinal))
                     Interlocked.Exchange(ref _updateWC, desired);
+                if (name.Equals("HEAD", StringComparison.Ordinal) ||
+                    name.Equals("config", StringComparison.Ordinal) ||
+                    name.Equals("config.worktree", StringComparison.Ordinal) ||
+                    (name.StartsWith("worktrees/", StringComparison.Ordinal) &&
+                     (name.EndsWith("/HEAD", StringComparison.Ordinal) || name.EndsWith("/config.worktree", StringComparison.Ordinal))))
+                    Interlocked.Exchange(ref _updateConfig, desired);
             }
             else if (name.Equals("packed-refs", StringComparison.Ordinal))
             {
@@ -414,6 +430,24 @@ namespace SourceGit.Models
             return IsInSubmodule(Path.GetDirectoryName(folder));
         }
 
+        internal static bool IsWorktreeAdminChange(string name)
+        {
+            if (!name.StartsWith("worktrees/", StringComparison.Ordinal))
+                return false;
+
+            var sub = name.Substring("worktrees/".Length);
+            if (sub.Length == 0)
+                return true;
+
+            if (!sub.Contains('/', StringComparison.Ordinal))
+                return true;
+
+            return sub.EndsWith("/gitdir", StringComparison.Ordinal) ||
+                   sub.EndsWith("/locked", StringComparison.Ordinal) ||
+                   sub.EndsWith("/HEAD", StringComparison.Ordinal) ||
+                   sub.EndsWith("/config.worktree", StringComparison.Ordinal);
+        }
+
         private readonly IRepository _repo;
         private readonly string _root;
         private List<FileSystemWatcher> _watchers;
@@ -425,5 +459,6 @@ namespace SourceGit.Models
         private long _updateSubmodules;
         private long _updateStashes;
         private long _updateTags;
+        private long _updateConfig;
     }
 }

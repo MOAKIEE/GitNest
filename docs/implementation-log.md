@@ -291,3 +291,13 @@
 - 补全双语词条（`en_US.axaml` 与 `zh_CN.axaml` 对称扩展至 `1624` 条），新增 `tests/GitNest.UIProbe/ResetRewriteProbe.cs`（接入 `probe-gitnest.ps1 -ResetRewrite`）。
 - 末次代码改动后验证：`.\build\scripts\probe-gitnest.ps1 -ResetRewrite`（**14 / 14** 探针检查通过并逐张核对 `artifacts/probes/phase-3.6/` 下 14 张浅色/暗黑/窄窗截图）、`.\build\scripts\test-gitnest.ps1`（**302 / 302** 通过）与 `.\build\scripts\build-gitnest.ps1 -Publish`（**0** 警告 **0** 错误，产出 `artifacts/windows-x64/GitNest.exe`）；详情见 [phase-3.6.md](verification/phase-3.6.md)。
 - 批次 3.6（3.6a / 3.6b）全部完成；接续进入批次 3.7（配置作用域写入、外部变更复核与刷新）。
+
+## 2026-11-15 批次 3.7：配置作用域写入、外部变更复核与刷新
+
+- 前一批提交：`59f89f0e`（批次 3.6b：撤回提交、默认分支保护开关、远端历史改写与恢复界面及探针）。
+- 强化配置作用域锁检查：`src/Models/RepositoryWriteGuard.cs` 补齐 `<gitDir>/config.worktree.lock`、`<commonDir>/config.lock` 与 `GIT_CONFIG_GLOBAL`/用户全局 `.gitconfig.lock` 只读检测（绝不删除锁文件）；`src/Commands/Config.cs`、`Remote.cs`、`Branch.cs` 与 `RepositoryConfigure.SaveAsync()` 在持有全局或仓库配置锁时直接中止写入并保留草稿。
+- 实现外部变更复核与刷新同步：`src/ViewModels/RepositoryConfigure.cs` 与 `src/Views/RepositoryConfigure.axaml`/`.axaml.cs` 新增 `GlobalScopeTargetHint` 全局目标文件提示、`ReloadAsync` 世代并发防抖，以及围绕 `Repository.ConfigurationStateChanged` 和窗口激活的 `CheckExternalChangesAsync`——页面无脏改时自动重载；存在未保存草稿时保留全部草稿并显示 `ExternalConfigChangeBanner`（列明 `includeIf` 分支变化与键值差量），提供「丢弃冲突草稿并重新加载」和「保留我的草稿（按最新外部状态重设基线）」。
+- 补齐弹窗确认快照失效检测与后台刷新世代隔离：`DiscardBackupService` 在 `InspectDiscardAsync` 捕获确认快照并在 `ExecuteDiscardAsync` 校验 `expectedPreflight`（`BlockedBySnapshot` 时拒绝执行并在 `Discard` 视图刷新重检；修复 `CaptureOperationSnapshot.CaptureDiskFileAsync` 遇独占锁定文件时的容错捕获），`Reset` 在未执行本地撤回的阻断/失败结果卡新增「刷新状态并重新检查」按钮；`Watcher` 与 `Repository` 新增 `config`/`config.worktree`/`HEAD`/`worktrees/*` 管理事件通知、全量 `Refresh*` 世代号与 `_isClosed` UI 派发防护、窗口激活同步刷新及 `Repository.Close()` 判空防护。
+- 对称补全中英双语词条（`en_US.axaml` 与 `zh_CN.axaml` 均达 `1634` 条，`diff=0`），新增 `tests/GitNest.IntegrationTests/Phase37SyncTests.cs` 并扩展 `tests/GitNest.UIProbe/ConfigProbe.cs`（接入 `probe-gitnest.ps1 -ConfigRefresh`）。
+- 末次代码改动后验证：`.\build\scripts\build-gitnest.ps1 -Publish`（**0** 警告 **0** 错误，产出 `artifacts/windows-x64/GitNest.exe`）、`.\build\scripts\test-gitnest.ps1`（**320 / 320** 通过）、`.\build\scripts\probe-gitnest.ps1 -ConfigRefresh`（**4 / 4** 通过，核对 `artifacts/probes/phase-3.7/` 下 3 张截图）及 `.\build\scripts\probe-gitnest.ps1 -Config`（**13 / 13** 回归通过）；详情见 [phase-3.7.md](verification/phase-3.7.md)。
+- 阶段三（3.1～3.7）全部完成；接续进入阶段四批次 4.1（首版入口裁剪、依赖及资源清理）。

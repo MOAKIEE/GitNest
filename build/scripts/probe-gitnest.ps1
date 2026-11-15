@@ -1,13 +1,14 @@
-param([switch]$Comparison, [switch]$Config, [switch]$CommitSync, [switch]$OperationRecovery, [switch]$BranchDelete, [switch]$WorktreeDelete, [switch]$MergeRevert, [switch]$StashDiscardIgnore, [switch]$ResetRewrite)
+param([switch]$Comparison, [switch]$Config, [switch]$ConfigRefresh, [switch]$CommitSync, [switch]$OperationRecovery, [switch]$BranchDelete, [switch]$WorktreeDelete, [switch]$MergeRevert, [switch]$StashDiscardIgnore, [switch]$ResetRewrite)
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $dotnet = Join-Path $repoRoot '.tools/dotnet/dotnet.exe'
 if (-not (Test-Path $dotnet)) { $dotnet = (Get-Command dotnet -ErrorAction Stop).Source }
-$batch = if ($ResetRewrite) { 'phase-3.6' } elseif ($StashDiscardIgnore) { 'phase-3.5' } elseif ($MergeRevert) { 'phase-3.4' } elseif ($WorktreeDelete) { 'phase-3.3' } elseif ($BranchDelete) { 'phase-3.2' } elseif ($OperationRecovery) { 'phase-3.1' } elseif ($CommitSync) { 'phase-2.5' } elseif ($Config) { 'phase-2.4' } elseif ($Comparison) { 'phase-2.3' } else { 'phase-2.2' }
+$batch = if ($ConfigRefresh) { 'phase-3.7' } elseif ($ResetRewrite) { 'phase-3.6' } elseif ($StashDiscardIgnore) { 'phase-3.5' } elseif ($MergeRevert) { 'phase-3.4' } elseif ($WorktreeDelete) { 'phase-3.3' } elseif ($BranchDelete) { 'phase-3.2' } elseif ($OperationRecovery) { 'phase-3.1' } elseif ($CommitSync) { 'phase-2.5' } elseif ($Config) { 'phase-2.4' } elseif ($Comparison) { 'phase-2.3' } else { 'phase-2.2' }
 $probeArgs = @((Join-Path $repoRoot "artifacts/probes/$batch"))
 if ($Comparison) { $probeArgs += '--comparison' }
 if ($Config) { $probeArgs += '--config' }
+if ($ConfigRefresh) { $probeArgs += '--config-refresh' }
 if ($CommitSync) { $probeArgs += '--commit-sync' }
 if ($OperationRecovery) { $probeArgs += '--operation-recovery' }
 if ($BranchDelete) { $probeArgs += '--branch-delete' }

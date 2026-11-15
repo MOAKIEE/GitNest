@@ -63,7 +63,8 @@ namespace SourceGit.Commands
             string remoteName,
             string remoteBranchName,
             bool allowUnfetchedOrUnborn = true,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            bool acquireWriteGuard = true)
         {
             if (string.IsNullOrWhiteSpace(_name) || _name.StartsWith('-'))
                 return Result.Failed("Invalid local branch name.");
@@ -84,6 +85,28 @@ namespace SourceGit.Commands
             if (string.IsNullOrEmpty(trimmedTarget))
                 return Result.Failed("Invalid upstream branch name.");
 
+            await using var guard = acquireWriteGuard
+                ? await Models.RepositoryWriteGuard.TryEnterAsync(
+                    WorkingDirectory,
+                    $"设置分支 {_name} 上游",
+                    checkIndexLock: false,
+                    checkConfigLock: true,
+                    cancellationToken: cancellationToken).ConfigureAwait(false)
+                : null;
+            if (guard != null && !guard.Acquired)
+                return Result.Failed(guard.LockDetection.Summary);
+
+            if (!acquireWriteGuard)
+            {
+                var locks = await Models.RepositoryWriteGuard.InspectLocksAsync(
+                    WorkingDirectory,
+                    checkIndexLock: false,
+                    checkConfigLock: true,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (locks.IsLocked)
+                    return Result.Failed(locks.Summary);
+            }
+
             var remoteTrackingRef = trimmedRemote == "." ? $"refs/heads/{trimmedTarget}" : $"refs/remotes/{trimmedRemote}/{trimmedTarget}";
             var refCheck = await RunGitDirectAsync(WorkingDirectory, cancellationToken, "show-ref", "--verify", "--quiet", remoteTrackingRef).ConfigureAwait(false);
             var headCheck = await RunGitDirectAsync(WorkingDirectory, cancellationToken, "rev-parse", "--verify", "--quiet", "HEAD").ConfigureAwait(false);
@@ -99,29 +122,51 @@ namespace SourceGit.Commands
                 return Result.Failed($"Upstream branch '{trimmedRemote}/{trimmedTarget}' does not exist locally.");
 
             var cfg = new Config(WorkingDirectory);
-            var remoteRes = await cfg.SetScopedAsync(Models.GitConfigWriteScope.Local, $"branch.{_name}.remote", trimmedRemote, cancellationToken: cancellationToken).ConfigureAwait(false);
+            var remoteRes = await cfg.SetScopedAsync(Models.GitConfigWriteScope.Local, $"branch.{_name}.remote", trimmedRemote, cancellationToken: cancellationToken, acquireWriteGuard: false).ConfigureAwait(false);
             if (!remoteRes.IsSuccess)
                 return RedactResult(remoteRes);
 
-            var mergeRes = await cfg.SetScopedAsync(Models.GitConfigWriteScope.Local, $"branch.{_name}.merge", $"refs/heads/{trimmedTarget}", cancellationToken: cancellationToken).ConfigureAwait(false);
+            var mergeRes = await cfg.SetScopedAsync(Models.GitConfigWriteScope.Local, $"branch.{_name}.merge", $"refs/heads/{trimmedTarget}", cancellationToken: cancellationToken, acquireWriteGuard: false).ConfigureAwait(false);
             return RedactResult(mergeRes);
         }
 
         /// <summary>
         /// Remove upstream tracking configuration for this local branch cleanly, including on unborn branches.
         /// </summary>
-        public async Task<Result> UnsetUpstreamTargetedAsync(CancellationToken cancellationToken = default)
+        public async Task<Result> UnsetUpstreamTargetedAsync(CancellationToken cancellationToken = default, bool acquireWriteGuard = true)
         {
             if (string.IsNullOrWhiteSpace(_name) || _name.StartsWith('-'))
                 return Result.Failed("Invalid local branch name.");
+
+            await using var guard = acquireWriteGuard
+                ? await Models.RepositoryWriteGuard.TryEnterAsync(
+                    WorkingDirectory,
+                    $"清除分支 {_name} 上游",
+                    checkIndexLock: false,
+                    checkConfigLock: true,
+                    cancellationToken: cancellationToken).ConfigureAwait(false)
+                : null;
+            if (guard != null && !guard.Acquired)
+                return Result.Failed(guard.LockDetection.Summary);
+
+            if (!acquireWriteGuard)
+            {
+                var locks = await Models.RepositoryWriteGuard.InspectLocksAsync(
+                    WorkingDirectory,
+                    checkIndexLock: false,
+                    checkConfigLock: true,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (locks.IsLocked)
+                    return Result.Failed(locks.Summary);
+            }
 
             var unsetRes = await RunGitDirectAsync(WorkingDirectory, cancellationToken, "branch", "--unset-upstream", _name).ConfigureAwait(false);
             if (unsetRes.IsSuccess)
                 return unsetRes;
 
             var cfg = new Config(WorkingDirectory);
-            var r1 = await cfg.SetScopedAsync(Models.GitConfigWriteScope.Local, $"branch.{_name}.remote", string.Empty, unset: true, cancellationToken: cancellationToken).ConfigureAwait(false);
-            var r2 = await cfg.SetScopedAsync(Models.GitConfigWriteScope.Local, $"branch.{_name}.merge", string.Empty, unset: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+            var r1 = await cfg.SetScopedAsync(Models.GitConfigWriteScope.Local, $"branch.{_name}.remote", string.Empty, unset: true, cancellationToken: cancellationToken, acquireWriteGuard: false).ConfigureAwait(false);
+            var r2 = await cfg.SetScopedAsync(Models.GitConfigWriteScope.Local, $"branch.{_name}.merge", string.Empty, unset: true, cancellationToken: cancellationToken, acquireWriteGuard: false).ConfigureAwait(false);
             if (r1.IsSuccess && r2.IsSuccess)
                 return new Result { IsSuccess = true, ExitCode = 0 };
 

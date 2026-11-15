@@ -204,7 +204,8 @@ namespace SourceGit.Commands
             string value,
             bool unset = false,
             bool allowEmpty = false,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            bool acquireWriteGuard = true)
         {
             var gitExecutable = Native.OS.GitExecutable;
             if (string.IsNullOrWhiteSpace(gitExecutable) || !File.Exists(gitExecutable))
@@ -215,6 +216,36 @@ namespace SourceGit.Commands
 
             if (scope != Models.GitConfigWriteScope.Global && !_isLocal)
                 return Result.Failed("Repository directory is required for local or worktree scope.");
+
+            if (scope == Models.GitConfigWriteScope.Global)
+            {
+                var globalLock = Models.RepositoryWriteGuard.InspectGlobalConfigLock();
+                if (globalLock.IsLocked)
+                    return Result.Failed(globalLock.Summary);
+            }
+
+            await using var repoWriteGuard = scope != Models.GitConfigWriteScope.Global && acquireWriteGuard
+                ? await Models.RepositoryWriteGuard.TryEnterAsync(
+                    WorkingDirectory,
+                    $"写入配置 {key}",
+                    checkIndexLock: false,
+                    checkConfigLock: true,
+                    cancellationToken: cancellationToken).ConfigureAwait(false)
+                : null;
+
+            if (repoWriteGuard != null && !repoWriteGuard.Acquired)
+                return Result.Failed(repoWriteGuard.LockDetection.Summary);
+
+            if (scope != Models.GitConfigWriteScope.Global && !acquireWriteGuard)
+            {
+                var configLocks = await Models.RepositoryWriteGuard.InspectLocksAsync(
+                    WorkingDirectory,
+                    checkIndexLock: false,
+                    checkConfigLock: true,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (configLocks.IsLocked)
+                    return Result.Failed(configLocks.Summary);
+            }
 
             if (scope == Models.GitConfigWriteScope.Worktree)
             {

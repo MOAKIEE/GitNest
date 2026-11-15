@@ -109,6 +109,23 @@ namespace SourceGit.Commands
                 }
             }
 
+            var confirmationPaths = tracked
+                .Select(t => t.Path)
+                .Concat(untracked.Select(u => u.Path))
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Distinct(PathComparer)
+                .ToList();
+            var confirmationSnapshot = (tracked.Count > 0 || untracked.Count > 0)
+                ? await CaptureOperationSnapshot.CaptureAsync(
+                    repoPath,
+                    new Models.OperationSnapshotCaptureOptions
+                    {
+                        TargetPaths = confirmationPaths,
+                        IncludeTargetFileDetails = true,
+                    },
+                    cancellationToken).ConfigureAwait(false)
+                : null;
+
             if (baseline == Models.DiscardBaselineKind.MoveUntrackedToRecycleBin)
             {
                 return new Models.DiscardPreflight
@@ -124,6 +141,7 @@ namespace SourceGit.Commands
                     TrackedTargets = tracked,
                     UntrackedTargets = untracked,
                     SkippedSubmodulePaths = skippedSubmodules,
+                    ConfirmationSnapshot = confirmationSnapshot,
                 };
             }
 
@@ -141,6 +159,7 @@ namespace SourceGit.Commands
                 UntrackedTargets = untracked,
                 SkippedSubmodulePaths = skippedSubmodules,
                 IndexAddedOnlyPaths = indexAddedOnly,
+                ConfirmationSnapshot = confirmationSnapshot,
             };
         }
 
@@ -153,8 +172,39 @@ namespace SourceGit.Commands
             Models.OperationJournalStore journalStore = null,
             Models.ICommandLog outerLog = null,
             DateTime? utcNowOverride = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            Models.DiscardPreflight expectedPreflight = null)
         {
+            if (expectedPreflight?.ConfirmationSnapshot != null)
+            {
+                var verify = await CaptureOperationSnapshot.VerifyAsync(
+                    expectedPreflight.ConfirmationSnapshot,
+                    new Models.OperationSnapshotVerifyOptions
+                    {
+                        RequireSameRepoIdentity = true,
+                        RequireSameHead = true,
+                        RequireSameInProgressState = true,
+                        RequireSameStagedFingerprint = true,
+                        RequireSameWatchedRefs = false,
+                        RequireSameTargetFiles = true,
+                        CheckGitLocks = false,
+                        CheckIndexLock = false,
+                    },
+                    cancellationToken).ConfigureAwait(false);
+                if (!verify.IsValid)
+                {
+                    return new Models.DiscardExecutionResult
+                    {
+                        Success = false,
+                        BlockedBySnapshot = true,
+                        Baseline = baseline,
+                        Summary = string.IsNullOrWhiteSpace(verify.Summary)
+                            ? "确认弹窗打开期间工作区或仓库状态已发生外部变更，已中止丢弃并刷新列表。"
+                            : $"确认弹窗打开期间仓库或目标文件已发生外部变更（{verify.Summary}），已取消本次丢弃并为您重新检查。",
+                    };
+                }
+            }
+
             var preflight = await InspectDiscardAsync(repoPath, targets, baseline, cancellationToken).ConfigureAwait(false);
             if (!preflight.CanProceed)
             {

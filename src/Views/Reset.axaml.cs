@@ -18,5 +18,14 @@ namespace SourceGit.Views
                 e.Handled = true;
             }
         }
+
+        private async void OnRefreshFromResultClicked(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.Reset vm)
+            {
+                await vm.RefreshFromResultAsync();
+                e.Handled = true;
+            }
+        }
     }
 }

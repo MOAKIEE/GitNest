@@ -122,6 +122,7 @@ namespace SourceGit.Models
         public List<DiscardTargetItem> UntrackedTargets { get; init; } = [];
         public List<string> SkippedSubmodulePaths { get; init; } = [];
         public List<string> IndexAddedOnlyPaths { get; init; } = [];
+        public OperationConfirmationSnapshot ConfirmationSnapshot { get; init; }
     }
 
     public sealed class DiscardBackupFileEntry
@@ -198,6 +199,7 @@ namespace SourceGit.Models
     public sealed class DiscardExecutionResult
     {
         public bool Success { get; init; }
+        public bool BlockedBySnapshot { get; init; }
         public DiscardBaselineKind Baseline { get; init; }
         public string BackupId { get; init; } = string.Empty;
         public List<string> ProcessedPaths { get; init; } = [];

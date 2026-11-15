@@ -508,18 +508,31 @@ namespace SourceGit.ViewModels
 
         public void Close()
         {
+            _isClosed = true;
             _taskComparison?.Dispose();
             _isTaskOverviewClosed = true;
             Interlocked.Increment(ref _worktreeListGeneration);
-            var commitMessage = _workingCopy.CommitMessage;
-            if (!string.IsNullOrEmpty(commitMessage) && _workingCopy.InProgressContext != null)
+            Interlocked.Increment(ref _branchesGeneration);
+            Interlocked.Increment(ref _tagsGeneration);
+            Interlocked.Increment(ref _commitsGeneration);
+            Interlocked.Increment(ref _submodulesGeneration);
+            Interlocked.Increment(ref _workingCopyGeneration);
+            Interlocked.Increment(ref _stashesGeneration);
+            Interlocked.Increment(ref _configStateGeneration);
+            if (_workingCopy != null)
             {
-                File.WriteAllText(Path.Combine(GitDir, "MERGE_MSG"), commitMessage);
-                commitMessage = string.Empty; // Clears this from ui-state, since it is already saved in MERGE_MSG file.
+                var commitMessage = _workingCopy.CommitMessage;
+                if (!string.IsNullOrEmpty(commitMessage) && _workingCopy.InProgressContext != null)
+                {
+                    File.WriteAllText(Path.Combine(GitDir, "MERGE_MSG"), commitMessage);
+                    commitMessage = string.Empty; // Clears this from ui-state, since it is already saved in MERGE_MSG file.
+                }
+
+                if (_uiStates != null)
+                    _uiStates.LastCommitMessage = commitMessage;
             }
 
-            _uiStates.LastCommitMessage = commitMessage;
-            _uiStates.Save();
+            _uiStates?.Save();
 
             if (_cancellationRefreshBranches is { IsCancellationRequested: false })
                 _cancellationRefreshBranches.Cancel();
@@ -531,9 +544,13 @@ namespace SourceGit.ViewModels
                 _cancellationRefreshCommits.Cancel();
             if (_cancellationRefreshStashes is { IsCancellationRequested: false })
                 _cancellationRefreshStashes.Cancel();
+            if (_cancellationRefreshSubmodules is { IsCancellationRequested: false })
+                _cancellationRefreshSubmodules.Cancel();
+            if (_cancellationRefreshConfiguration is { IsCancellationRequested: false })
+                _cancellationRefreshConfiguration.Cancel();
 
             _watcher?.Dispose();
-            _autoFetchTimer.Dispose();
+            _autoFetchTimer?.Dispose();
         }
 
         public void SendNotification(string message, bool isError = false)
@@ -693,8 +710,13 @@ namespace SourceGit.ViewModels
             return Path.Combine(parentFolder, dirName);
         }
 
+        public event Action ConfigurationStateChanged;
+
         public void RefreshAll()
         {
+            if (_isClosed)
+                return;
+
             RefreshCommits();
             RefreshBranches();
             RefreshTags();
@@ -702,22 +724,48 @@ namespace SourceGit.ViewModels
             RefreshWorktrees();
             RefreshWorkingCopyChanges();
             RefreshStashes();
+            RefreshConfigurationState();
+        }
+
+        public void RefreshConfigurationState()
+        {
+            if (_isClosed)
+                return;
+
+            if (_cancellationRefreshConfiguration is { IsCancellationRequested: false })
+                _cancellationRefreshConfiguration.Cancel();
+
+            _cancellationRefreshConfiguration = new CancellationTokenSource();
+            var token = _cancellationRefreshConfiguration.Token;
+            var generation = Interlocked.Increment(ref _configStateGeneration);
 
             Task.Run(async () =>
             {
                 var issuetrackers = new List<Models.IssueTracker>();
                 await new Commands.IssueTracker(FullPath, true).ReadAllAsync(issuetrackers, true).ConfigureAwait(false);
+                if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _configStateGeneration))
+                    return;
+
                 await new Commands.IssueTracker(FullPath, false).ReadAllAsync(issuetrackers, false).ConfigureAwait(false);
-                Dispatcher.UIThread.Post(() =>
-                {
-                    IssueTrackers.Clear();
-                    IssueTrackers.AddRange(issuetrackers);
-                });
+                if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _configStateGeneration))
+                    return;
 
                 var config = await new Commands.Config(FullPath).ReadAllAsync().ConfigureAwait(false);
-                _hasAllowedSignersFile = config.TryGetValue("gpg.ssh.allowedsignersfile", out var allowedSignersFile) && !string.IsNullOrEmpty(allowedSignersFile);
-                GitFlow.Parse(config);
-            });
+                if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _configStateGeneration))
+                    return;
+
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _configStateGeneration))
+                        return;
+
+                    IssueTrackers.Clear();
+                    IssueTrackers.AddRange(issuetrackers);
+                    _hasAllowedSignersFile = config.TryGetValue("gpg.ssh.allowedsignersfile", out var allowedSignersFile) && !string.IsNullOrEmpty(allowedSignersFile);
+                    GitFlow.Parse(config);
+                    ConfigurationStateChanged?.Invoke();
+                });
+            }, token);
         }
 
         public async Task FetchAsync(bool autoStart)
@@ -1100,15 +1148,20 @@ namespace SourceGit.ViewModels
 
         public void RefreshOnWindowActivated()
         {
+            if (_isClosed)
+                return;
+
             var now = DateTime.UtcNow;
             if ((now - _lastWindowActivationRefreshUtc).TotalSeconds < 1.5)
                 return;
 
             _lastWindowActivationRefreshUtc = now;
             RefreshBranches();
+            RefreshCommits();
             RefreshWorkingCopyChanges();
             RefreshWorktrees();
             RefreshStashes();
+            RefreshConfigurationState();
             _ = RefreshRecoveryStatusAsync();
         }
 
@@ -1365,21 +1418,31 @@ namespace SourceGit.ViewModels
 
         public void RefreshBranches()
         {
+            if (_isClosed)
+                return;
+
             if (_cancellationRefreshBranches is { IsCancellationRequested: false })
                 _cancellationRefreshBranches.Cancel();
 
             _cancellationRefreshBranches = new CancellationTokenSource();
             var token = _cancellationRefreshBranches.Token;
+            var generation = Interlocked.Increment(ref _branchesGeneration);
 
             Task.Run(async () =>
             {
                 var branches = await new Commands.QueryBranches(FullPath).GetResultAsync().ConfigureAwait(false);
+                if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _branchesGeneration))
+                    return;
+
                 var remotes = await new Commands.QueryRemotes(FullPath).GetResultAsync().ConfigureAwait(false);
+                if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _branchesGeneration))
+                    return;
+
                 var builder = BuildBranchTree(branches, remotes);
 
                 Dispatcher.UIThread.Invoke(() =>
                 {
-                    if (token.IsCancellationRequested)
+                    if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _branchesGeneration))
                         return;
 
                     Remotes = remotes;
@@ -1414,18 +1477,25 @@ namespace SourceGit.ViewModels
 
         public void RefreshTags()
         {
+            if (_isClosed)
+                return;
+
             if (_cancellationRefreshTags is { IsCancellationRequested: false })
                 _cancellationRefreshTags.Cancel();
 
             _cancellationRefreshTags = new CancellationTokenSource();
             var token = _cancellationRefreshTags.Token;
+            var generation = Interlocked.Increment(ref _tagsGeneration);
 
             Task.Run(async () =>
             {
                 var tags = await new Commands.QueryTags(FullPath).GetResultAsync().ConfigureAwait(false);
+                if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _tagsGeneration))
+                    return;
+
                 Dispatcher.UIThread.Invoke(() =>
                 {
-                    if (token.IsCancellationRequested)
+                    if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _tagsGeneration))
                         return;
 
                     Tags = tags;
@@ -1437,15 +1507,23 @@ namespace SourceGit.ViewModels
 
         public void RefreshCommits()
         {
+            if (_isClosed)
+                return;
+
             if (_cancellationRefreshCommits is { IsCancellationRequested: false })
                 _cancellationRefreshCommits.Cancel();
 
             _cancellationRefreshCommits = new CancellationTokenSource();
             var token = _cancellationRefreshCommits.Token;
+            var generation = Interlocked.Increment(ref _commitsGeneration);
 
             Task.Run(async () =>
             {
-                await Dispatcher.UIThread.InvokeAsync(() => _histories.IsLoading = true);
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (!_isClosed && !token.IsCancellationRequested && generation == Interlocked.Read(ref _commitsGeneration))
+                        _histories.IsLoading = true;
+                });
 
                 var builder = new StringBuilder();
                 builder
@@ -1465,9 +1543,14 @@ namespace SourceGit.ViewModels
                     builder.Append(_uiStates.BuildHistoryParams_NormalMode(GitDir));
                 }
 
+                if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _commitsGeneration))
+                    return;
+
                 var commits = await new Commands.QueryCommits(FullPath, builder.ToString())
                     .GetResultAsync()
                     .ConfigureAwait(false);
+                if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _commitsGeneration))
+                    return;
 
                 var merged = new HashSet<string>();
                 foreach (var c in commits)
@@ -1484,7 +1567,7 @@ namespace SourceGit.ViewModels
 
                 Dispatcher.UIThread.Invoke(() =>
                 {
-                    if (token.IsCancellationRequested)
+                    if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _commitsGeneration))
                         return;
 
                     if (_histories != null)
@@ -1504,12 +1587,25 @@ namespace SourceGit.ViewModels
 
         public void RefreshSubmodules()
         {
+            if (_isClosed)
+                return;
+
+            if (_cancellationRefreshSubmodules is { IsCancellationRequested: false })
+                _cancellationRefreshSubmodules.Cancel();
+
+            _cancellationRefreshSubmodules = new CancellationTokenSource();
+            var token = _cancellationRefreshSubmodules.Token;
+            var generation = Interlocked.Increment(ref _submodulesGeneration);
+
             if (!MayHaveSubmodules())
             {
                 if (_submodules.Count > 0)
                 {
                     Dispatcher.UIThread.Invoke(() =>
                     {
+                        if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _submodulesGeneration))
+                            return;
+
                         Submodules = [];
                         VisibleSubmodules = BuildVisibleSubmodules();
                     });
@@ -1521,9 +1617,13 @@ namespace SourceGit.ViewModels
             Task.Run(async () =>
             {
                 var submodules = await new Commands.QuerySubmodules(FullPath).GetResultAsync().ConfigureAwait(false);
+                if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _submodulesGeneration))
+                    return;
 
                 Dispatcher.UIThread.Invoke(() =>
                 {
+                    if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _submodulesGeneration))
+                        return;
                     bool hasChanged = _submodules.Count != submodules.Count;
                     if (!hasChanged)
                     {
@@ -1555,12 +1655,12 @@ namespace SourceGit.ViewModels
                         VisibleSubmodules = BuildVisibleSubmodules();
                     }
                 });
-            });
+            }, token);
         }
 
         public void RefreshWorkingCopyChanges()
         {
-            if (IsBare)
+            if (_isClosed || IsBare)
                 return;
 
             RefreshCurrentTaskStatus();
@@ -1570,6 +1670,7 @@ namespace SourceGit.ViewModels
 
             _cancellationRefreshWorkingCopyChanges = new CancellationTokenSource();
             var token = _cancellationRefreshWorkingCopyChanges.Token;
+            var generation = Interlocked.Increment(ref _workingCopyGeneration);
             var noOptionalLocks = Interlocked.Add(ref _queryLocalChangesTimes, 1) > 1;
 
             Task.Run(async () =>
@@ -1578,12 +1679,14 @@ namespace SourceGit.ViewModels
                     .WithCancellation(token)
                     .GetResultAsync()
                     .ConfigureAwait(false);
+                if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _workingCopyGeneration))
+                    return;
 
                 changes.Sort((l, r) => Models.NumericSort.Compare(l.Path, r.Path));
 
                 Dispatcher.UIThread.Invoke(() =>
                 {
-                    if (token.IsCancellationRequested)
+                    if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _workingCopyGeneration))
                         return;
 
                     _workingCopy.SetData(changes);
@@ -1597,7 +1700,7 @@ namespace SourceGit.ViewModels
 
         public void RefreshStashes()
         {
-            if (IsBare)
+            if (_isClosed || IsBare)
                 return;
 
             if (_cancellationRefreshStashes is { IsCancellationRequested: false })
@@ -1605,13 +1708,17 @@ namespace SourceGit.ViewModels
 
             _cancellationRefreshStashes = new CancellationTokenSource();
             var token = _cancellationRefreshStashes.Token;
+            var generation = Interlocked.Increment(ref _stashesGeneration);
 
             Task.Run(async () =>
             {
                 var stashes = await new Commands.QueryStashes(FullPath).GetResultAsync().ConfigureAwait(false);
+                if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _stashesGeneration))
+                    return;
+
                 Dispatcher.UIThread.Invoke(() =>
                 {
-                    if (token.IsCancellationRequested)
+                    if (_isClosed || token.IsCancellationRequested || generation != Interlocked.Read(ref _stashesGeneration))
                         return;
 
                     if (_stashesPage != null)
@@ -2242,5 +2349,15 @@ namespace SourceGit.ViewModels
         private CancellationTokenSource _cancellationRefreshWorkingCopyChanges = null;
         private CancellationTokenSource _cancellationRefreshCommits = null;
         private CancellationTokenSource _cancellationRefreshStashes = null;
+        private CancellationTokenSource _cancellationRefreshSubmodules = null;
+        private CancellationTokenSource _cancellationRefreshConfiguration = null;
+        private volatile bool _isClosed;
+        private long _branchesGeneration;
+        private long _tagsGeneration;
+        private long _commitsGeneration;
+        private long _submodulesGeneration;
+        private long _workingCopyGeneration;
+        private long _stashesGeneration;
+        private long _configStateGeneration;
     }
 }

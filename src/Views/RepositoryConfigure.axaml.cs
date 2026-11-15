@@ -18,13 +18,46 @@ namespace SourceGit.Views
             base.OnOpened(e);
 
             if (!Design.IsDesignMode && DataContext is ViewModels.RepositoryConfigure configure)
+            {
+                configure.AttachExternalChangeMonitor();
+                Activated += OnConfigureWindowActivated;
                 await configure.EnsureLoadedAsync();
+            }
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            Activated -= OnConfigureWindowActivated;
+            if (DataContext is ViewModels.RepositoryConfigure configure)
+                configure.DetachExternalChangeMonitor();
+
+            base.OnClosed(e);
+        }
+
+        private async void OnConfigureWindowActivated(object sender, EventArgs e)
+        {
+            if (DataContext is ViewModels.RepositoryConfigure vm)
+                await vm.CheckExternalChangesAsync();
         }
 
         private async void OnReloadClicked(object sender, RoutedEventArgs e)
         {
             if (DataContext is ViewModels.RepositoryConfigure vm)
-                await vm.ReloadAsync();
+                await vm.ManualRefreshAsync();
+            e.Handled = true;
+        }
+
+        private async void OnAcceptExternalReloadClicked(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.RepositoryConfigure vm)
+                await vm.AcceptExternalReloadAsync();
+            e.Handled = true;
+        }
+
+        private async void OnKeepDraftsWithExternalBaselineClicked(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.RepositoryConfigure vm)
+                await vm.KeepDraftsWithExternalBaselineAsync();
             e.Handled = true;
         }
 

@@ -47,6 +47,59 @@
 
         <ScrollViewer x:Name="GitConfigScroller" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="16,8,16,12" Spacing="10">
+            <!-- External Config / Branch Change Diff Review Banner -->
+            <Border x:Name="ExternalConfigChangeBanner"
+                    Padding="10,8"
+                    CornerRadius="3"
+                    BorderThickness="1"
+                    BorderBrush="#D97706"
+                    Background="#18D97706"
+                    IsVisible="{Binding HasExternalConfigChanges}">
+              <StackPanel Spacing="6">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                  <Path Grid.Column="0" Width="14" Height="14" Data="{StaticResource Icons.Error}" Fill="#D97706" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="1" FontWeight="SemiBold" Text="{Binding ExternalChangeHeadline}" TextWrapping="Wrap"/>
+                </Grid>
+
+                <TextBlock Classes="small"
+                           Foreground="{DynamicResource Brush.FG2}"
+                           Text="{Binding ExternalChangeDetail}"
+                           TextWrapping="Wrap"
+                           IsVisible="{Binding ExternalChangeDetail, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                <ItemsControl ItemsSource="{Binding ExternalConfigDiffItems}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ExternalConfigDiffItem">
+                      <TextBlock Classes="small"
+                                 Margin="0,1"
+                                 FontFamily="{DynamicResource Fonts.Monospace}"
+                                 Text="{Binding SummaryLine}"
+                                 TextWrapping="Wrap"/>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <WrapPanel Orientation="Horizontal">
+                  <Button x:Name="AcceptExternalReloadBtn"
+                          Classes="flat"
+                          Height="26"
+                          Margin="0,2,8,0"
+                          Padding="10,0"
+                          IsEnabled="{Binding !IsLoading}"
+                          Content="{DynamicResource Text.Configure.External.AcceptReload}"
+                          Click="OnAcceptExternalReloadClicked"/>
+                  <Button x:Name="KeepDraftsExternalBtn"
+                          Classes="flat primary"
+                          Height="26"
+                          Margin="0,2,0,0"
+                          Padding="10,0"
+                          IsEnabled="{Binding !IsLoading}"
+                          Content="{DynamicResource Text.Configure.External.KeepDrafts}"
+                          Click="OnKeepDraftsWithExternalBaselineClicked"/>
+                </WrapPanel>
+              </StackPanel>
+            </Border>
+
             <!-- Snapshot Error Banner -->
             <Border Padding="8,6"
                     CornerRadius="3"
@@ -86,11 +139,17 @@
                       Background="{DynamicResource Brush.Conflict}"
                       IsVisible="{Binding ShowGlobalScopeWarning}">
                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
-                  <Path Grid.Column="0" Width="13" Height="13" Data="{StaticResource Icons.Error}" Fill="{DynamicResource Brush.Conflict.Foreground}" VerticalAlignment="Center"/>
-                  <TextBlock Grid.Column="1" Classes="small" FontWeight="SemiBold"
-                             Foreground="{DynamicResource Brush.Conflict.Foreground}"
-                             TextWrapping="Wrap"
-                             Text="{DynamicResource Text.Configure.Scope.GlobalWarning}"/>
+                  <Path Grid.Column="0" Width="13" Height="13" Data="{StaticResource Icons.Error}" Fill="{DynamicResource Brush.Conflict.Foreground}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                  <StackPanel Grid.Column="1" Spacing="2">
+                    <TextBlock Classes="small" FontWeight="SemiBold"
+                               Foreground="{DynamicResource Brush.Conflict.Foreground}"
+                               TextWrapping="Wrap"
+                               Text="{DynamicResource Text.Configure.Scope.GlobalWarning}"/>
+                    <TextBlock Classes="small"
+                               Foreground="{DynamicResource Brush.Conflict.Foreground}"
+                               TextWrapping="Wrap"
+                               Text="{Binding GlobalScopeTargetHint}"/>
+                  </StackPanel>
                 </Grid>
               </Border>
 
