@@ -752,7 +752,10 @@ namespace SourceGit.Commands
                 };
             }
 
-            var refspec = $"refs/heads/{options.LocalBranch}:refs/heads/{options.RemoteBranch}";
+            var sourceRevision = string.IsNullOrEmpty(options.SourceRevisionSha)
+                ? $"refs/heads/{options.LocalBranch}"
+                : CommandArgumentHelper.ValidateNonOptionToken(options.SourceRevisionSha, nameof(options.SourceRevisionSha));
+            var refspec = $"{sourceRevision}:refs/heads/{options.RemoteBranch}";
 
             var snapshot = await QueryStagedSnapshot.CaptureAsync(repoPath, cancellationToken).ConfigureAwait(false);
             if (snapshot.IsDetachedHead)
@@ -801,9 +804,18 @@ namespace SourceGit.Commands
             }
 
             // When creating upstream tracking, guard against unexpectedly matching an existing unrelated remote branch.
+            var pushTarget = await RemotePushTarget.ResolveAsync(repoPath, options.Remote.Name, cancellationToken).ConfigureAwait(false);
+            if (!pushTarget.IsValid)
+                return new Models.PushExecutionResult
+                {
+                    Outcome = Models.PushOutcomeKind.GitError,
+                    RemoteName = options.Remote.Name,
+                    Summary = pushTarget.Error,
+                };
+
             if (options.SetUpstream && !options.ConfirmOverwriteExistingRemoteBranchWithoutUpstream)
             {
-                var lsArgs = $"ls-remote --heads -- {CommandArgumentHelper.Quote(options.Remote.Name)} {CommandArgumentHelper.Quote($"refs/heads/{options.RemoteBranch}")}";
+                var lsArgs = $"ls-remote --heads -- {CommandArgumentHelper.Quote(pushTarget.Url)} {CommandArgumentHelper.Quote($"refs/heads/{options.RemoteBranch}")}";
                 var lsCmd = new SyncCommand(repoPath, lsArgs, options.Remote.PrivateSSHKey)
                     .WithCancellation(cancellationToken);
 
@@ -856,15 +868,21 @@ namespace SourceGit.Commands
                 }
             }
 
+            var pushedSha = await BranchDeletionService.ResolveRefShaAsync(repoPath, $"{sourceRevision}^{{commit}}", cancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(pushedSha))
+                return new Models.PushExecutionResult { Outcome = Models.PushOutcomeKind.GitError, Summary = "要推送的本地提交已不存在，请刷新后重试。" };
+            refspec = $"{pushedSha}:refs/heads/{options.RemoteBranch}";
+            var oldTrackingSha = await BranchDeletionService.ResolveRefShaAsync(repoPath,
+                $"refs/remotes/{options.Remote.Name}/{options.RemoteBranch}", cancellationToken).ConfigureAwait(false);
             var capture = new CapturingCommandLog(log);
             var cmd = new Push(
                 repoPath,
-                options.LocalBranch,
+                pushedSha,
                 options.Remote,
                 options.RemoteBranch,
                 options.CheckSubmodules,
-                options.SetUpstream,
-                options.NoVerify)
+                options.NoVerify,
+                pushTarget.Url)
             {
                 RaiseError = false,
             };
@@ -890,7 +908,18 @@ namespace SourceGit.Commands
 
             if (ok)
             {
+                await RemotePushTarget.UpdateTrackingRefAsync(repoPath, options.Remote.Name, options.RemoteBranch,
+                    pushedSha, oldTrackingSha, pushTarget.Url, CancellationToken.None).ConfigureAwait(false);
                 var upToDate = diag.Contains("Everything up-to-date", StringComparison.OrdinalIgnoreCase);
+                var upstreamApplied = false;
+                if (options.SetUpstream)
+                {
+                    var upstream = await new Branch(repoPath, options.LocalBranch).SetUpstreamTargetedAsync(
+                        options.Remote.Name, options.RemoteBranch, cancellationToken: cancellationToken, acquireWriteGuard: false).ConfigureAwait(false);
+                    upstreamApplied = upstream.IsSuccess;
+                    if (!upstreamApplied)
+                        diag += $"\n推送成功，但设置上游失败：{Models.GitConfigSnapshot.RedactText(upstream.StdErr)}";
+                }
                 return new Models.PushExecutionResult
                 {
                     Outcome = upToDate ? Models.PushOutcomeKind.UpToDate : Models.PushOutcomeKind.Success,
@@ -898,11 +927,15 @@ namespace SourceGit.Commands
                     LocalBranch = options.LocalBranch,
                     RemoteBranch = options.RemoteBranch,
                     Refspec = refspec,
-                    SetUpstreamApplied = options.SetUpstream,
-                    HeadSha = snapshot.HeadOid,
-                    Summary = upToDate
-                        ? $"远端 {options.Remote.Name}/{options.RemoteBranch} 已是最新。"
-                        : $"已推送分支 {options.LocalBranch} 至 {options.Remote.Name}/{options.RemoteBranch}。",
+                    SetUpstreamApplied = upstreamApplied,
+                    HeadSha = pushedSha,
+                    Summary = options.SetUpstream && !upstreamApplied
+                        ? $"已推送分支 {options.LocalBranch} 至 {options.Remote.Name}/{options.RemoteBranch}，但设置上游失败，请在仓库配置中重试。"
+                        : upToDate
+                            ? $"远端 {options.Remote.Name}/{options.RemoteBranch} 已是最新。"
+                            : string.IsNullOrEmpty(options.SourceRevisionSha)
+                                ? $"已推送分支 {options.LocalBranch} 至 {options.Remote.Name}/{options.RemoteBranch}。"
+                                : $"已推送提交 {pushedSha[..10]} 至 {options.Remote.Name}/{options.RemoteBranch}。",
                     DiagnosticDetail = diag,
                 };
             }

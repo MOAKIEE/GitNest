@@ -184,6 +184,7 @@ namespace SourceGit.Models
         public string BranchName { get; set; } = string.Empty;
         public string RemoteName { get; set; } = string.Empty;
         public string RemoteBranchName { get; set; } = string.Empty;
+        public string RemotePushUrlFingerprint { get; set; } = string.Empty;
         public string OriginalTipSha { get; set; } = string.Empty;
         public string TargetTipSha { get; set; } = string.Empty;
         public string ExpectedPartnerSha { get; set; } = string.Empty;

@@ -379,6 +379,8 @@ namespace SourceGit.ViewModels
             {
                 if (HasResultView || IsLoadingPreflight || IsProbingRemote)
                     return false;
+                if (_preflight?.Protection.IsEffectivelyProtected == true)
+                    return false;
                 if (IsLocal && IsCurrent)
                     return false;
                 if (IsLocal && IsCheckedOutInOtherWorktree)
@@ -439,6 +441,7 @@ namespace SourceGit.ViewModels
                         DeleteLinkedUpstreamRemote = DeleteUpstream && HasConfiguredUpstream,
                         PruneStaleTrackingCacheWhenRemoteAbsent = DeleteUpstream && HasConfiguredUpstream && _remoteProbe is { QuerySucceeded: true, ExistsOnServer: false },
                         ConfirmedExpectedRemoteTipSha = _remoteProbe?.LiveTipSha,
+                        ConfirmedPushUrl = _remoteProbe?.PushUrl,
                         ConfirmedRemoteExistsOnServer = _remoteProbe?.ExistsOnServer,
                         BeforeWorktreeRemoveAsync = (mainRoot, wtPath, _) =>
                         {
@@ -467,6 +470,7 @@ namespace SourceGit.ViewModels
                         Preflight = _preflight,
                         PruneStaleTrackingCacheWhenRemoteAbsent = _inCachePruneConfirmStep || (_remoteProbe is { QuerySucceeded: true, ExistsOnServer: false }),
                         ConfirmedExpectedRemoteTipSha = _remoteProbe?.LiveTipSha,
+                        ConfirmedPushUrl = _remoteProbe?.PushUrl,
                         ConfirmedRemoteExistsOnServer = _remoteProbe?.ExistsOnServer,
                     };
 
@@ -618,6 +622,8 @@ namespace SourceGit.ViewModels
 
                 if (_remoteProbe is { QuerySucceeded: false })
                     InlineErrorMessage = _remoteProbe.ErrorSummary;
+                if (_preflight.Protection.IsEffectivelyProtected)
+                    InlineErrorMessage = _preflight.Protection.Summary;
 
                 OnPropertyChanged(nameof(IsCurrent));
                 OnPropertyChanged(nameof(TargetTipShortSha));
@@ -690,6 +696,8 @@ namespace SourceGit.ViewModels
                     InlineErrorMessage = _remoteProbe.ErrorSummary;
                 else if (InlineErrorMessage != null && (_remoteProbe?.QuerySucceeded ?? false))
                     InlineErrorMessage = string.Empty;
+                if (_preflight?.Protection.IsEffectivelyProtected == true)
+                    InlineErrorMessage = _preflight.Protection.Summary;
 
                 OnPropertyChanged(nameof(RedactedRemoteUrl));
                 OnPropertyChanged(nameof(RemoteLiveStatusText));

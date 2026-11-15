@@ -131,26 +131,55 @@ namespace SourceGit.ViewModels
             var log = _repo.CreateLog("Push Revision");
             Use(log);
 
-            _cancellation = new CancellationTokenSource();
-            var token = _cancellation.Token;
+            using var cancellation = new CancellationTokenSource();
+            _cancellation = cancellation;
+            try
+            {
+                var token = cancellation.Token;
+                var localBranch = await Commands.BranchDeletionService.ReadCurrentBranchNameAsync(_repo.FullPath, token).ConfigureAwait(true);
+                if (Force)
+                {
+                    var preflight = await Commands.HistoryResetService.InspectRemoteRewriteForTargetAsync(
+                        _repo.FullPath, localBranch, Revision.SHA, RemoteBranch.Remote, RemoteBranch.Name, token).ConfigureAwait(true);
+                    if (!preflight.CanRewriteRemote || _probe == null ||
+                        !string.Equals(preflight.RemoteName, _probe.RemoteName, StringComparison.Ordinal) ||
+                        !string.Equals(preflight.RemoteBranchName, _probe.RemoteBranchName, StringComparison.Ordinal) ||
+                        !string.Equals(preflight.PushUrl, _probe.PushUrl, StringComparison.Ordinal) ||
+                        !string.Equals(preflight.LiveRemoteTipSha, _probe.LiveTipSha, StringComparison.Ordinal))
+                    {
+                        Models.Notification.Send(_repo.FullPath, preflight.CanRewriteRemote
+                            ? "远端状态在确认后已变化，请关闭弹窗并重新确认。"
+                            : preflight.BlockReason, true);
+                        return false;
+                    }
 
-            var remote = _repo.Remotes.Find(x => x.Name.Equals(RemoteBranch.Remote, StringComparison.Ordinal));
-            string pinnedLeaseSha = null;
-            if (Force && _probe is { QuerySucceeded: true })
-                pinnedLeaseSha = _probe.ExistsOnServer ? _probe.LiveTipSha : string.Empty;
+                    var outcome = await Commands.HistoryResetService.ExecuteRemoteRewriteOnlyAsync(
+                        _repo.FullPath, new Models.RemoteRewriteOptions { Preflight = preflight },
+                        Models.OperationJournalStore.Instance, log, token).ConfigureAwait(true);
+                    await _repo.RefreshRecoveryStatusAsync(Models.OperationJournalStore.Instance).ConfigureAwait(true);
+                    if (!outcome.Succeeded)
+                        Models.Notification.Send(_repo.FullPath, outcome.Summary, true);
+                    return outcome.Succeeded;
+                }
 
-            var succ = await new Commands.Push(
-                _repo.FullPath,
-                Revision,
-                remote,
-                RemoteBranch,
-                Force,
-                pinnedLeaseSha).WithCancellation(token).Use(log).ExecAsync();
-
-            log.Complete();
-
-            _cancellation = null;
-            return succ;
+                var remote = _repo.Remotes.Find(x => x.Name.Equals(RemoteBranch.Remote, StringComparison.Ordinal));
+                var result = await Commands.GitSyncService.PushSingleBranchAsync(_repo.FullPath,
+                    new Models.PushExecutionOptions
+                    {
+                        LocalBranch = localBranch,
+                        SourceRevisionSha = Revision.SHA,
+                        Remote = remote,
+                        RemoteBranch = RemoteBranch.Name,
+                    }, log, token, Models.OperationJournalStore.Instance).ConfigureAwait(true);
+                if (!result.Succeeded)
+                    Models.Notification.Send(_repo.FullPath, result.Summary, true);
+                return result.Succeeded;
+            }
+            finally
+            {
+                log.Complete();
+                _cancellation = null;
+            }
         }
 
         public override void Terminate()

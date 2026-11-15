@@ -1435,9 +1435,9 @@
   <x:String x:Key="Text.Push.Revision.RemoteTipFormat" xml:space="preserve">远端最新引用：{0}（{1}）</x:String>
 
   <x:String x:Key="Text.Configure.Git.BranchProtectionHeader" xml:space="preserve">受保护分支覆写设置（仅作用于当前仓库）</x:String>
-  <x:String x:Key="Text.Configure.Git.BranchProtectionHint" xml:space="preserve">main / master / develop 及远程默认分支（refs/remotes/*/HEAD）默认禁止改写远程历史或非快进回退；以下开关仅在当前仓库生效，不影响其他仓库。</x:String>
+  <x:String x:Key="Text.Configure.Git.BranchProtectionHint" xml:space="preserve">main / master / develop 及远程默认分支（refs/remotes/*/HEAD）默认禁止删除、改写远程历史或非快进回退；以下开关仅在当前仓库生效。</x:String>
   <x:String x:Key="Text.Configure.Git.BranchProtectionEmpty" xml:space="preserve">当前仓库未发现本地受保护分支。</x:String>
-  <x:String x:Key="Text.Configure.Git.BranchProtectionUnlock" xml:space="preserve">允许在本仓库改写此分支历史（谨慎开启）</x:String>
+  <x:String x:Key="Text.Configure.Git.BranchProtectionUnlock" xml:space="preserve">允许在本仓库删除或改写此分支（谨慎开启）</x:String>
   <x:String x:Key="Text.Configure.Git.BranchProtectionReasonDefault" xml:space="preserve">默认受保护主干分支</x:String>
   <x:String x:Key="Text.Configure.Git.BranchProtectionReasonRemoteHead" xml:space="preserve">远程默认分支指向</x:String>
   <x:String x:Key="Text.Configure.Git.BranchProtectionSaved" xml:space="preserve">已保存本仓库的受保护分支覆写设置。</x:String>

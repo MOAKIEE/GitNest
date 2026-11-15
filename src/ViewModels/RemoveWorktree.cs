@@ -498,6 +498,7 @@ namespace SourceGit.ViewModels
                         DeleteLinkedUpstreamRemote = DeleteLocalBranch && DeleteRemoteBranch,
                         PruneStaleTrackingCacheWhenRemoteAbsent = DeleteLocalBranch && DeleteRemoteBranch && _remoteProbe is { QuerySucceeded: true, ExistsOnServer: false },
                         ConfirmedExpectedRemoteTipSha = _remoteProbe?.LiveTipSha,
+                        ConfirmedPushUrl = _remoteProbe?.PushUrl,
                         ConfirmedRemoteExistsOnServer = _remoteProbe?.ExistsOnServer,
                         BeforeWorktreeRemoveAsync = (mainRoot, targetPath, _) =>
                         {
@@ -525,6 +526,7 @@ namespace SourceGit.ViewModels
                     _remainingLocalBranchName = outcome.BranchName;
                     _followUpUnmergedCommitCount = outcome.UnmergedCommitCount;
                     _followUpRemoteLeaseSha = _remoteProbe?.LiveTipSha ?? outcome.ExpectedRemoteTipSha;
+                    _followUpPushUrl = _remoteProbe?.PushUrl;
                     _followUpRemoteExists = _remoteProbe?.ExistsOnServer;
                     _followUpDeleteRemote = DeleteLocalBranch && DeleteRemoteBranch;
                     _completedOperationId = outcome.OperationId;
@@ -608,6 +610,7 @@ namespace SourceGit.ViewModels
                         DeleteLinkedUpstreamRemote = _followUpDeleteRemote && preflight.HasConfiguredUpstream,
                         PruneStaleTrackingCacheWhenRemoteAbsent = _followUpDeleteRemote && _followUpRemoteExists == false,
                         ConfirmedExpectedRemoteTipSha = _followUpRemoteLeaseSha,
+                        ConfirmedPushUrl = _followUpPushUrl,
                         ConfirmedRemoteExistsOnServer = _followUpRemoteExists,
                     },
                     _journalStore,
@@ -831,6 +834,7 @@ namespace SourceGit.ViewModels
         private string _remainingLocalBranchName = string.Empty;
         private int _followUpUnmergedCommitCount;
         private string _followUpRemoteLeaseSha = string.Empty;
+        private string _followUpPushUrl;
         private bool? _followUpRemoteExists;
         private bool _followUpDeleteRemote;
 

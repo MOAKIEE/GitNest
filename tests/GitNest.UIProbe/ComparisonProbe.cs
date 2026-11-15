@@ -80,6 +80,8 @@ internal static partial class Program
         File.AppendAllText(Path.Combine(taskPath, "AI 成果.txt"), "remaining\n");
         var validation = comparison.ValidateSnapshotAsync();
         Await(() => validation.IsCompleted);
+        // A timer validation may already be running when the explicit request returns.
+        Await(() => comparison.WorkingCopyDescription.Contains('1'));
         Check(!comparison.IsStale && comparison.Snapshot.AddedLines == 3 && comparison.WorkingCopyDescription.Contains('1'), "Uncommitted changes update separately without changing committed statistics");
         Git(repoPath, "update-ref", "refs/heads/main", basis);
         Await(() => comparison.IsStale);

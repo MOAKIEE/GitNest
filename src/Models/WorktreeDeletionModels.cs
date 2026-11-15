@@ -106,6 +106,8 @@ namespace SourceGit.Models
         public bool DeleteLinkedUpstreamRemote { get; init; }
         public bool PruneStaleTrackingCacheWhenRemoteAbsent { get; init; }
         public string ConfirmedExpectedRemoteTipSha { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string ConfirmedPushUrl { get; init; }
         public bool? ConfirmedRemoteExistsOnServer { get; init; }
         public Func<string, string, CancellationToken, Task> BeforeWorktreeRemoveAsync { get; init; }
     }

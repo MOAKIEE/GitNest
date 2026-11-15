@@ -1431,9 +1431,9 @@ Manually add a branch/tag history filter will disable this feature automatically
   <x:String x:Key="Text.Push.Revision.RemoteTipFormat" xml:space="preserve">Live remote tip: {0} ({1})</x:String>
 
   <x:String x:Key="Text.Configure.Git.BranchProtectionHeader" xml:space="preserve">Protected Branch Overrides (Repository-Local)</x:String>
-  <x:String x:Key="Text.Configure.Git.BranchProtectionHint" xml:space="preserve">main, master, develop, and remote default branches (refs/remotes/*/HEAD) block remote history rewrite by default. Toggles below only apply to this repository.</x:String>
+  <x:String x:Key="Text.Configure.Git.BranchProtectionHint" xml:space="preserve">main, master, develop, and remote default branches (refs/remotes/*/HEAD) block deletion, remote history rewrite, and non-fast-forward reset by default. Toggles below only apply to this repository.</x:String>
   <x:String x:Key="Text.Configure.Git.BranchProtectionEmpty" xml:space="preserve">No default protected local branches detected in this repository.</x:String>
-  <x:String x:Key="Text.Configure.Git.BranchProtectionUnlock" xml:space="preserve">Allow history rewrite in this repo</x:String>
+  <x:String x:Key="Text.Configure.Git.BranchProtectionUnlock" xml:space="preserve">Allow deletion or history rewrite in this repo</x:String>
   <x:String x:Key="Text.Configure.Git.BranchProtectionReasonDefault" xml:space="preserve">Default protected branch name</x:String>
   <x:String x:Key="Text.Configure.Git.BranchProtectionReasonRemoteHead" xml:space="preserve">Remote default branch target</x:String>
   <x:String x:Key="Text.Configure.Git.BranchProtectionSaved" xml:space="preserve">Branch protection override settings updated.</x:String>

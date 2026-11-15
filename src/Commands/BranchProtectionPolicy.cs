@@ -210,11 +210,11 @@ namespace SourceGit.Commands
             }
             else if (isUnlocked)
             {
-                summary = $"分支 '{branchName}' 原受保护（{string.Join("；", reasons)}），但当前仓库已显式关闭该分支的历史改写保护。";
+                summary = $"分支 '{branchName}' 原受保护（{string.Join("；", reasons)}），但当前仓库已显式关闭该分支的删除与历史改写保护。";
             }
             else
             {
-                summary = $"分支 '{branchName}' 受保护（{string.Join("；", reasons)}），默认禁止改写远程分支历史或强制回退；如需放行请在当前仓库设置中显式关闭保护。";
+                summary = $"分支 '{branchName}' 受保护（{string.Join("；", reasons)}），默认禁止删除、改写远程分支历史或强制回退；如需放行请在当前仓库设置中显式关闭保护。";
             }
 
             return new Models.BranchProtectionStatus

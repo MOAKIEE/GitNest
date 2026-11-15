@@ -18,6 +18,8 @@
 ./.tools/dotnet/dotnet.exe run --project tests/GitNest.IntegrationTests -c Release -- --review-discard
 ```
 
+将参数替换为 `--review-remote` 可定向检查远端地址、指定修订与标签推送范围、跟踪缓存、分支保护及历史改写回归。
+
 ## 界面探针
 
 ```powershell
@@ -29,3 +31,18 @@
 运行 `./build/scripts/probe-gitnest.ps1 -Comparison` 另加累计差异页面检查，包含目标持久化、两种比较方式、文本／二进制查看、未提交修改单独展示、定时过期检查、刷新、目标删除、快速切换目标以及关闭后丢弃旧请求。结果与截图写入 `artifacts/probes/phase-2.3/`。
 
 运行 `./build/scripts/probe-gitnest.ps1 -Config` 检查仓库配置界面，包含 `Global`/`Local`/`Worktree` 来源标签、敏感凭据与诊断脱敏、URL 特定代理覆盖、`credential.helper` 有序重置链、签名依赖提示、浅色／深色窄窗口高优先级覆盖提示、保存前冲突保护与部分失败逐项汇报。结果与截图写入 `artifacts/probes/phase-2.4/`。
+
+其他具名探针使用同一脚本，各参数单独运行：
+
+| 参数 | 检查内容 | 输出目录（`artifacts/probes/` 下） |
+| --- | --- | --- |
+| `-ConfigRefresh` | 外部配置变更、草稿保留与刷新 | `phase-3.7` |
+| `-CommitSync` | 提交快照、分步推送与同步反馈 | `phase-2.5` |
+| `-OperationRecovery` | 操作记录、未完成状态及恢复 | `phase-3.1` |
+| `-BranchDelete` | 保护分支、多地址阻断、删除与显式 lease | `phase-3.2` |
+| `-WorktreeDelete` | 工作树预检、删除、联动清理及部分失败 | `phase-3.3` |
+| `-MergeRevert` | 定向合并、撤销与冲突归属 | `phase-3.4` |
+| `-StashDiscardIgnore` | 暂存工作、丢弃恢复、回收与忽略规则 | `phase-3.5` |
+| `-ResetRewrite` | 本地撤回、远端改写、指定修订推送、保护与恢复 | `phase-3.6` |
+| `-TrimSurface` | 首版入口和资源裁剪 | `phase-4.1` |
+| `-HighDpi` | PE DPI 清单和 150%／200% 离屏布局渲染 | `phase-4.2` |

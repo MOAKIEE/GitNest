@@ -385,6 +385,79 @@ internal static partial class Program
             $"ViewLogs checked backup restore creates recovery branch at exact pre-reset SHA [expected={f3Sha}, actual={recoveredSha}]");
 
         logsWin.Close();
+
+        // Exercise the history-menu push entry, including changes after force confirmation.
+        Git(workDir, "checkout", "-b", "feat/push-revision", c1Sha);
+        Git(workDir, "push", "-u", "origin", "feat/push-revision");
+        File.WriteAllText(Path.Combine(workDir, "revision.txt"), "selected\n", utf8NoBom);
+        Git(workDir, "add", "revision.txt");
+        Git(workDir, "commit", "-m", "selected revision");
+        var selectedSha = Git(workDir, "rev-parse", "HEAD").Trim();
+        File.AppendAllText(Path.Combine(workDir, "revision.txt"), "later commit\n", utf8NoBom);
+        Git(workDir, "commit", "-am", "later revision");
+        var laterSha = Git(workDir, "rev-parse", "HEAD").Trim();
+        Git(workDir, "config", "push.followTags", "true");
+        Git(workDir, "tag", "-a", "private-base", "-m", "unselected tag", c1Sha);
+        repo.RefreshBranches();
+        Await(() => repo.CurrentBranch?.Name == "feat/push-revision" &&
+                    repo.Branches.Any(b => !b.IsLocal && b.Name == "feat/push-revision"));
+        var revisionTarget = repo.Branches.First(b => !b.IsLocal && b.Name == "feat/push-revision");
+        var selectedCommit = new QuerySingleCommit(workDir, selectedSha).GetResultAsync().GetAwaiter().GetResult()!;
+        var revisionVm = new VM.PushRevision(repo, selectedCommit, revisionTarget);
+        page.Popup = revisionVm;
+        var revisionTask = revisionVm.Sure();
+        Await(() => revisionTask.IsCompleted);
+        Check(revisionTask.GetAwaiter().GetResult() &&
+              Git(remoteDir, "rev-parse", "refs/heads/feat/push-revision").Trim() == selectedSha &&
+              string.IsNullOrWhiteSpace(Git(remoteDir, "tag", "--list")),
+            "PushRevision publishes the selected commit through safe single-branch push without followTags");
+        page.Popup = null;
+
+        var otherPushDir = Path.Combine(suiteRoot, "other-push.git");
+        Git(suiteRoot, "init", "--bare", otherPushDir);
+        Git(workDir, "push", "--no-follow-tags", otherPushDir, $"{selectedSha}:refs/heads/feat/push-revision");
+        Git(workDir, "remote", "set-url", "--push", "origin", remoteDir);
+        Git(workDir, "remote", "set-url", "--push", "--add", "origin", otherPushDir);
+        var multiRevisionVm = new VM.PushRevision(repo, selectedCommit, revisionTarget);
+        var multiRevisionTask = multiRevisionVm.Sure();
+        Await(() => multiRevisionTask.IsCompleted);
+        Check(!multiRevisionTask.GetAwaiter().GetResult() &&
+              Git(remoteDir, "rev-parse", "refs/heads/feat/push-revision").Trim() == selectedSha &&
+              Git(otherPushDir, "rev-parse", "refs/heads/feat/push-revision").Trim() == selectedSha,
+            "PushRevision rejects multiple push URLs without changing either server");
+        Git(workDir, "config", "--unset-all", "remote.origin.pushurl");
+
+        var changedRevisionVm = new VM.PushRevision(repo, c1Commit, revisionTarget) { Force = true };
+        Await(() => changedRevisionVm.EnsureForceGuardsLoadedAsync().IsCompleted && !changedRevisionVm.IsCheckingForceGuards);
+        Git(workDir, "remote", "set-url", "--push", "origin", otherPushDir);
+        var changedRevisionTask = changedRevisionVm.Sure();
+        Await(() => changedRevisionTask.IsCompleted);
+        Check(!changedRevisionTask.GetAwaiter().GetResult() &&
+              Git(remoteDir, "rev-parse", "refs/heads/feat/push-revision").Trim() == selectedSha &&
+              Git(otherPushDir, "rev-parse", "refs/heads/feat/push-revision").Trim() == selectedSha,
+            "PushRevision refuses an endpoint changed after force confirmation");
+        Git(workDir, "config", "--unset-all", "remote.origin.pushurl");
+
+        var protectedRevisionVm = new VM.PushRevision(repo, c1Commit, revisionTarget) { Force = true };
+        Await(() => protectedRevisionVm.EnsureForceGuardsLoadedAsync().IsCompleted && !protectedRevisionVm.IsCheckingForceGuards);
+        Git(workDir, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/feat/push-revision");
+        var protectedRevisionTask = protectedRevisionVm.Sure();
+        Await(() => protectedRevisionTask.IsCompleted);
+        Check(!protectedRevisionTask.GetAwaiter().GetResult() &&
+              Git(remoteDir, "rev-parse", "refs/heads/feat/push-revision").Trim() == selectedSha,
+            "PushRevision rechecks default-branch protection after confirmation");
+        Git(workDir, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main");
+
+        var safeForceVm = new VM.PushRevision(repo, c1Commit, revisionTarget) { Force = true };
+        Await(() => safeForceVm.EnsureForceGuardsLoadedAsync().IsCompleted && !safeForceVm.IsCheckingForceGuards);
+        var safeForceTask = safeForceVm.Sure();
+        Await(() => safeForceTask.IsCompleted);
+        Check(safeForceTask.GetAwaiter().GetResult() &&
+              Git(remoteDir, "rev-parse", "refs/heads/feat/push-revision").Trim() == c1Sha &&
+              Git(workDir, "rev-parse", "HEAD").Trim() == laterSha &&
+              Git(workDir, "for-each-ref", "--format=%(objectname)", "refs/gitnest/backups").Contains(selectedSha, StringComparison.Ordinal) &&
+              string.IsNullOrWhiteSpace(Git(remoteDir, "tag", "--list")),
+            "PushRevision force uses lease rewrite with a recovery ref and preserves the local branch and private tags");
         window.Close();
     }
 }

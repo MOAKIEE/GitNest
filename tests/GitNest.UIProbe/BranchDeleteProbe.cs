@@ -78,6 +78,7 @@ internal static partial class Program
         Git(clone1, "push", "-u", "origin", "feat/remote-only");
         var remoteOnlyTip = Git(clone1, "rev-parse", "HEAD").Trim();
         Git(clone1, "branch", "feat/merged-clean", mainTip);
+        Git(clone1, "branch", "develop", mainTip);
         Git(clone1, "checkout", "main");
 
         // Collaborator clone on fork
@@ -109,6 +110,32 @@ internal static partial class Program
               App.Text("BranchCM.DeleteLocal", "feat/a").Contains("本地", StringComparison.Ordinal) &&
               App.Text("BranchCM.DeleteRemote", "origin/feat/a").Contains("远程", StringComparison.Ordinal),
             "Branch context menu keys distinguish Delete Local Branch vs Delete Remote Branch clearly");
+
+        foreach (var protectedTarget in new[]
+        {
+            repo.Branches.First(b => b.IsLocal && b.Name == "develop"),
+            repo.Branches.First(b => !b.IsLocal && b.Remote == "origin" && b.Name == "main"),
+        })
+        {
+            var protectedVm = new VM.DeleteBranch(repo, protectedTarget, journal);
+            page.Popup = protectedVm;
+            Await(() => !protectedVm.IsLoadingPreflight);
+            Check(!protectedVm.CanConfirm && protectedVm.InlineErrorMessage.Contains("受保护", StringComparison.Ordinal),
+                $"DeleteBranch disables confirmation and explains protection for {protectedTarget.FriendlyName}");
+            ClickButtonByText(window, App.Text("Cancel"));
+            Await(() => page.Popup == null);
+        }
+        Git(clone1, "remote", "set-url", "--push", "--add", "origin", originBare);
+        Git(clone1, "remote", "set-url", "--push", "--add", "origin", forkBare);
+        var multipleVm = new VM.DeleteBranch(repo,
+            repo.Branches.First(b => !b.IsLocal && b.Remote == "origin" && b.Name == "feat/remote-only"), journal);
+        page.Popup = multipleVm;
+        Await(() => !multipleVm.IsLoadingPreflight);
+        Check(!multipleVm.CanConfirm && multipleVm.InlineErrorMessage.Contains("推送地址", StringComparison.Ordinal),
+            "DeleteBranch blocks multi-address remotes and displays the actionable endpoint error");
+        ClickButtonByText(window, App.Text("Cancel"));
+        Await(() => page.Popup == null);
+        Git(clone1, "config", "--unset-all", "remote.origin.pushurl");
 
         // 1. Worktree-attached branch: direct deletion blocked until explicit ordered worktree cleanup checked
         var wtBranch = repo.Branches.First(b => b.IsLocal && b.Name == "feat/in-wt");

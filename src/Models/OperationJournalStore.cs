@@ -253,6 +253,7 @@ namespace SourceGit.Models
                 Title = GitConfigSnapshot.RedactText(src.Title),
                 BranchName = (src.BranchName ?? string.Empty).Trim(),
                 RemoteName = (src.RemoteName ?? string.Empty).Trim(),
+                RemotePushUrlFingerprint = src.RemotePushUrlFingerprint ?? string.Empty,
                 RemoteBranchName = (src.RemoteBranchName ?? string.Empty).Trim(),
                 OriginalTipSha = (src.OriginalTipSha ?? string.Empty).Trim(),
                 TargetTipSha = (src.TargetTipSha ?? string.Empty).Trim(),

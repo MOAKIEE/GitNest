@@ -321,6 +321,7 @@ partial class Program
                 DeleteLinkedUpstreamRemote = true,
                 ConfirmedRemoteExistsOnServer = true,
                 ConfirmedExpectedRemoteTipSha = wtUnmergedSha1,
+                ConfirmedPushUrl = bare,
             },
             journal);
         var serverAfterLease = (await GitAsync(realGit, "--git-dir", bare, "rev-parse", "--verify", "refs/heads/feat/wt-unmerged")).Trim();

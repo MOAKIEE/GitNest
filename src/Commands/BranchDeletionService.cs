@@ -101,7 +101,10 @@ namespace SourceGit.Commands
                 cancellationToken).ConfigureAwait(false);
 
             var blockReason = string.Empty;
-            if (isCurrent)
+            var protection = await BranchProtectionPolicy.InspectAsync(repoPath, branchName, cancellationToken).ConfigureAwait(false);
+            if (protection.IsEffectivelyProtected)
+                blockReason = protection.Summary;
+            else if (isCurrent)
                 blockReason = $"不能直接删除当前检出的分支 '{branchName}'，请先切换到其他分支。";
             else if (isCheckedOutElsewhere)
                 blockReason = $"分支 '{branchName}' 正在被工作树 '{attachedWtPath}' 使用，不能直接删除；可先移除该工作树后再删除分支。";
@@ -132,7 +135,7 @@ namespace SourceGit.Commands
                 ConfiguredUpstreamRef = upstream.FullTrackingRef,
                 RemoteName = upstream.RemoteName,
                 RemoteBranchName = upstream.RemoteBranchName,
-                RedactedRemoteUrl = upstream.RedactedRemoteUrl,
+                RedactedRemoteUrl = remoteProbe?.RedactedRemoteUrl ?? upstream.RedactedRemoteUrl,
                 IsUpstreamNameDifferent = upstream.HasConfiguredUpstream &&
                     !string.Equals(upstream.RemoteBranchName, branchName, StringComparison.Ordinal),
                 HasLocalTrackingCache = !string.IsNullOrEmpty(upstream.LocalTrackingTipSha),
@@ -140,6 +143,7 @@ namespace SourceGit.Commands
                 RemoteProbe = remoteProbe,
                 ConfirmationSnapshot = snapshot,
                 DirectBlockReason = blockReason,
+                Protection = protection,
             };
         }
 
@@ -187,11 +191,12 @@ namespace SourceGit.Commands
                 HasMultipleRemotes = remotes.Count > 1,
                 RemoteName = remoteName,
                 RemoteBranchName = remoteBranchName,
-                RedactedRemoteUrl = redactedUrl,
+                RedactedRemoteUrl = probe?.RedactedRemoteUrl ?? redactedUrl,
                 HasLocalTrackingCache = !string.IsNullOrEmpty(localTrackingSha),
                 LocalTrackingTipSha = localTrackingSha,
                 RemoteProbe = probe,
                 ConfirmationSnapshot = snapshot,
+                Protection = await BranchProtectionPolicy.InspectAsync(repoPath, remoteBranchName, cancellationToken).ConfigureAwait(false),
             };
         }
 
@@ -200,7 +205,8 @@ namespace SourceGit.Commands
             string remoteName,
             string remoteBranchName,
             Models.ICommandLog log = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            string expectedPushUrl = null)
         {
             if (string.IsNullOrWhiteSpace(remoteName) || IsOptionLike(remoteName) ||
                 string.IsNullOrWhiteSpace(remoteBranchName) || IsOptionLike(remoteBranchName))
@@ -216,24 +222,24 @@ namespace SourceGit.Commands
 
             var remotes = await new QueryRemotes(repoPath).GetResultAsync().ConfigureAwait(false);
             var remote = remotes.Find(r => string.Equals(r.Name, remoteName, StringComparison.Ordinal));
-            var rawUrl = remote != null ? (remote.PushURL ?? remote.URL) : await ReadRemoteUrlAsync(repoPath, remoteName, cancellationToken).ConfigureAwait(false);
-            var redactedUrl = Models.GitConfigSnapshot.RedactText(rawUrl);
+            var target = await RemotePushTarget.ResolveAsync(repoPath, remoteName, cancellationToken).ConfigureAwait(false);
+            var redactedUrl = target.RedactedUrl;
 
-            if (remote == null && string.IsNullOrEmpty(rawUrl))
+            if (!target.IsValid || (expectedPushUrl != null && !string.Equals(expectedPushUrl, target.Url, StringComparison.Ordinal)))
             {
                 return new Models.RemoteBranchProbeResult
                 {
                     RemoteName = remoteName,
                     RemoteBranchName = remoteBranchName,
                     QuerySucceeded = false,
-                    ErrorSummary = $"远端 '{remoteName}' 未配置有效地址。",
+                    ErrorSummary = target.IsValid ? "远端推送地址在确认后已变化，请刷新并重新确认。" : target.Error,
                 };
             }
 
             var targetRef = $"refs/heads/{remoteBranchName}";
             var cmd = new RemoteGitCommand(
                 repoPath,
-                $"ls-remote --heads -- {CommandArgumentHelper.Quote(remoteName)} {CommandArgumentHelper.Quote(targetRef)}",
+                $"ls-remote --heads -- {CommandArgumentHelper.Quote(target.Url)} {CommandArgumentHelper.Quote(targetRef)}",
                 remote?.PrivateSSHKey ?? string.Empty)
             {
                 CancellationToken = cancellationToken,
@@ -261,6 +267,7 @@ namespace SourceGit.Commands
                 RemoteName = remoteName,
                 RemoteBranchName = remoteBranchName,
                 RedactedRemoteUrl = redactedUrl,
+                PushUrl = target.Url,
                 QuerySucceeded = true,
                 ExistsOnServer = !string.IsNullOrEmpty(tipSha),
                 LiveTipSha = tipSha,
@@ -416,6 +423,11 @@ namespace SourceGit.Commands
                 };
             }
 
+            var policyError = await ValidateDeletionPolicyAsync(repoPath, branchName, deleteLinkedRemote,
+                preflight, options.ConfirmedPushUrl, cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrEmpty(policyError))
+                return new Models.BranchDeleteOutcome { BranchName = branchName, BlockedByProtection = true, Summary = policyError };
+
             if (preflight.ConfirmationSnapshot != null)
             {
                 var verify = await CaptureOperationSnapshot.VerifyAsync(
@@ -558,6 +570,26 @@ namespace SourceGit.Commands
             bool worktreeRemoved,
             CancellationToken cancellationToken)
         {
+            var policyError = await ValidateDeletionPolicyAsync(repoPath, branchName, deleteLinkedRemote,
+                preflight, options.ConfirmedPushUrl, cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrEmpty(policyError))
+            {
+                if (worktreeRemoved)
+                    FinalizeJournalPartialSuccess(journalStore, journalRecord, capturingLog, $"工作树已移除，本地分支未删除：{policyError}", string.Empty);
+                else
+                    FinalizeJournalFailure(journalStore, journalRecord, capturingLog, policyError, string.Empty);
+                return new Models.BranchDeleteOutcome
+                {
+                    BranchName = branchName,
+                    BlockedByProtection = true,
+                    WorktreeRemoved = worktreeRemoved,
+                    IsPartialSuccess = worktreeRemoved,
+                    Summary = policyError,
+                };
+            }
+            journalRecord.RemotePushUrlFingerprint = deleteLinkedRemote
+                ? RemotePushTarget.Fingerprint(options.ConfirmedPushUrl ?? preflight.RemoteProbe?.PushUrl)
+                : string.Empty;
             // Step 2: Create local backup ref before deleting the local branch
             var backupRes = await BackupRefs.CreateAsync(repoPath, operationId, liveTipSha, capturingLog, cancellationToken)
                 .ConfigureAwait(false);
@@ -699,6 +731,8 @@ namespace SourceGit.Commands
                         repoPath,
                         preflight.RemoteName,
                         preflight.RemoteBranchName,
+                        options.ConfirmedPushUrl ?? preflight.RemoteProbe?.PushUrl,
+                        preflight.LocalTrackingTipSha,
                         capturingLog,
                         cancellationToken).ConfigureAwait(false);
                 }
@@ -740,6 +774,7 @@ namespace SourceGit.Commands
                 preflight.RemoteName,
                 preflight.RemoteBranchName,
                 confirmedExpectedSha,
+                options.ConfirmedPushUrl ?? preflight.RemoteProbe?.PushUrl,
                 capturingLog,
                 cancellationToken).ConfigureAwait(false);
 
@@ -783,10 +818,12 @@ namespace SourceGit.Commands
                 };
             }
 
-            await EnsureRemoteTrackingRefCleanedAsync(
+            var trackingPruned = await TryDeleteLocalRemoteTrackingRefAsync(
                 repoPath,
                 preflight.RemoteName,
                 preflight.RemoteBranchName,
+                options.ConfirmedPushUrl ?? preflight.RemoteProbe?.PushUrl,
+                preflight.LocalTrackingTipSha,
                 capturingLog,
                 cancellationToken).ConfigureAwait(false);
 
@@ -807,7 +844,7 @@ namespace SourceGit.Commands
                 WorktreeRemoved = worktreeRemoved,
                 LocalBranchDeleted = true,
                 RemoteBranchDeleted = true,
-                LocalTrackingCachePruned = true,
+                LocalTrackingCachePruned = trackingPruned,
                 BackupRefName = backupRes.BackupRefName,
                 LocalBackupSha = liveTipSha,
                 RemoteName = preflight.RemoteName,
@@ -970,12 +1007,25 @@ namespace SourceGit.Commands
                 }
             }
 
+            var protection = await BranchProtectionPolicy.InspectAsync(repoPath, remoteBranchName, cancellationToken).ConfigureAwait(false);
+            var targetError = await RemotePushTarget.VerifyAsync(repoPath, remoteName,
+                options.ConfirmedPushUrl ?? preflight.RemoteProbe?.PushUrl, cancellationToken).ConfigureAwait(false);
+            if (protection.IsEffectivelyProtected || !string.IsNullOrEmpty(targetError))
+                return new Models.BranchDeleteOutcome
+                {
+                    BranchName = remoteBranchName,
+                    RemoteName = remoteName,
+                    BlockedByProtection = true,
+                    Summary = protection.IsEffectivelyProtected ? protection.Summary : targetError,
+                };
+
             var record = new Models.GitOperationRecord
             {
                 OperationId = operationId,
                 RepositoryCommonDir = guard.Lease.CanonicalCommonDir,
                 WorktreePath = repoPath,
                 Kind = Models.GitOperationKind.DeleteRemoteBranch,
+                RemotePushUrlFingerprint = RemotePushTarget.Fingerprint(options.ConfirmedPushUrl ?? preflight.RemoteProbe?.PushUrl),
                 Title = title,
                 BranchName = string.Empty,
                 RemoteName = remoteName,
@@ -993,6 +1043,8 @@ namespace SourceGit.Commands
                     repoPath,
                     remoteName,
                     remoteBranchName,
+                    options.ConfirmedPushUrl ?? preflight.RemoteProbe?.PushUrl,
+                    preflight.LocalTrackingTipSha,
                     capturingLog,
                     cancellationToken).ConfigureAwait(false);
 
@@ -1002,7 +1054,7 @@ namespace SourceGit.Commands
                     Succeeded = pruned,
                     Label = pruned
                         ? $"已清理本地失效远程跟踪缓存：{remoteName}/{remoteBranchName}"
-                        : $"本地跟踪缓存 '{remoteName}/{remoteBranchName}' 不存在或清理失败",
+                        : $"本地跟踪缓存 '{remoteName}/{remoteBranchName}' 的来源或提交与确认状态不一致，已保留",
                 });
 
                 if (pruned)
@@ -1049,6 +1101,7 @@ namespace SourceGit.Commands
                 remoteName,
                 remoteBranchName,
                 confirmedExpectedSha,
+                options.ConfirmedPushUrl ?? preflight.RemoteProbe?.PushUrl,
                 capturingLog,
                 cancellationToken).ConfigureAwait(false);
 
@@ -1088,10 +1141,12 @@ namespace SourceGit.Commands
                 };
             }
 
-            await EnsureRemoteTrackingRefCleanedAsync(
+            var trackingPruned = await TryDeleteLocalRemoteTrackingRefAsync(
                 repoPath,
                 remoteName,
                 remoteBranchName,
+                options.ConfirmedPushUrl ?? preflight.RemoteProbe?.PushUrl,
+                preflight.LocalTrackingTipSha,
                 capturingLog,
                 cancellationToken).ConfigureAwait(false);
 
@@ -1115,7 +1170,7 @@ namespace SourceGit.Commands
                 BackupRefName = createdBackupRef,
                 LocalBackupSha = string.IsNullOrEmpty(createdBackupRef) ? string.Empty : confirmedExpectedSha,
                 RemoteBranchDeleted = true,
-                LocalTrackingCachePruned = true,
+                LocalTrackingCachePruned = trackingPruned,
                 Succeeded = true,
                 Summary = okSummary,
                 StepResults = steps,
@@ -1224,21 +1279,50 @@ namespace SourceGit.Commands
             return result;
         }
 
+        internal static async Task<string> ValidateDeletionPolicyAsync(
+            string repoPath,
+            string branchName,
+            bool deleteLinkedRemote,
+            Models.BranchDeletePreflight preflight,
+            string confirmedPushUrl,
+            CancellationToken cancellationToken)
+        {
+            var protection = await BranchProtectionPolicy.InspectAsync(repoPath, branchName, cancellationToken).ConfigureAwait(false);
+            if (protection.IsEffectivelyProtected)
+                return protection.Summary;
+            if (!deleteLinkedRemote)
+                return string.Empty;
+
+            var remoteProtection = await BranchProtectionPolicy.InspectAsync(repoPath, preflight.RemoteBranchName, cancellationToken).ConfigureAwait(false);
+            if (remoteProtection.IsEffectivelyProtected)
+                return remoteProtection.Summary;
+            return await RemotePushTarget.VerifyAsync(repoPath, preflight.RemoteName,
+                confirmedPushUrl ?? preflight.RemoteProbe?.PushUrl, cancellationToken).ConfigureAwait(false);
+        }
+
         private static async Task<(bool Succeeded, bool RejectedByLease, string UserMessage, string RedactedDetail)> ExecuteRemoteLeaseDeleteAsync(
             string repoPath,
             string remoteName,
             string remoteBranchName,
             string expectedTipSha,
+            string confirmedPushUrl,
             Models.ICommandLog log,
             CancellationToken cancellationToken)
         {
+            var policyError = await RemotePushTarget.VerifyAsync(repoPath, remoteName, confirmedPushUrl, cancellationToken).ConfigureAwait(false);
+            var protection = await BranchProtectionPolicy.InspectAsync(repoPath, remoteBranchName, cancellationToken).ConfigureAwait(false);
+            if (protection.IsEffectivelyProtected)
+                policyError = protection.Summary;
+            if (!string.IsNullOrEmpty(policyError))
+                return (false, false, policyError, policyError);
+
             var remotes = await new QueryRemotes(repoPath).GetResultAsync().ConfigureAwait(false);
             var remote = remotes.Find(r => string.Equals(r.Name, remoteName, StringComparison.Ordinal));
             var refspec = $":refs/heads/{remoteBranchName}";
             var leaseArg = $"--force-with-lease=refs/heads/{remoteBranchName}:{expectedTipSha}";
             var cmd = new RemoteGitCommand(
                 repoPath,
-                $"push --progress {CommandArgumentHelper.Quote(leaseArg)} -- {CommandArgumentHelper.Quote(remoteName)} {CommandArgumentHelper.Quote(refspec)}",
+                $"push --progress --no-follow-tags {CommandArgumentHelper.Quote(leaseArg)} -- {CommandArgumentHelper.Quote(confirmedPushUrl)} {CommandArgumentHelper.Quote(refspec)}",
                 remote?.PrivateSSHKey ?? string.Empty)
             {
                 CancellationToken = cancellationToken,
@@ -1258,40 +1342,25 @@ namespace SourceGit.Commands
             return (false, isLeaseRejected, userMsg, redactedDetail);
         }
 
-        private static async Task EnsureRemoteTrackingRefCleanedAsync(
-            string repoPath,
-            string remoteName,
-            string remoteBranchName,
-            Models.ICommandLog log,
-            CancellationToken cancellationToken)
-        {
-            var trackingRef = $"refs/remotes/{remoteName}/{remoteBranchName}";
-            var check = await Command.RunGitDirectAsync(repoPath, cancellationToken, "show-ref", "--verify", "--quiet", trackingRef)
-                .ConfigureAwait(false);
-            if (check.IsSuccess)
-            {
-                await TryDeleteLocalRemoteTrackingRefAsync(repoPath, remoteName, remoteBranchName, log, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-        }
-
         private static async Task<bool> TryDeleteLocalRemoteTrackingRefAsync(
             string repoPath,
             string remoteName,
             string remoteBranchName,
+            string pushUrl,
+            string expectedTrackingSha,
             Models.ICommandLog log,
             CancellationToken cancellationToken)
         {
-            var trackingTarget = $"{remoteName}/{remoteBranchName}";
+            if (string.IsNullOrEmpty(expectedTrackingSha) ||
+                !await RemotePushTarget.CanUpdateTrackingRefAsync(repoPath, remoteName, pushUrl, cancellationToken).ConfigureAwait(false))
+                return false;
+
+            var trackingTarget = $"refs/remotes/{remoteName}/{remoteBranchName}";
             var res = await Command.RunGitDirectAsync(
                 repoPath,
                 cancellationToken,
-                "branch",
-                "-D",
-                "-r",
-                "--",
-                trackingTarget).ConfigureAwait(false);
-            log?.AppendLine($"$ git branch -D -r -- {trackingTarget}");
+                "update-ref", "-d", trackingTarget, expectedTrackingSha).ConfigureAwait(false);
+            log?.AppendLine($"$ git update-ref -d {trackingTarget} {expectedTrackingSha}");
             AppendRedactedCommandOutput(log, res);
             return res.IsSuccess;
         }

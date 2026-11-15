@@ -10,12 +10,18 @@ internal static partial class Program
     private const string FakeModeVariable = "GITNEST_TEST_GIT_MODE";
     private static int _checks;
     private static bool _reviewDiscardOnly;
+    private static bool _reviewRemoteOnly;
 
     public static async Task<int> Main(string[] args)
     {
         if (args is ["--review-discard"])
         {
             _reviewDiscardOnly = true;
+            args = [];
+        }
+        if (args is ["--review-remote"])
+        {
+            _reviewRemoteOnly = true;
             args = [];
         }
         if (args.Length > 0)
@@ -165,9 +171,15 @@ internal static partial class Program
             Check(!identity.IsReadable, "Invalid Git configuration is reported as a read failure");
 
             File.WriteAllText(global, string.Empty);
+            if (_reviewRemoteOnly)
+            {
+                await RunReviewRemoteSafetyTestsAsync(realGit, root);
+                return;
+            }
             await RunReviewDiscardSafetyTestsAsync(realGit, root);
             if (_reviewDiscardOnly)
                 return;
+            await RunReviewRemoteSafetyTestsAsync(realGit, root);
             await RunWorktreeTestsAsync(realGit, root);
             await RunComparisonTestsAsync(realGit, root);
             await RunConfigTestsAsync(realGit, root);

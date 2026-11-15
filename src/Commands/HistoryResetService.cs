@@ -481,6 +481,7 @@ namespace SourceGit.Commands
                 RemoteStateUnknown = false,
                 ExistsOnServer = true,
                 LiveRemoteTipSha = liveRemoteTip,
+                PushUrl = probe.PushUrl,
                 RemoteTipExistsLocally = remoteTipExistsLocally,
                 RemoteAlreadyMatchesTarget = remoteMatchesTarget,
                 RemoteIsStrictAncestorOfTarget = remoteIsStrictAncestorOfTarget,
@@ -571,6 +572,14 @@ namespace SourceGit.Commands
                 async ctx =>
                 {
                     var steps = new List<Models.HistoryResetStepResult>();
+
+                    if (remotePreValid != null)
+                    {
+                        var targetError = await RemotePushTarget.VerifyAsync(repoPath, remotePreValid.RemoteName, remotePreValid.PushUrl, cancellationToken).ConfigureAwait(false);
+                        if (!string.IsNullOrEmpty(targetError))
+                            return RemoteTargetBlocked(targetError);
+                        ctx.Record.RemotePushUrlFingerprint = RemotePushTarget.Fingerprint(remotePreValid.PushUrl);
+                    }
 
                     // Re-check untracked / ignored collisions immediately inside the lock
                     var liveCollisions = await DetectUntrackedOrIgnoredPathCollisionsAsync(
@@ -730,6 +739,7 @@ namespace SourceGit.Commands
                         remotePreValid.RemoteName,
                         remotePreValid.RemoteBranchName,
                         remotePreValid.LiveRemoteTipSha,
+                        remotePreValid.PushUrl,
                         backupRes.BackupRefName,
                         localResetAlreadyPerformed: true,
                         steps,
@@ -815,6 +825,10 @@ namespace SourceGit.Commands
                 async ctx =>
                 {
                     var steps = new List<Models.HistoryResetStepResult>();
+                    var targetError = await RemotePushTarget.VerifyAsync(repoPath, preflight.RemoteName, preflight.PushUrl, cancellationToken).ConfigureAwait(false);
+                    if (!string.IsNullOrEmpty(targetError))
+                        return RemoteTargetBlocked(targetError);
+                    ctx.Record.RemotePushUrlFingerprint = RemotePushTarget.Fingerprint(preflight.PushUrl);
                     var backupRes = await BackupRefs.CreateAsync(
                         repoPath,
                         ctx.OperationId,
@@ -867,6 +881,7 @@ namespace SourceGit.Commands
                         preflight.RemoteName,
                         preflight.RemoteBranchName,
                         preflight.LiveRemoteTipSha,
+                        preflight.PushUrl,
                         backupRes.BackupRefName,
                         localResetAlreadyPerformed: false,
                         steps,
@@ -1650,11 +1665,21 @@ namespace SourceGit.Commands
                 };
             }
 
+            var currentTarget = await RemotePushTarget.ResolveAsync(repoPath, record.RemoteName, cancellationToken).ConfigureAwait(false);
+            if (!currentTarget.IsValid || (!string.IsNullOrEmpty(record.RemotePushUrlFingerprint) &&
+                !string.Equals(record.RemotePushUrlFingerprint, RemotePushTarget.Fingerprint(currentTarget.Url), StringComparison.Ordinal)))
+                return new Models.RemoteRewriteJournalVerificationResult
+                {
+                    UpdatedRecord = record,
+                    Summary = currentTarget.IsValid ? "远端推送地址与操作记录不一致，无法核对原操作结果。" : currentTarget.Error,
+                };
+
             var probe = await BranchDeletionService.ProbeRemoteBranchAsync(
                 repoPath,
                 record.RemoteName,
                 record.RemoteBranchName,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
+                cancellationToken: cancellationToken,
+                expectedPushUrl: currentTarget.Url).ConfigureAwait(false);
 
             if (!probe.QuerySucceeded)
             {
@@ -1711,16 +1736,35 @@ namespace SourceGit.Commands
             string remoteName,
             string remoteBranchName,
             string expectedRemoteTipSha,
+            string confirmedPushUrl,
             string backupRefName,
             bool localResetAlreadyPerformed,
             List<Models.HistoryResetStepResult> steps,
             CancellationToken cancellationToken)
         {
+            var targetError = await RemotePushTarget.VerifyAsync(repoPath, remoteName, confirmedPushUrl, cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrEmpty(targetError))
+            {
+                return new OperationActionOutcome<Models.HistoryResetOutcome>
+                {
+                    Stage = localResetAlreadyPerformed ? Models.GitOperationStage.PartialSuccess : Models.GitOperationStage.Failed,
+                    BackupRefName = backupRefName,
+                    Summary = localResetAlreadyPerformed ? $"本地已撤回，远端未更新：{targetError}" : targetError,
+                    Payload = new Models.HistoryResetOutcome
+                    {
+                        LocalBranchReset = localResetAlreadyPerformed,
+                        IsPartialSuccess = localResetAlreadyPerformed,
+                        BlockedBySnapshot = true,
+                        BackupRefName = backupRefName,
+                        Summary = localResetAlreadyPerformed ? $"本地已撤回，远端未更新：{targetError}" : targetError,
+                    },
+                };
+            }
             var leaseArg = $"--force-with-lease=refs/heads/{remoteBranchName}:{expectedRemoteTipSha}";
-            var refspecArg = $"refs/heads/{localBranchName}:refs/heads/{remoteBranchName}";
+            var refspecArg = $"{targetSha}:refs/heads/{remoteBranchName}";
             var remotes = await new QueryRemotes(repoPath).GetResultAsync().ConfigureAwait(false);
             var matchedRemote = remotes.Find(r => string.Equals(r.Name, remoteName, StringComparison.Ordinal));
-            var rawArgs = new[] { "push", "--progress", leaseArg, "--", remoteName, refspecArg };
+            var rawArgs = new[] { "push", "--progress", "--no-follow-tags", leaseArg, "--", confirmedPushUrl, refspecArg };
 
             var pushRaw = await ExecuteRemotePushRawAsync(
                 repoPath,
@@ -1734,6 +1778,8 @@ namespace SourceGit.Commands
 
             if (pushRaw.IsSuccess)
             {
+                await RemotePushTarget.UpdateTrackingRefAsync(repoPath, remoteName, remoteBranchName,
+                    targetSha, expectedRemoteTipSha, confirmedPushUrl, CancellationToken.None).ConfigureAwait(false);
                 steps.Add(new Models.HistoryResetStepResult
                 {
                     Kind = Models.HistoryResetStepKind.RemoteHistoryRewrite,
@@ -1782,7 +1828,8 @@ namespace SourceGit.Commands
                     remoteName,
                     remoteBranchName,
                     ctx.Log,
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken,
+                    expectedPushUrl: confirmedPushUrl).ConfigureAwait(false);
 
                 if (probeAfter.QuerySucceeded)
                 {
@@ -1943,6 +1990,13 @@ namespace SourceGit.Commands
                 },
             };
         }
+
+        private static OperationActionOutcome<Models.HistoryResetOutcome> RemoteTargetBlocked(string reason) => new()
+        {
+            Stage = Models.GitOperationStage.Failed,
+            Summary = reason,
+            Payload = new Models.HistoryResetOutcome { BlockedBySnapshot = true, Summary = reason },
+        };
 
         private static async Task<RemotePushRawResult> ExecuteRemotePushRawAsync(
             string repoPath,

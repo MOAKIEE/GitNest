@@ -110,6 +110,8 @@ namespace SourceGit.Models
 
     public sealed class RemoteRewritePreflight
     {
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string PushUrl { get; init; } = string.Empty;
         public string RepoPath { get; init; } = string.Empty;
         public string CanonicalGitDir { get; init; } = string.Empty;
         public string CanonicalCommonDir { get; init; } = string.Empty;

@@ -32,6 +32,8 @@ namespace SourceGit.Models
 
     public sealed class RemoteBranchProbeResult
     {
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string PushUrl { get; init; } = string.Empty;
         public string RemoteName { get; init; } = string.Empty;
         public string RemoteBranchName { get; init; } = string.Empty;
         public string RedactedRemoteUrl { get; init; } = string.Empty;
@@ -80,7 +82,8 @@ namespace SourceGit.Models
         public RemoteBranchProbeResult RemoteProbe { get; init; }
 
         public OperationConfirmationSnapshot ConfirmationSnapshot { get; init; }
-        public bool CanDeleteDirectly => IsLocal ? (!IsCurrent && !IsCheckedOutInOtherWorktree) : true;
+        public BranchProtectionStatus Protection { get; init; } = new();
+        public bool CanDeleteDirectly => !Protection.IsEffectivelyProtected && (IsLocal ? (!IsCurrent && !IsCheckedOutInOtherWorktree) : true);
         public string DirectBlockReason { get; init; } = string.Empty;
     }
 
@@ -93,6 +96,8 @@ namespace SourceGit.Models
         public bool DeleteLinkedUpstreamRemote { get; init; }
         public bool PruneStaleTrackingCacheWhenRemoteAbsent { get; init; }
         public string ConfirmedExpectedRemoteTipSha { get; init; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string ConfirmedPushUrl { get; init; }
         public bool? ConfirmedRemoteExistsOnServer { get; init; }
         public Func<string, string, CancellationToken, Task> BeforeWorktreeRemoveAsync { get; init; }
     }

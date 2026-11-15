@@ -131,6 +131,7 @@ namespace SourceGit.Models
     public sealed class PushExecutionOptions
     {
         public string LocalBranch { get; init; } = string.Empty;
+        public string SourceRevisionSha { get; init; } = string.Empty;
         public Remote Remote { get; init; }
         public string RemoteBranch { get; init; } = string.Empty;
         public bool SetUpstream { get; init; }

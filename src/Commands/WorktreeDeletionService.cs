@@ -202,6 +202,21 @@ namespace SourceGit.Commands
                 };
             }
 
+            if (deleteLocal)
+            {
+                var policyError = await BranchDeletionService.ValidateDeletionPolicyAsync(executionRoot, preflight.BranchName,
+                    deleteRemote, branchPreflight, options.ConfirmedPushUrl, cancellationToken).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(policyError))
+                    return new Models.WorktreeDeleteOutcome
+                    {
+                        MainRepoPath = executionRoot,
+                        TargetWorktreePath = preflight.TargetWorktreePath,
+                        BranchName = preflight.BranchName,
+                        BlockedByProtection = true,
+                        Summary = policyError,
+                    };
+            }
+
             if (deleteLocal && branchPreflight?.ConfirmationSnapshot != null)
             {
                 var verify = await CaptureOperationSnapshot.VerifyAsync(
@@ -368,6 +383,7 @@ namespace SourceGit.Commands
                     DeleteLinkedUpstreamRemote = deleteRemote,
                     PruneStaleTrackingCacheWhenRemoteAbsent = options.PruneStaleTrackingCacheWhenRemoteAbsent,
                     ConfirmedExpectedRemoteTipSha = confirmedExpectedSha,
+                    ConfirmedPushUrl = options.ConfirmedPushUrl ?? branchPreflight.RemoteProbe?.PushUrl,
                     ConfirmedRemoteExistsOnServer = confirmedRemoteExists,
                 },
                 confirmedRemoteExists,
