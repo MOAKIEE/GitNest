@@ -1,4 +1,4 @@
-"""Export the GitNest vector design to Windows icon sizes (requires Pillow)."""
+"""Export the GitNest vector design to Windows ICO and cross-platform PNG assets (requires Pillow)."""
 
 from pathlib import Path
 
@@ -28,5 +28,14 @@ line([(128, 118), (184, 86)], 16)
 for x, y in [(128, 55), (184, 76), (128, 151)]:
     draw.ellipse(((x - 20) * scale, (y - 20) * scale, (x + 20) * scale, (y + 20) * scale), fill=accent)
 
-image = image.resize((256, 256), Image.Resampling.LANCZOS)
-image.save(root / "src/App.ico", sizes=[(n, n) for n in (16, 24, 32, 48, 64, 128, 256)])
+icon_1024 = image
+icon_256 = image.resize((256, 256), Image.Resampling.LANCZOS)
+
+icon_256.save(root / "src/App.ico", sizes=[(n, n) for n in (16, 24, 32, 48, 64, 128, 256)])
+icon_256_path = root / "build/resources/_common/icons/gitnest.png"
+icon_256_path.parent.mkdir(parents=True, exist_ok=True)
+icon_256.save(icon_256_path)
+
+icon_1024_path = root / "build/resources/app/icon_1024.png"
+icon_1024_path.parent.mkdir(parents=True, exist_ok=True)
+icon_1024.save(icon_1024_path)

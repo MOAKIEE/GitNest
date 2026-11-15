@@ -2,20 +2,11 @@
 
 set -e
 
-# summary of how this script can be called:
-#        * <new-preinst> `install'
-#        * <new-preinst> `install' <old-version>
-#        * <new-preinst> `upgrade' <old-version>
-#        * <old-preinst> `abort-upgrade' <new-version>
-# for details, see http://www.debian.org/doc/debian-policy/
-
 case "$1" in
     install|upgrade)
-        # Check if SourceGit is running and stop it
-        if pgrep -f '/opt/sourcegit/sourcegit' > /dev/null; then
-            echo "Stopping running SourceGit instance..."
-            pkill -f '/opt/sourcegit/sourcegit' || true
-            # Give the process a moment to terminate
+        if pgrep -f '/opt/gitnest/gitnest' > /dev/null; then
+            echo "Stopping running GitNest instance..."
+            pkill -f '/opt/gitnest/gitnest' || true
             sleep 1
         fi
     ;;

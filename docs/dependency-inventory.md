@@ -1,8 +1,6 @@
 # 构建依赖清单
 
-日期：2026-11-15（阶段四批次 4.1 依赖与入口裁剪后更新）。来源：Windows x64、.NET SDK `10.0.404` 下执行 Release 发布构建（`.\build\scripts\build-gitnest.ps1 -Publish`，`-p:DisableAOT=true`）后的 `src/obj/project.assets.json` 与本机 NuGet 包内许可声明。
-
-说明：批次 4.1 移除 `Azure.AI.OpenAI` 与 `OpenAI` 直接依赖后，发布集合已同步剔除 `Azure.AI.OpenAI`、`OpenAI`、`Azure.Core`、`System.ClientModel`、`System.Memory.Data`、`Microsoft.Bcl.AsyncInterfaces` 等传递依赖（且未启用 AOT 发布的 `win-x64` 构建不再包含 AOT 编译器及 `Microsoft.Extensions.*` 构建期传递包）。源码子模块 AvaloniaEdit 仍固定在 `ddf00a91dc0da29b85c79b85c9583860213a99ff`（MIT）；嵌入字体和语法资源见根目录 `THIRD-PARTY-LICENSES.md`。
+来源：`.NET 10`（`global.json` 指定 SDK `10.0.404`）下执行自包含 Release 发布（`-p:DisableAOT=true`）所解析的 NuGet 依赖及子模块声明。源码子模块 `AvaloniaEdit` 固定在 `ddf00a91dc0da29b85c79b85c9583860213a99ff`（MIT）；嵌入字体与语法资源详见 [THIRD-PARTY-LICENSES.md](../THIRD-PARTY-LICENSES.md)。
 
 | NuGet 包 | 解析版本 | 包声明许可 |
 | --- | --- | --- |
@@ -19,7 +17,7 @@
 | Avalonia.Themes.Fluent | 11.3.22 | MIT |
 | Avalonia.Win32 | 11.3.22 | MIT |
 | Avalonia.X11 | 11.3.22 | MIT |
-| BitMiracle.LibTiff.NET | 2.4.660 | 见包内许可／上游许可清单 |
+| BitMiracle.LibTiff.NET | 2.4.660 | 见包内许可 / 上游许可清单 |
 | CommunityToolkit.Mvvm | 8.4.2 | MIT |
 | HarfBuzzSharp | 8.3.1.1 | MIT |
 | HarfBuzzSharp.NativeAssets.Linux | 8.3.1.1 | MIT |
@@ -28,7 +26,7 @@
 | HarfBuzzSharp.NativeAssets.Win32 | 8.3.1.1 | MIT |
 | MicroCom.Runtime | 0.11.0 | MIT |
 | Onigwrap | 1.0.11 | MIT |
-| Pfim | 0.11.4 | 见包内许可／上游许可清单 |
+| Pfim | 0.11.4 | 见包内许可 / 上游许可清单 |
 | SkiaSharp | 2.88.9 | MIT |
 | SkiaSharp.NativeAssets.Linux | 2.88.9 | MIT |
 | SkiaSharp.NativeAssets.macOS | 2.88.9 | MIT |
@@ -39,6 +37,4 @@
 | TextMateSharp.Grammars | 2.0.4 | MIT |
 | Tmds.DBus.Protocol | 0.21.3 | MIT |
 
-共 32 个 NuGet 包。完整内容哈希见 [依赖快照](dependency-snapshot.json)。
-
-安装包附带项目许可证、署名、第三方依赖来源与许可链接，以及 `licenses/AvaloniaEdit-LICENSE.txt`；发布包集合以对应发布输出为准。
+共 32 个 NuGet 包，内容哈希快照见 [dependency-snapshot.json](dependency-snapshot.json)。

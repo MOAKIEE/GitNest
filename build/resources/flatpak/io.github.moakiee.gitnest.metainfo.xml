@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+    <id>io.github.moakiee.gitnest</id>
+    <metadata_license>MIT</metadata_license>
+    <project_license>MIT</project_license>
+    <name>GitNest</name>
+    <summary>Git GUI Client for AI-assisted coding</summary>
+    <description>
+        <p>
+            GitNest is a cross-platform Git GUI client tailored for AI-assisted coding workflows, built on SourceGit.
+            It helps developers review cumulative AI changes, inspect diffs, commit and sync safely, and clean up task worktrees and branches.
+        </p>
+    </description>
+    <url type="bugtracker">https://github.com/MOAKIEE/GitNest/issues</url>
+    <url type="help">https://github.com/MOAKIEE/GitNest/issues</url>
+    <url type="homepage">https://github.com/MOAKIEE/GitNest</url>
+    <url type="vcs-browser">https://github.com/MOAKIEE/GitNest</url>
+    <launchable type="desktop-id">io.github.moakiee.gitnest.desktop</launchable>
+    <developer id="io.github.moakiee">
+        <name>GitNest contributors</name>
+    </developer>
+    <branding>
+        <color type="primary" scheme_preference="light">#61D9B5</color>
+        <color type="primary" scheme_preference="dark">#162B32</color>
+    </branding>
+    <content_rating type="oars-1.1" />
+</component>
