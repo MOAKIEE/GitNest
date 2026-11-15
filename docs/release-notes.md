@@ -9,7 +9,7 @@
 
 | 产物 | 路径 | 说明与校验摘要 |
 | --- | --- | --- |
-| Windows x64 安装包 | `artifacts/installer/GitNest-Setup-0.1.0-dev-win-x64.exe` | `35.82 MB`，SHA-256 `0A38BD5242525BDFD92468BE50F918C3F9BF7286413F28FFA07B5FE60CEC1C4E`，基于 Inno Setup 6.7.3 构建 |
+| Windows x64 安装包 | `artifacts/installer/GitNest-Setup-0.1.0-dev-win-x64.exe` | `35.82 MB`，SHA-256 `701DB7868A1C53766627F2C170BE9962C565A17D3B5E2FCF8F650B76CC9922E5`，基于 Inno Setup 6.7.3 构建 |
 | Windows x64 自包含程序 | `artifacts/windows-x64/GitNest.exe` | `net10.0` 自包含发布，内嵌 `PerMonitorV2` 与 `true/pm` DPI 清单 |
 | 依赖快照与清单 | [dependency-inventory.md](dependency-inventory.md) / [dependency-snapshot.json](dependency-snapshot.json) | 32 个发布 NuGet 包与源码固定子模块 `AvaloniaEdit`（MIT） |
 
@@ -35,6 +35,7 @@
 - 移除无调用的旧命令、模型及冲突编辑器残留类型，界面语言精简为简体中文和英文；旧配置使用已移除的语言时回退简体中文。
 - 更新检查改为读取 `MOAKIEE/GitNest` 最新正式 GitHub Release，支持手动检查及可选的启动时检查，下载入口指向本项目发行页。
 - 版本比较支持补丁号、预发行后缀与构建元数据，当前版本完整显示为 `v0.1.0-dev`；不可访问或无效的发行信息明确报告失败。
+- 适配 Git 2.56.1 按 URL 推送时的跟踪引用更新行为：普通推送、远端删除和历史改写使用进程内临时远端，避免隐式覆盖获取端缓存，配置文件保持原样。
 
 ## 2026-11-15 审查修复
 
@@ -45,10 +46,10 @@
 
 ## 最终验证依据
 
-环境：Windows 11 x64（build 26300）、Git `2.45.1.windows.1`、.NET SDK `10.0.404`。
+环境：Windows 11 x64（build 26300）、Git `2.45.1.windows.1`／`2.56.1.windows.1`、.NET SDK `10.0.404`。
 
 - 发布构建：`.\build\scripts\build-gitnest.ps1 -Publish`（0 警告 0 错误）
-- 集成检查：`.\build\scripts\test-gitnest.ps1`（459 / 459 通过，包含 Git 仓库操作、语言配置迁移与更新接口响应检查）
+- 集成检查：`.\build\scripts\test-gitnest.ps1`（Git 2.56.1 下 461 / 461 通过，包含 Git 仓库操作、语言配置迁移与更新接口响应检查；Git 2.45.1 下远端定向回归 53 / 53 通过）
 - 本轮相关 UI 探针：`.\build\scripts\probe-gitnest.ps1 -TrimSurface`（27 / 27 通过，包含语言选择与更新窗口）；其余探针的审查修复阶段结果见 [phase-4.3.md](verification/phase-4.3.md)。
 - 安装包生命周期：`.\build\scripts\verify-installer.ps1`（38 / 38 全流程静默安装、升级覆盖、冷启动、数据留存与卸载验证通过）
 - 详细验收条目核对见 [phase-4.3.md](verification/phase-4.3.md)。

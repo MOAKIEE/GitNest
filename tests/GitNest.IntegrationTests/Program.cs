@@ -123,7 +123,7 @@ internal static partial class Program
             Check(NativeOS.GitVersion == new System.Version(0, 0, 0) && NativeOS.GitVersionString.Length == 0, "An invalid replacement clears the previous version");
             Check(!new SourceGit.ViewModels.Preferences().IsGitConfigured(), "Repository entry requires a validated executable");
 
-            var realGit = NativeOS.FindGitExecutable();
+            var realGit = Environment.GetEnvironmentVariable("GITNEST_TEST_GIT_EXECUTABLE") ?? NativeOS.FindGitExecutable();
             var installed = await GitInstallation.InspectAsync(realGit);
             Check(installed.IsReady, "The installed Git for Windows passes the real probe");
             NativeOS.UseGitInstallation(installed);

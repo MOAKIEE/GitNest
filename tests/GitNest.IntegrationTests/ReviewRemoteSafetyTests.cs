@@ -50,7 +50,13 @@ internal static partial class Program
         Check(!splitPrune.LocalTrackingCachePruned &&
               (await GitAsync(git, "-C", repo, "rev-parse", "refs/remotes/origin/task")).Trim() == baseSha,
             "An absent push server branch cannot justify pruning a different fetch server cache");
-        await GitAsync(git, "-C", repo, "push", server, "task:task");
+        var splitConfigHash = Hash(Path.Combine(repo, ".git", "config"));
+        var splitPush = await GitSyncService.PushSingleBranchAsync(repo,
+            new PushExecutionOptions { LocalBranch = "task", RemoteBranch = "task", Remote = remote }, journalStore: journal);
+        Check(splitPush.Succeeded && await Ref(server, "refs/heads/task") == tip &&
+              (await GitAsync(git, "-C", repo, "rev-parse", "refs/remotes/origin/task")).Trim() == baseSha &&
+              Hash(Path.Combine(repo, ".git", "config")) == splitConfigHash,
+            "Split-endpoint push preserves fetch tracking and leaves no temporary remote configuration");
 
         var stale = await BranchDeletionService.InspectRemoteBranchAsync(repo, "origin", "task");
         await GitAsync(git, "-C", repo, "remote", "set-url", "--push", "origin", other);
@@ -75,6 +81,15 @@ internal static partial class Program
         Check(!rewriteBlocked.Succeeded && await Ref(other, "refs/heads/task") == tip,
             "Standalone remote rewrite refuses a changed endpoint");
         await GitAsync(git, "-C", repo, "remote", "set-url", "--push", "origin", server);
+
+        splitConfigHash = Hash(Path.Combine(repo, ".git", "config"));
+        var splitRewrite = await HistoryResetService.ExecuteRemoteRewriteOnlyAsync(repo,
+            new RemoteRewriteOptions { Preflight = await HistoryResetService.InspectRemoteRewriteForTargetAsync(repo, "task", baseSha) }, journal);
+        Check(splitRewrite.Succeeded && await Ref(server, "refs/heads/task") == baseSha &&
+              (await GitAsync(git, "-C", repo, "rev-parse", "refs/remotes/origin/task")).Trim() == baseSha &&
+              Hash(Path.Combine(repo, ".git", "config")) == splitConfigHash,
+            "Split-endpoint lease rewrite preserves fetch tracking without persisting its temporary remote");
+        await GitAsync(git, "--git-dir", server, "update-ref", "refs/heads/task", tip, baseSha);
 
         await GitAsync(git, "-C", repo, "remote", "set-url", "--push", "--add", "origin", other);
         var multipleProbe = await BranchDeletionService.ProbeRemoteBranchAsync(repo, "origin", "task");

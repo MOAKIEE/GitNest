@@ -1764,7 +1764,8 @@ namespace SourceGit.Commands
             var refspecArg = $"{targetSha}:refs/heads/{remoteBranchName}";
             var remotes = await new QueryRemotes(repoPath).GetResultAsync().ConfigureAwait(false);
             var matchedRemote = remotes.Find(r => string.Equals(r.Name, remoteName, StringComparison.Ordinal));
-            var rawArgs = new[] { "push", "--progress", "--no-follow-tags", leaseArg, "--", confirmedPushUrl, refspecArg };
+            var pushConfig = RemotePushTarget.CreatePushRemoteConfiguration(confirmedPushUrl, out var pushRemoteName);
+            var rawArgs = new[] { "-c", pushConfig, "push", "--progress", "--no-follow-tags", leaseArg, "--", pushRemoteName, refspecArg };
 
             var pushRaw = await ExecuteRemotePushRawAsync(
                 repoPath,

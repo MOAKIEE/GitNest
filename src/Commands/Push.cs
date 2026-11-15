@@ -18,19 +18,14 @@ namespace SourceGit.Commands
             SSHKey = remote?.PrivateSSHKey ?? string.Empty;
 
             var builder = new StringBuilder(1024);
-            builder.Append("push --progress --verbose --no-follow-tags ");
+            builder.Append("--progress --verbose --no-follow-tags ");
             if (checkSubmodules)
                 builder.Append("--recurse-submodules=check ");
             if (noVerify)
                 builder.Append("--no-verify ");
 
             var refspec = $"{sourceSha}:refs/heads/{remoteBranchName}";
-            builder.Append("-- ")
-                .Append(CommandArgumentHelper.Quote(pushUrl))
-                .Append(' ')
-                .Append(CommandArgumentHelper.Quote(refspec));
-
-            Args = builder.ToString();
+            Args = RemotePushTarget.BuildPushArguments(pushUrl, builder.ToString(), refspec);
         }
     }
 }

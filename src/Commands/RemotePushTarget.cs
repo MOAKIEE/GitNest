@@ -12,6 +12,19 @@ namespace SourceGit.Commands
         public string Error { get; init; } = string.Empty;
         public bool IsValid => !string.IsNullOrEmpty(Url) && string.IsNullOrEmpty(Error);
         public string RedactedUrl => Models.GitConfigSnapshot.RedactText(Url);
+        public static string BuildPushArguments(string pushUrl, string options, string refspec)
+        {
+            // A configured, process-local remote prevents URL matching from updating another remote's tracking refs.
+            var config = CreatePushRemoteConfiguration(pushUrl, out var name);
+            return $"-c {CommandArgumentHelper.Quote(config)} push {options} -- {name} {CommandArgumentHelper.Quote(refspec)}";
+        }
+
+        public static string CreatePushRemoteConfiguration(string pushUrl, out string remoteName)
+        {
+            remoteName = $"gitnest-push-{Guid.NewGuid():N}";
+            return $"remote.{remoteName}.url={pushUrl}";
+        }
+
         public static string Fingerprint(string url) => string.IsNullOrEmpty(url)
             ? string.Empty
             : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(url)));

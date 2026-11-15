@@ -1322,7 +1322,7 @@ namespace SourceGit.Commands
             var leaseArg = $"--force-with-lease=refs/heads/{remoteBranchName}:{expectedTipSha}";
             var cmd = new RemoteGitCommand(
                 repoPath,
-                $"push --progress --no-follow-tags {CommandArgumentHelper.Quote(leaseArg)} -- {CommandArgumentHelper.Quote(confirmedPushUrl)} {CommandArgumentHelper.Quote(refspec)}",
+                RemotePushTarget.BuildPushArguments(confirmedPushUrl, $"--progress --no-follow-tags {CommandArgumentHelper.Quote(leaseArg)}", refspec),
                 remote?.PrivateSSHKey ?? string.Empty)
             {
                 CancellationToken = cancellationToken,

@@ -20,6 +20,8 @@
 
 将参数替换为 `--review-remote` 可定向检查远端地址、指定修订与标签推送范围、跟踪缓存、分支保护及历史改写回归。
 
+验证其他 Git for Windows 版本时，可将 `GITNEST_TEST_GIT_EXECUTABLE` 环境变量设为该版本 `git.exe` 的绝对路径，再运行同一集成检查命令。未设置时自动检测本机 Git。
+
 ## 界面探针
 
 ```powershell
