@@ -149,6 +149,37 @@ namespace SourceGit.Models
             return Convert.ToHexStringLower(hash);
         }
 
+        public List<string> UnprotectedBranches { get; set; } = new();
+
+        public bool IsBranchProtectionDisabled(string branchName)
+        {
+            if (string.IsNullOrWhiteSpace(branchName) || UnprotectedBranches == null || UnprotectedBranches.Count == 0)
+                return false;
+
+            var trimmed = branchName.Trim();
+            foreach (var item in UnprotectedBranches)
+            {
+                if (string.Equals(item, trimmed, StringComparison.Ordinal))
+                    return true;
+            }
+
+            return false;
+        }
+
+        public void SetBranchProtectionDisabled(string branchName, bool disabled)
+        {
+            if (string.IsNullOrWhiteSpace(branchName))
+                return;
+
+            UnprotectedBranches ??= new List<string>();
+            var trimmed = branchName.Trim();
+            UnprotectedBranches.RemoveAll(b => string.IsNullOrWhiteSpace(b) || string.Equals(b, trimmed, StringComparison.Ordinal));
+            if (disabled)
+                UnprotectedBranches.Add(trimmed);
+
+            Save();
+        }
+
         private static Dictionary<string, RepositorySettings> _cache = new();
         private string _file = string.Empty;
         private string _orgHash = string.Empty;

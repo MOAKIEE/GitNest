@@ -168,6 +168,7 @@ internal static partial class Program
             await RunWorktreeDeleteTestsAsync(realGit, root);
             await RunMergeRevertTestsAsync(realGit, root);
             await RunStashDiscardIgnoreTestsAsync(realGit, root);
+            await RunHistoryResetRewriteTestsAsync(realGit, root);
         }
         finally
         {

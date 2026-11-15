@@ -273,3 +273,11 @@
 - 同步修复截图走查中发现的 `Discard` 列挤压截断、`ApplyStash` 阻断提示与文件数标题重复、`ViewLogs` 恢复绿标裁切及 `AddToIgnore` 仅本机标签/警告重复问题；补全双语词条（`en=1562 zh=1562 diff=0`）并新增 `tests/GitNest.UIProbe/StashDiscardIgnoreProbe.cs`（`-StashDiscardIgnore`）。
 - 末次代码改动后验证：`.\build\scripts\build-gitnest.ps1 -Publish`（`0` 警告 `0` 错误，产出 `artifacts/windows-x64/GitNest.exe`）、`.\build\scripts\test-gitnest.ps1`（**274 / 274** 通过）、`.\build\scripts\probe-gitnest.ps1 -StashDiscardIgnore`（**15 / 15** 通过，核对 `artifacts/probes/phase-3.5/` 全部 11 张浅色/暗黑/窄窗截图）、`.\build\scripts\probe-gitnest.ps1 -MergeRevert`（**11 / 11** 回归通过）；详情见 [phase-3.5.md](verification/phase-3.5.md)。
 - 批次 3.5（3.5a / 3.5b）全部完成；接续进入批次 3.6（commit reset、`--force-with-lease` 远程历史改写、本地备份恢复与重启对账）。
+
+### 批次 3.6a：提交撤回、分支保护、租约远端改写与安全恢复核心
+- 新增 `src/Commands/BranchProtectionPolicy.cs`、`src/Models/HistoryResetModels.cs` 与 `src/Commands/HistoryResetService.cs`，并在 `src/Models/RepositorySettings.cs`（`UnprotectedBranches` 按仓库显式解锁）及 `src/Models/OperationSafetyModels.cs`、`src/Commands/OperationJournalService.cs` 补齐恢复结果标识与重启状态对账。
+- 实现提交撤回仅限 `--mixed` / `--hard`、强制沿 `--first-parent` 主线校验、拒绝 unborn/detached HEAD 与将首个提交撤回为空仓库、严格要求干净工作区/暂存区、检测未跟踪与 `.gitignore` 忽略路径覆盖冲突（绝不自动运行 `git clean`），并按完整 `target..HEAD` 跨合并节点统计提交与多人作者归属。
+- 实现 `改写远程分支历史` 实时 `ls-remote` 预检、断网显式标记 `远端状态未知`、阻止覆盖未整合的远端分叉提交、多远端精确隔离未推送计数、分离本地与远端撤销列表、执行前创建 30 天本地 `refs/gitnest/backups/<opId>` 备份引用、使用确认阶段冻结的显式 `--force-with-lease=refs/heads/<branch>:<expectedSha>`（不受后台 `fetch` 污染），并在传输超时/中断时单次发起 `ls-remote` 核实而不盲目重试；协作者后推拒绝时明确保留远端提交、回报 `本地已撤回，远端未更新` 与 `PartialSuccess` 恢复入口。
+- 新增 `InspectWithoutCheckoutResetAsync` / `ExecuteWithoutCheckoutResetAsync`（阻止被当前或其他工作树检出的分支及受保护分支回退）与 `InspectBackupRestoreForResetAsync` / `RestoreFromBackupAsync`（支持在干净且无后续提交时安全回写原重置分支，否则拦截覆写并安全创建新恢复分支）及 `VerifyRemoteRewriteJournalRecordAsync`。
+- 新增并注册多克隆真实 Git 集成测试 [HistoryResetRewriteTests.cs](../tests/GitNest.IntegrationTests/HistoryResetRewriteTests.cs)；末次改动后执行 `.\build\scripts\build-gitnest.ps1`（`0` 警告 `0` 错误）与 `.\build\scripts\test-gitnest.ps1`（**302 / 302** 通过）；详情见 [phase-3.6.md](verification/phase-3.6.md)。
+- 下一步执行批次 3.6b（原生 UI、仓库设置保护开关、日志恢复弹窗、`ResetRewriteProbe` 及截图走查）。

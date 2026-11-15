@@ -114,6 +114,11 @@ namespace SourceGit.Models
         public bool Succeeded { get; init; }
         public bool BlockedByExistingBranch { get; init; }
         public bool BlockedByLock { get; init; }
+        public bool BlockedByDirtyState { get; init; }
+        public bool BlockedByNewerCommits { get; init; }
+        public bool BlockedBySnapshot { get; init; }
+        public bool UpdatedExistingBranch { get; init; }
+        public bool CheckedOutWorktreeUpdated { get; init; }
         public string BranchName { get; init; } = string.Empty;
         public string BackupRefName { get; init; } = string.Empty;
         public string RestoredCommitSha { get; init; } = string.Empty;

@@ -362,6 +362,31 @@ namespace SourceGit.Commands
             {
                 var remoteDesc = string.IsNullOrEmpty(remoteTip) ? "跟踪引用不存在" : ShortSha(remoteTip);
                 notes.Add($"远端跟踪 {record.RemoteName}/{record.RemoteBranchName}：{remoteDesc}");
+                if (record.Kind == Models.GitOperationKind.RewriteRemoteHistory)
+                {
+                    if (!string.IsNullOrEmpty(record.TargetTipSha) &&
+                        string.Equals(remoteTip, record.TargetTipSha, StringComparison.Ordinal))
+                    {
+                        notes.Add("本地远端跟踪缓存已指向目标提交；如需确认服务器最终状态可联网核对。");
+                    }
+                    else if (!string.IsNullOrEmpty(record.ExpectedRemoteTipSha) &&
+                             string.Equals(remoteTip, record.ExpectedRemoteTipSha, StringComparison.Ordinal))
+                    {
+                        notes.Add("本地远端跟踪缓存仍停留在改写前提交（请联网核对服务器是否已更新）。");
+                    }
+                    else
+                    {
+                        notes.Add("请勿盲目重试改写，请先联网核对远端分支当前真实提交。");
+                    }
+                }
+            }
+
+            if (record.Kind is Models.GitOperationKind.Reset or Models.GitOperationKind.RewriteRemoteHistory &&
+                !string.IsNullOrEmpty(branchTip) &&
+                !string.IsNullOrEmpty(record.TargetTipSha) &&
+                string.Equals(branchTip, record.TargetTipSha, StringComparison.Ordinal))
+            {
+                notes.Add($"本地分支已停留在撤回目标提交 {ShortSha(record.TargetTipSha)}。");
             }
 
             if (!string.IsNullOrWhiteSpace(record.BackupRefName))
