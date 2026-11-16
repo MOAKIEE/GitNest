@@ -1,26 +1,78 @@
-param([switch]$Comparison, [switch]$Config, [switch]$ConfigRefresh, [switch]$CommitSync, [switch]$OperationRecovery, [switch]$BranchDelete, [switch]$WorktreeDelete, [switch]$MergeRevert, [switch]$StashDiscardIgnore, [switch]$ResetRewrite, [switch]$TrimSurface, [switch]$HighDpi)
+param(
+    [ValidateSet(
+        'overview',
+        'comparison',
+        'config',
+        'commit-sync',
+        'amend',
+        'operation-recovery',
+        'branch-delete',
+        'worktree-delete',
+        'merge-revert',
+        'stash-discard',
+        'history-reset',
+        'submodule-lfs',
+        'surface',
+        'high-dpi'
+    )]
+    [string]$Probe = 'overview',
+    [string]$OutputDir = '',
+    [switch]$List,
+    [switch]$NoBuild
+)
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $dotnet = Join-Path $repoRoot '.tools/dotnet/dotnet.exe'
 if (-not (Test-Path $dotnet)) { $dotnet = (Get-Command dotnet -ErrorAction Stop).Source }
-$batch = if ($HighDpi) { 'phase-4.2' } elseif ($TrimSurface) { 'phase-4.1' } elseif ($ConfigRefresh) { 'phase-3.7' } elseif ($ResetRewrite) { 'phase-3.6' } elseif ($StashDiscardIgnore) { 'phase-3.5' } elseif ($MergeRevert) { 'phase-3.4' } elseif ($WorktreeDelete) { 'phase-3.3' } elseif ($BranchDelete) { 'phase-3.2' } elseif ($OperationRecovery) { 'phase-3.1' } elseif ($CommitSync) { 'phase-2.5' } elseif ($Config) { 'phase-2.4' } elseif ($Comparison) { 'phase-2.3' } else { 'phase-2.2' }
-$probeArgs = @((Join-Path $repoRoot "artifacts/probes/$batch"))
-if ($Comparison) { $probeArgs += '--comparison' }
-if ($Config) { $probeArgs += '--config' }
-if ($ConfigRefresh) { $probeArgs += '--config-refresh' }
-if ($CommitSync) { $probeArgs += '--commit-sync' }
-if ($OperationRecovery) { $probeArgs += '--operation-recovery' }
-if ($BranchDelete) { $probeArgs += '--branch-delete' }
-if ($WorktreeDelete) { $probeArgs += '--worktree-delete' }
-if ($MergeRevert) { $probeArgs += '--merge-revert' }
-if ($StashDiscardIgnore) { $probeArgs += '--stash-discard-ignore' }
-if ($ResetRewrite) { $probeArgs += '--reset-rewrite' }
-if ($TrimSurface) { $probeArgs += '--trim-surface' }
-if ($HighDpi) { $probeArgs += '--high-dpi' }
+
 Push-Location $repoRoot
 try {
-    & $dotnet run --project tests/GitNest.UIProbe/GitNest.UIProbe.csproj -c Release --no-launch-profile -- @probeArgs
-    if ($LASTEXITCODE -ne 0) { throw 'GitNest UI probe failed.' }
+    if (-not $NoBuild) {
+        & $dotnet build tests/GitNest.UIProbe/GitNest.UIProbe.csproj -c Release --nologo
+        if ($LASTEXITCODE -ne 0) { throw 'Failed to build GitNest.UIProbe.' }
+    }
+
+    $binDir = Join-Path $repoRoot 'tests/GitNest.UIProbe/bin/Release/net10.0'
+    $exeName = if ($IsWindows -or $env:OS -eq 'Windows_NT') { 'GitNest.UIProbe.exe' } else { 'GitNest.UIProbe' }
+    $exePath = Join-Path $binDir $exeName
+    $dllPath = Join-Path $binDir 'GitNest.UIProbe.dll'
+    if (Test-Path $exePath) {
+        $runnerFile = $exePath
+        $prefixArgs = @()
+    }
+    elseif (Test-Path $dllPath) {
+        $runnerFile = $dotnet
+        $prefixArgs = @($dllPath)
+    }
+    else {
+        throw 'GitNest.UIProbe build output not found.'
+    }
+
+    if ($List) {
+        $lines = & $runnerFile @($prefixArgs + @('--list-probes-detailed'))
+        if ($LASTEXITCODE -ne 0) { throw 'Failed to list UI probes.' }
+        foreach ($line in $lines) {
+            $parts = $line -split "`t", 2
+            if ($parts.Length -eq 2) {
+                Write-Host ("{0,-20} {1}" -f $parts[0], $parts[1])
+            } else {
+                Write-Host $line
+            }
+        }
+        return
+    }
+
+    $resolvedOutput = if ([string]::IsNullOrWhiteSpace($OutputDir)) {
+        Join-Path $repoRoot "artifacts/probes/$Probe"
+    } else {
+        $OutputDir
+    }
+
+    $probeArgs = $prefixArgs + @('--probe', $Probe, $resolvedOutput)
+    & $runnerFile @probeArgs
+    if ($LASTEXITCODE -ne 0) { throw "GitNest UI probe '$Probe' failed." }
 }
-finally { Pop-Location }
+finally {
+    Pop-Location
+}

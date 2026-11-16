@@ -128,5 +128,22 @@ internal static partial class Program
         await toolProcess.WaitForExitAsync();
         var toolResult = File.ReadAllLines(toolOutput);
         Check(toolProcess.ExitCode == 0 && toolResult.Length == 2 && WorktreeTaskStore.PathsEqual(toolResult[0], linked) && WorktreeTaskStore.PathsEqual(toolResult[1], linked), "Launching an editor passes the exact Unicode/special-character folder as one argument and working directory");
+
+        Check(Watcher.IsWorktreeAdminChange("worktrees/wt1") &&
+              Watcher.IsWorktreeAdminChange("worktrees/wt1/HEAD") &&
+              Watcher.IsWorktreeAdminChange("worktrees/wt1/locked") &&
+              Watcher.IsWorktreeAdminChange("worktrees/wt1/config.worktree") &&
+              !Watcher.IsWorktreeAdminChange("worktrees/wt1/index.lock") &&
+              !Watcher.IsWorktreeAdminChange("objects/pack/pack-123.idx"),
+              "Watcher.IsWorktreeAdminChange matches linked worktree metadata files accurately");
+
+        var repoVm = new SourceGit.ViewModels.Repository(false, repo, common);
+        var cfgChangedCount = 0;
+        repoVm.ConfigurationStateChanged += () => Interlocked.Increment(ref cfgChangedCount);
+        repoVm.Close();
+        repoVm.RefreshConfigurationState();
+        await Task.Delay(150);
+        Check(cfgChangedCount == 0,
+              "Repository.Close prevents post-close RefreshConfigurationState dispatch cleanly");
     }
 }

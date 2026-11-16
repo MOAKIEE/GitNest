@@ -316,7 +316,7 @@ internal static partial class Program
 
         // Unreachable remote with secret URL fails cleanly without deleting local tracking cache or leaking password
         const string remoteSecret = "ghp_RemoteDeleteSecret555XYZ";
-        await GitAsync(realGit, "-C", clone1, "remote", "add", "broken", $"https://alice:{remoteSecret}@example.invalid/org/repo.git");
+        await GitAsync(realGit, "-C", clone1, "remote", "add", "broken", $"https://alice:{remoteSecret}@127.0.0.1:1/org/repo.git");
         await GitAsync(realGit, "-C", clone1, "update-ref", "refs/remotes/broken/main", mainSha);
         var brokenPreflight = await BranchDeletionService.InspectRemoteBranchAsync(clone1, "broken", "main");
         var brokenDel = await BranchDeletionService.DeleteRemoteBranchAsync(
@@ -334,5 +334,122 @@ internal static partial class Program
               !rawJournalAfterBroken.Contains(remoteSecret, StringComparison.Ordinal) &&
               brokenCacheStillThere == mainSha,
             "Unreachable remote URL fails cleanly with redacted credentials and preserves local tracking cache");
+
+        // 6. Split fetch/push URLs, changed push URL block, multiple push URLs block, and external cache preservation
+        var splitFetchBare = Path.Combine(bdRoot, "split-fetch.git");
+        var splitPushBare = Path.Combine(bdRoot, "split-push.git");
+        await InitBareRepoAsync(realGit, splitFetchBare);
+        await InitBareRepoAsync(realGit, splitPushBare);
+
+        await GitInAsync(realGit, clone1, "checkout", "-b", "feat/split-del", mainSha);
+        var splitBaseSha = await CommitFileAsync(realGit, clone1, "split.txt", "base\n", "split base");
+        await GitInAsync(realGit, clone1, "remote", "add", "split", splitFetchBare);
+        await GitInAsync(realGit, clone1, "push", "split", "feat/split-del:feat/split-del");
+        await GitInAsync(realGit, clone1, "fetch", "split");
+        var splitTipSha = await CommitFileAsync(realGit, clone1, "split.txt", "tip\n", "split tip");
+        await GitInAsync(realGit, clone1, "push", splitPushBare, "feat/split-del:feat/split-del");
+        await GitInAsync(realGit, clone1, "remote", "set-url", "--push", "split", splitPushBare);
+        await GitInAsync(realGit, clone1, "checkout", "main");
+
+        var splitProbe = await BranchDeletionService.ProbeRemoteBranchAsync(clone1, "split", "feat/split-del");
+        Check(splitProbe.QuerySucceeded && splitProbe.LiveTipSha == splitTipSha && splitProbe.PushUrl == splitPushBare,
+              "Remote deletion probes effective push URL rather than distinct fetch repository");
+
+        var splitPreflight = await BranchDeletionService.InspectRemoteBranchAsync(clone1, "split", "feat/split-del");
+        var splitDelete = await BranchDeletionService.DeleteRemoteBranchAsync(
+            clone1, "split", "feat/split-del", new BranchDeleteOptions { Preflight = splitPreflight }, journal);
+        Check(splitDelete.Succeeded &&
+              string.IsNullOrEmpty((await GitAsync(realGit, "--git-dir", splitPushBare, "for-each-ref", "refs/heads/feat/split-del")).Trim()) &&
+              (await GitAsync(realGit, "--git-dir", splitFetchBare, "rev-parse", "refs/heads/feat/split-del")).Trim() == splitBaseSha &&
+              !splitDelete.LocalTrackingCachePruned &&
+              (await GitInAsync(realGit, clone1, "rev-parse", "refs/remotes/split/feat/split-del")).Trim() == splitBaseSha,
+              "Split push deletion removes only push server branch and preserves fetch server and tracking cache");
+
+        var splitPruneAbsent = await BranchDeletionService.DeleteRemoteBranchAsync(
+            clone1, "split", "feat/split-del", new BranchDeleteOptions { PruneStaleTrackingCacheWhenRemoteAbsent = true }, journal);
+        Check(!splitPruneAbsent.LocalTrackingCachePruned &&
+              (await GitInAsync(realGit, clone1, "rev-parse", "refs/remotes/split/feat/split-del")).Trim() == splitBaseSha,
+              "Absent push server branch does not justify pruning a different fetch server tracking cache");
+
+        // Re-create branch on splitPushBare, confirm preflight, then switch push URL -> must block!
+        await GitInAsync(realGit, clone1, "push", splitPushBare, "feat/split-del:feat/split-del");
+        var staleSplitPreflight = await BranchDeletionService.InspectRemoteBranchAsync(clone1, "split", "feat/split-del");
+        await GitInAsync(realGit, clone1, "remote", "set-url", "--push", "split", forkBare);
+        await GitInAsync(realGit, clone1, "push", forkBare, "feat/split-del:feat/split-del");
+        var changedPushUrlDel = await BranchDeletionService.DeleteRemoteBranchAsync(
+            clone1, "split", "feat/split-del", new BranchDeleteOptions { Preflight = staleSplitPreflight }, journal);
+        Check(!changedPushUrlDel.Succeeded &&
+              (await GitAsync(realGit, "--git-dir", splitPushBare, "rev-parse", "refs/heads/feat/split-del")).Trim() == splitTipSha &&
+              (await GitAsync(realGit, "--git-dir", forkBare, "rev-parse", "refs/heads/feat/split-del")).Trim() == splitTipSha,
+              "Changing push URL after confirmation blocks remote deletion on both original and replacement servers");
+
+        // Multiple push URLs block probe and delete
+        await GitInAsync(realGit, clone1, "remote", "set-url", "--push", "--add", "split", splitPushBare);
+        var multiProbe = await BranchDeletionService.ProbeRemoteBranchAsync(clone1, "split", "feat/split-del");
+        var multiDel = await BranchDeletionService.DeleteRemoteBranchAsync(clone1, "split", "feat/split-del", journalStore: journal);
+        Check(!multiProbe.QuerySucceeded && !multiDel.Succeeded &&
+              (await GitAsync(realGit, "--git-dir", forkBare, "rev-parse", "refs/heads/feat/split-del")).Trim() == splitTipSha &&
+              (await GitAsync(realGit, "--git-dir", splitPushBare, "rev-parse", "refs/heads/feat/split-del")).Trim() == splitTipSha,
+              "Multiple push URLs block remote probe and deletion while preserving every server branch");
+
+        // Tracking cache changed externally after confirmation is preserved on remote deletion
+        await GitInAsync(realGit, clone1, "config", "--unset-all", "remote.split.pushurl");
+        await GitInAsync(realGit, clone1, "remote", "set-url", "split", splitPushBare);
+        await GitInAsync(realGit, clone1, "update-ref", "refs/remotes/split/feat/split-del", splitTipSha);
+        var cachePreflight = await BranchDeletionService.InspectRemoteBranchAsync(clone1, "split", "feat/split-del");
+        await GitInAsync(realGit, clone1, "update-ref", "refs/remotes/split/feat/split-del", splitBaseSha);
+        var cacheChangedDel = await BranchDeletionService.DeleteRemoteBranchAsync(
+            clone1, "split", "feat/split-del", new BranchDeleteOptions { Preflight = cachePreflight }, journal);
+        Check(cacheChangedDel.Succeeded && !cacheChangedDel.LocalTrackingCachePruned &&
+              (await GitInAsync(realGit, clone1, "rev-parse", "refs/remotes/split/feat/split-del")).Trim() == splitBaseSha,
+              "Remote deletion preserves a tracking cache changed externally after confirmation");
+
+        // 7. Default branch protection, remote HEAD protection, linked upstream protection, batch guard & local opt-out
+        await GitInAsync(realGit, clone1, "checkout", "feat/split-del");
+        await GitInAsync(realGit, clone1, "branch", "release-default", mainSha);
+        await GitInAsync(realGit, clone1, "push", originBare, "release-default:release-default");
+        await GitInAsync(realGit, clone1, "fetch", "origin");
+        await GitInAsync(realGit, clone1, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/release-default");
+
+        foreach (var protectedBranch in new[] { "main", "release-default" })
+        {
+            var protLocalDel = await BranchDeletionService.DeleteLocalBranchAsync(
+                clone1, protectedBranch, new BranchDeleteOptions { ForceDeleteLocal = true }, journal);
+            var protRemoteDel = await BranchDeletionService.DeleteRemoteBranchAsync(
+                clone1, "origin", protectedBranch, journalStore: journal);
+            Check(!protLocalDel.Succeeded && protLocalDel.BlockedByProtection &&
+                  !protRemoteDel.Succeeded && protRemoteDel.BlockedByProtection,
+                  $"Default protection blocks both local force delete and remote delete for {protectedBranch}");
+        }
+
+        await GitInAsync(realGit, clone1, "branch", "feature-linked", mainSha);
+        await new SourceGit.Commands.Branch(clone1, "feature-linked").SetUpstreamTargetedAsync("origin", "main");
+        var linkedProtectedDel = await BranchDeletionService.DeleteLocalBranchAsync(
+            clone1, "feature-linked", new BranchDeleteOptions { DeleteLinkedUpstreamRemote = true }, journal);
+        Check(!linkedProtectedDel.Succeeded && !linkedProtectedDel.LocalBranchDeleted && linkedProtectedDel.BlockedByProtection,
+              "Linked deletion preserves local branch when its upstream target is protected");
+
+        await GitInAsync(realGit, clone1, "branch", "master", mainSha);
+        var batchProt = await BranchDeletionService.DeleteMultipleBranchesAsync(
+            clone1,
+            new[] { "main", "master" }.Select(n => new SourceGit.Models.Branch { Name = n, IsLocal = true }).ToList(),
+            true,
+            true,
+            journal);
+        Check(batchProt.SucceededCount == 0 && batchProt.SkippedCount == 2,
+              "Batch deletion cannot bypass default branch protection");
+
+        await BranchProtectionPolicy.SetLocalOverrideAsync(clone1, "master", true);
+        var unlockedPreflight = await BranchDeletionService.InspectLocalBranchAsync(clone1, "master");
+        await BranchProtectionPolicy.SetLocalOverrideAsync(clone1, "master", false);
+        var relockedDel = await BranchDeletionService.DeleteLocalBranchAsync(
+            clone1, "master", new BranchDeleteOptions { Preflight = unlockedPreflight }, journal);
+        Check(!relockedDel.Succeeded && relockedDel.BlockedByProtection,
+              "Deletion rechecks protection changes made after preflight");
+
+        await BranchProtectionPolicy.SetLocalOverrideAsync(clone1, "master", true);
+        var allowedDel = await BranchDeletionService.DeleteLocalBranchAsync(clone1, "master", journalStore: journal);
+        Check(allowedDel.Succeeded && await BackupRefs.ExistsAsync(clone1, allowedDel.BackupRefName),
+              "Explicit repository-local protection opt-out allows deletion with a recovery ref");
     }
 }

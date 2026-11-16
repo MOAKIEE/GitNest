@@ -17,7 +17,7 @@ using VM = SourceGit.ViewModels;
 
 internal static partial class Program
 {
-    static partial void RunStashDiscardIgnore()
+    static partial void RunStashDiscard()
     {
         var utf8NoBom = new UTF8Encoding(false);
         var suiteRoot = Path.Combine(_root, "stash-discard-ignore-probe");
@@ -290,9 +290,12 @@ internal static partial class Program
         Await(() => mainPage.Popup == null);
 
         // Clean conflict state and verify DropStash popup succeeds by exact SHA
-        Git(mainRepoDir, "reset", "--hard", "HEAD");
-        if (File.Exists(Path.Combine(mainRepoDir, "stash-note.md")))
-            File.Delete(Path.Combine(mainRepoDir, "stash-note.md"));
+        using (repo.LockWatcher())
+        {
+            Git(mainRepoDir, "reset", "--hard", "HEAD");
+            if (File.Exists(Path.Combine(mainRepoDir, "stash-note.md")))
+                File.Delete(Path.Combine(mainRepoDir, "stash-note.md"));
+        }
         repo.RefreshStashes();
         Await(() => repo.StashesPage?.Stashes?.Count >= 1);
         var dropVm = new VM.DropStash(repo, createdStash);
@@ -343,9 +346,12 @@ internal static partial class Program
         // Clean working copy before AddToIgnore probe
         window.Width = 1120;
         window.Height = 760;
-        Git(mainRepoDir, "reset", "--hard", "HEAD");
-        Git(mainRepoDir, "stash", "clear");
-        Git(mainRepoDir, "checkout", "main");
+        using (repo.LockWatcher())
+        {
+            Git(mainRepoDir, "reset", "--hard", "HEAD");
+            Git(mainRepoDir, "stash", "clear");
+            Git(mainRepoDir, "checkout", "main");
+        }
 
         // === Step G: AddToIgnore preset + .git/info/exclude local scope + ! negation + matched tracked warning ===
         File.WriteAllText(Path.Combine(mainRepoDir, "important.log"), "untracked log\n", utf8NoBom);

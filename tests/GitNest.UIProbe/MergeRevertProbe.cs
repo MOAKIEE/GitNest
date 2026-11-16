@@ -434,24 +434,4 @@ internal static partial class Program
         _window = null;
         File.WriteAllText(probeGlobalCfg, string.Empty, utf8NoBom);
     }
-
-    private static (int ExitCode, string StdOut, string StdErr) RunGitAllowFailure(string directory, params string[] args)
-    {
-        var info = new ProcessStartInfo(OS.GitExecutable)
-        {
-            WorkingDirectory = directory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            UseShellExecute = false,
-        };
-        foreach (var arg in args)
-            info.ArgumentList.Add(arg);
-
-        using var process = Process.Start(info)!;
-        var stdout = process.StandardOutput.ReadToEndAsync();
-        var stderr = process.StandardError.ReadToEndAsync();
-        process.WaitForExit();
-        return (process.ExitCode, stdout.GetAwaiter().GetResult(), stderr.GetAwaiter().GetResult());
-    }
 }

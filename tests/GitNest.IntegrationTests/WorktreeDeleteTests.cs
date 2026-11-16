@@ -58,6 +58,19 @@ partial class Program
               Directory.Exists(clone1),
             "Main worktree refuses inspection/deletion strictly even with force");
 
+        // 1b. Linked worktree attached to protected branch refuses associated branch cleanup before removing directory
+        var wtProtected = Path.Combine(root, "wt-protected-branch");
+        await GitInAsync(realGit, clone1, "branch", "develop", mainSha);
+        await GitInAsync(realGit, clone1, "worktree", "add", wtProtected, "develop");
+        var protectedWtOutcome = await WorktreeDeletionService.DeleteWorktreeAsync(
+            clone1,
+            wtProtected,
+            new WorktreeDeleteOptions { DeleteLocalBranch = true },
+            journal);
+        Check(!protectedWtOutcome.Succeeded && protectedWtOutcome.BlockedByProtection && Directory.Exists(wtProtected),
+              "Task cleanup checks branch protection before removing the associated worktree directory");
+        await GitInAsync(realGit, clone1, "worktree", "remove", wtProtected);
+
         // 2. Clean linked worktree (invoked from its own open tab path!) removes only directory and switches active context to main
         var wtClean = Path.Combine(root, "wt 空格 中文 clean");
         await GitAsync(realGit, "-C", clone1, "checkout", "-b", "feat/keep-branches", mainSha);

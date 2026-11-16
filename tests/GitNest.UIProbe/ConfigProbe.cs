@@ -97,6 +97,13 @@ internal static partial class Program
         Check(!vm.SanitizedDiagnostics.Contains("top_secret_ui_probe_pw", StringComparison.Ordinal),
               "Sanitized diagnostic text excludes secrets");
 
+        var cfgTabControls = configWin.GetVisualDescendants().OfType<TabControl>().ToList();
+        var cfgIssueList = configWin.GetVisualDescendants().OfType<ListBox>().FirstOrDefault(l => ReferenceEquals(l.ItemsSource, vm.IssueTrackers));
+        var legacySubmoduleCheck = configWin.GetVisualDescendants().OfType<CheckBox>()
+            .Any(cb => (cb.Content?.ToString() ?? string.Empty).Contains("自动更新子模块", StringComparison.Ordinal));
+        Check(cfgTabControls.Count == 0 && cfgIssueList is { IsEffectivelyVisible: true } && !legacySubmoduleCheck,
+              "RepositoryConfigure renders single scrollable page with IssueTracker under Advanced and omits submodule auto-update");
+
         Screenshot(configWin, "config-light-signing-advanced");
 
         // Switch to Dark + compact narrow viewport, select Global scope to show warning + trigger shadowed save warning
@@ -185,17 +192,11 @@ internal static partial class Program
         wtWin.Close();
         _window = null;
         File.WriteAllText(globalCfg, string.Empty);
+
+        RunConfigRefreshSection();
     }
 
-    private static void ClickButtonByText(Control root, string text)
-    {
-        var button = root.GetVisualDescendants()
-            .OfType<Button>()
-            .First(b => b.IsEffectivelyVisible && string.Equals(b.Content?.ToString(), text, StringComparison.Ordinal));
-        button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, button));
-    }
-
-    static partial void RunConfigRefresh()
+    private static void RunConfigRefreshSection()
     {
         var phaseRoot = Path.Combine(_root, "config-refresh-probe");
         Directory.CreateDirectory(phaseRoot);

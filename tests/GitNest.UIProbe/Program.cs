@@ -1,10 +1,12 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -22,6 +24,24 @@ internal static partial class Program
     private static VM.Launcher _launcher;
     private static Window _window;
 
+    private static readonly (string Name, string Description)[] ProbeCatalog =
+    [
+        ("overview", "Worktree task overview, alias editing, double-tap open, file watcher & editor/terminal launch"),
+        ("comparison", "TaskComparison view, MergeBase/TwoTips modes, binary viewer, stale notice & dispose safety"),
+        ("config", "Scoped RepositoryConfigure UI, secret masking, signing banner, Global warning, external reload & IssueTracker"),
+        ("commit-sync", "Partial staging hint, inline identity prompt, Commit&Push retry, Fetch, diverged Pull & Push preview"),
+        ("amend", "WorkingCopy More menu, dedicated AmendLastCommit modal, protected block, opt-in lease & retry"),
+        ("operation-recovery", "Startup recovery banner, ViewLogs Operations & Recovery tab, secret redaction & expired backup prune"),
+        ("branch-delete", "Branch deletion guards, -d/-D confirmation, multi-remote lease partial failure & DeleteMultipleBranches"),
+        ("worktree-delete", "Worktree deletion preflight, dirty/locked/nested guards, open-tab switch, detached backup & PruneWorktrees"),
+        ("merge-revert", "Directed merge, conflict auto-abort, single-commit revert vs merge block, DontCommit & external rebase/bisect"),
+        ("stash-discard", "Discard dual baselines, 30d backup view, StashChanges/ApplyStash/DropStash, Checkout StashAndReapply & AddToIgnore"),
+        ("history-reset", "Reset collision/protection, lease partial failure, RewriteRemoteHistory, ResetWithoutCheckout, ViewLogs & PushRevision"),
+        ("submodule-lfs", "Read-only Tags & Submodules, narrowed Git LFS toolbar menu & Checkout submodule opt-in 2-step confirm"),
+        ("surface", "Retained UI surface checks: CommandPalette, context menus, history picker, AssumeUnchangedManager, Preferences, SelfUpdate, codecs & Statistics"),
+        ("high-dpi", "Published PE PerMonitorV2 manifest and 150%/200% high-DPI viewport overflow checks"),
+    ];
+
     [STAThread]
     public static int Main(string[] args)
     {
@@ -30,7 +50,49 @@ internal static partial class Program
             File.WriteAllText(capture, Environment.CurrentDirectory + "\n" + string.Join("\n", args));
             return 0;
         }
-        _output = Path.GetFullPath(args.Length > 0 ? args[0] : "artifacts/probes/phase-2.2");
+
+        var probeName = "overview";
+        string outputArg = null;
+        for (int i = 0; i < args.Length; i++)
+        {
+            var arg = args[i];
+            if (arg == "--list-probes")
+            {
+                foreach (var (name, _) in ProbeCatalog)
+                    Console.WriteLine(name);
+                return 0;
+            }
+            if (arg == "--list-probes-detailed")
+            {
+                foreach (var (name, desc) in ProbeCatalog)
+                    Console.WriteLine($"{name}\t{desc}");
+                return 0;
+            }
+            if (arg == "--probe" && i + 1 < args.Length)
+            {
+                probeName = args[++i];
+                continue;
+            }
+            if (arg.StartsWith("--probe=", StringComparison.Ordinal))
+            {
+                probeName = arg["--probe=".Length..];
+                continue;
+            }
+            if (arg.StartsWith("--", StringComparison.Ordinal))
+            {
+                probeName = arg[2..];
+                continue;
+            }
+            outputArg ??= arg;
+        }
+
+        if (!ProbeCatalog.Any(p => string.Equals(p.Name, probeName, StringComparison.OrdinalIgnoreCase)))
+        {
+            Console.Error.WriteLine($"Unknown probe '{probeName}'. Available: {string.Join(", ", ProbeCatalog.Select(p => p.Name))}");
+            return 1;
+        }
+
+        _output = Path.GetFullPath(outputArg ?? $"artifacts/probes/{probeName}");
         Directory.CreateDirectory(_output);
         _root = Path.Combine(Path.GetTempPath(), "GitNest-probe-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_root);
@@ -50,61 +112,32 @@ internal static partial class Program
             App.BuildAvaloniaApp().SetupWithoutStarting();
             App.SetLocale("zh_CN");
             OS.SetupExternalTools();
-            if (args.Contains("--config"))
+
+            switch (probeName.ToLowerInvariant())
             {
-                RunConfig();
+                case "overview": RunOverview(); break;
+                case "comparison": RunComparison(); break;
+                case "config": RunConfig(); break;
+                case "commit-sync": RunCommitSync(); break;
+                case "amend": RunAmend(); break;
+                case "operation-recovery": RunOperationRecovery(); break;
+                case "branch-delete": RunBranchDelete(); break;
+                case "worktree-delete": RunWorktreeDelete(); break;
+                case "merge-revert": RunMergeRevert(); break;
+                case "stash-discard": RunStashDiscard(); break;
+                case "history-reset": RunResetRewrite(); break;
+                case "submodule-lfs": RunSubmoduleLfs(); break;
+                case "surface": RunSurface(); break;
+                case "high-dpi": RunHighDpi(); break;
             }
-            else if (args.Contains("--config-refresh"))
-            {
-                RunConfigRefresh();
-            }
-            else if (args.Contains("--commit-sync"))
-            {
-                RunCommitSync();
-            }
-            else if (args.Contains("--operation-recovery"))
-            {
-                RunOperationRecovery();
-            }
-            else if (args.Contains("--branch-delete"))
-            {
-                RunBranchDelete();
-            }
-            else if (args.Contains("--worktree-delete"))
-            {
-                RunWorktreeDelete();
-            }
-            else if (args.Contains("--merge-revert"))
-            {
-                RunMergeRevert();
-            }
-            else if (args.Contains("--stash-discard-ignore"))
-            {
-                RunStashDiscardIgnore();
-            }
-            else if (args.Contains("--reset-rewrite"))
-            {
-                RunResetRewrite();
-            }
-            else if (args.Contains("--trim-surface"))
-            {
-                RunTrimSurface();
-            }
-            else if (args.Contains("--high-dpi"))
-            {
-                RunHighDpi();
-            }
-            else
-            {
-                RunOverview();
-                if (args.Contains("--comparison")) RunComparison();
-            }
+
             _results.Add($"Passed {_checks} probe checks.");
             return 0;
         }
         catch (Exception ex)
         {
             _results.Add(ex.ToString());
+            Console.Error.WriteLine(ex);
             return 1;
         }
         finally
@@ -141,8 +174,8 @@ internal static partial class Program
         Git(taskPath, "add", ".");
         File.AppendAllText(Path.Combine(taskPath, "file.txt"), "unstaged\n");
         File.WriteAllText(Path.Combine(taskPath, "新文件.txt"), "new\n");
-        var launcher = _launcher = new VM.Launcher(repoPath);
-        typeof(App).GetField("_launcher", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(Application.Current, launcher);
+
+        var launcher = AttachLauncher(repoPath);
         var repo = (VM.Repository)launcher.ActivePage.Data;
         repo.IsWorktreeGroupExpanded = true;
         var view = new Views.Repository { DataContext = repo };
@@ -201,6 +234,7 @@ internal static partial class Program
         taskRepo.RefreshTaskOverview();
         Await(() => taskRepo.Worktrees.Any(t => !t.IsCurrent && t.Status?.Untracked == 1));
         Check(true, "Explicit refresh reads the other worktree");
+
         var output = Path.Combine(_root, "tool-output.txt");
         Environment.SetEnvironmentVariable("GITNEST_PROBE_TOOL_OUTPUT", output);
         using (var tool = Process.Start(WorktreeToolLauncher.CreateEditorStartInfo(Environment.ProcessPath!, taskPath)))
@@ -215,6 +249,69 @@ internal static partial class Program
         Check(WorktreeTaskStore.PathsEqual(File.ReadAllLines(output)[0], taskPath), "Terminal starts in the selected worktree");
         Environment.SetEnvironmentVariable("GITNEST_PROBE_TOOL_OUTPUT", null);
         CloseFixture();
+    }
+
+    private static VM.Launcher AttachLauncher(string repoPath)
+    {
+        var launcher = _launcher = new VM.Launcher(repoPath);
+        typeof(App).GetField("_launcher", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(Application.Current, launcher);
+        return launcher;
+    }
+
+    private static void ClickButtonByText(Control root, string text)
+    {
+        var button = root.GetVisualDescendants()
+            .OfType<Button>()
+            .First(b => b.IsEffectivelyVisible && string.Equals(b.Content?.ToString(), text, StringComparison.Ordinal));
+        button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, button));
+    }
+
+    private static List<string> CollectAllStrings(Control root)
+    {
+        var items = new List<string>();
+        foreach (var tb in root.GetVisualDescendants().OfType<TextBlock>())
+        {
+            if (!string.IsNullOrEmpty(tb.Text))
+                items.Add(tb.Text);
+        }
+        foreach (var box in root.GetVisualDescendants().OfType<TextBox>())
+        {
+            if (!string.IsNullOrEmpty(box.Text))
+                items.Add(box.Text);
+        }
+        return items;
+    }
+
+    private static string LocateSourceRepositoryRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "SourceGit.slnx")))
+                return dir.FullName;
+            dir = dir.Parent;
+        }
+        return null!;
+    }
+
+    private static (int ExitCode, string StdOut, string StdErr) RunGitAllowFailure(string directory, params string[] args)
+    {
+        var info = new ProcessStartInfo(OS.GitExecutable)
+        {
+            WorkingDirectory = directory,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+            UseShellExecute = false,
+        };
+        foreach (var arg in args)
+            info.ArgumentList.Add(arg);
+
+        using var process = Process.Start(info)!;
+        var stdout = process.StandardOutput.ReadToEndAsync();
+        var stderr = process.StandardError.ReadToEndAsync();
+        process.WaitForExit();
+        return (process.ExitCode, stdout.GetAwaiter().GetResult(), stderr.GetAwaiter().GetResult());
     }
 
     private static void CloseFixture()
@@ -255,9 +352,7 @@ internal static partial class Program
                     if ((File.GetAttributes(file) & FileAttributes.ReadOnly) != 0)
                         File.SetAttributes(file, FileAttributes.Normal);
                 }
-                catch
-                {
-                }
+                catch { }
             }
 
             if (OperatingSystem.IsWindows())
@@ -364,27 +459,39 @@ internal static partial class Program
 
     private static string Git(string directory, params string[] args)
     {
-        var info = new ProcessStartInfo(OS.GitExecutable) { WorkingDirectory = directory, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true, UseShellExecute = false };
-        foreach (var arg in args) info.ArgumentList.Add(arg);
-        using var process = Process.Start(info)!;
-        var output = process.StandardOutput.ReadToEndAsync();
-        var error = process.StandardError.ReadToEndAsync();
-        process.WaitForExit();
-        if (process.ExitCode != 0) throw new Exception(error.GetAwaiter().GetResult());
-        return output.GetAwaiter().GetResult().TrimEnd('\r', '\n');
+        for (int attempt = 0; ; attempt++)
+        {
+            var info = new ProcessStartInfo(OS.GitExecutable) { WorkingDirectory = directory, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true, UseShellExecute = false };
+            foreach (var arg in args) info.ArgumentList.Add(arg);
+            using var process = Process.Start(info)!;
+            var output = process.StandardOutput.ReadToEndAsync();
+            var error = process.StandardError.ReadToEndAsync();
+            process.WaitForExit();
+            if (process.ExitCode == 0)
+                return output.GetAwaiter().GetResult().TrimEnd('\r', '\n');
+
+            var err = error.GetAwaiter().GetResult();
+            if (attempt < 20 && err.Contains("index.lock", StringComparison.OrdinalIgnoreCase))
+            {
+                Thread.Sleep(100);
+                continue;
+            }
+
+            throw new Exception(err);
+        }
     }
 
     static partial void RunComparison();
     static partial void RunConfig();
-    static partial void RunConfigRefresh();
     static partial void RunCommitSync();
+    static partial void RunAmend();
     static partial void RunOperationRecovery();
     static partial void RunBranchDelete();
     static partial void RunWorktreeDelete();
     static partial void RunMergeRevert();
-    static partial void RunStashDiscardIgnore();
+    static partial void RunStashDiscard();
     static partial void RunResetRewrite();
-    static partial void RunTrimSurface();
+    static partial void RunSubmoduleLfs();
+    static partial void RunSurface();
     static partial void RunHighDpi();
-
 }

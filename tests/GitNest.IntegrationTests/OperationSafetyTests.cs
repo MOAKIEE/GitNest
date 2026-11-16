@@ -373,5 +373,145 @@ internal static partial class Program
               entriesAfterRecorded[0].OriginalTipSha == snapBeforeRecorded.HeadOid &&
               entriesAfterRecorded[0].TargetTipSha == recordedCommitRes.CommitSha,
             "GitSyncService records Commit operation tips accurately into injected OperationJournalStore");
+
+        // 7. External CLI in-progress states (rebase --merge, rebase --apply, bisect, cherry-pick) stay read-only + AssumeUnchanged clear
+        var extRepo = Path.Combine(suiteRoot, "external-state-repo");
+        await InitRepoAsync(realGit, extRepo, "main", "Safety Tester", "safety@example.invalid");
+        await CommitFileAsync(realGit, extRepo, "conflict.txt", "line1\n", "init");
+        await GitInAsync(realGit, extRepo, "checkout", "-b", "feat/rm");
+        await CommitFileAsync(realGit, extRepo, "conflict.txt", "feat line\n", "feat edit");
+        await GitInAsync(realGit, extRepo, "checkout", "main");
+        await CommitFileAsync(realGit, extRepo, "conflict.txt", "main line\n", "main edit");
+        await GitInAsync(realGit, extRepo, "checkout", "feat/rm");
+
+        // 7a. External git rebase --merge conflict
+        var (rmExit, _, _) = await GitAllowFailureAsync(realGit, "-C", extRepo, "rebase", "--merge", "main");
+        var rmDir = Path.Combine(extRepo, ".git", "rebase-merge");
+        Check(rmExit != 0 && Directory.Exists(rmDir), "External git rebase --merge stopped on conflict with .git/rebase-merge");
+        var rmBeforeHashes = CaptureDirectoryHashes(rmDir);
+        Check(CaptureOperationSnapshot.DetectInProgressKind(Path.Combine(extRepo, ".git")) == GitInProgressKind.Rebase,
+              "DetectInProgressKind identifies .git/rebase-merge as Rebase");
+        var rmInspect = await MergeRevertService.InspectRepositoryInProgressAsync(extRepo, journal);
+        var rmConflictCommit = await GitSyncService.CommitAsync(
+            extRepo,
+            new CommitExecutionOptions { Message = "blocked conflicted rebase-merge", ExpectedSnapshot = await QueryStagedSnapshot.CaptureAsync(extRepo) },
+            journalStore: journal);
+        await File.WriteAllTextAsync(Path.Combine(extRepo, "conflict.txt"), "resolved externally\n", Utf8NoBom);
+        await GitInAsync(realGit, extRepo, "add", "conflict.txt");
+        var rmResolvedCommit = await GitSyncService.CommitAsync(
+            extRepo,
+            new CommitExecutionOptions { Message = "blocked resolved rebase-merge", ExpectedSnapshot = await QueryStagedSnapshot.CaptureAsync(extRepo) },
+            journalStore: journal);
+        Check(rmInspect.InProgressKind == GitInProgressKind.Rebase &&
+              rmInspect.Origin == ConflictOwnershipOrigin.ExternalOrUnknown &&
+              !rmInspect.CanOfferSafeAbort &&
+              !rmConflictCommit.Succeeded && rmConflictCommit.FailureKind == CommitFailureKind.ConflictsPresent &&
+              !rmResolvedCommit.Succeeded && rmResolvedCommit.FailureKind == CommitFailureKind.InProgressBlocked &&
+              HashesEqual(rmBeforeHashes, CaptureDirectoryHashes(rmDir)),
+              "External .git/rebase-merge stays read-only, blocks commit even after conflict resolution, and remains byte-identical");
+        await GitInAsync(realGit, extRepo, "rebase", "--abort");
+
+        // 7b. External git rebase --apply conflict (without applying marker)
+        var (raExit, _, _) = await GitAllowFailureAsync(realGit, "-C", extRepo, "rebase", "--apply", "main");
+        var raDir = Path.Combine(extRepo, ".git", "rebase-apply");
+        Check(raExit != 0 && Directory.Exists(raDir) && !File.Exists(Path.Combine(raDir, "applying")),
+              "External git rebase --apply stopped with .git/rebase-apply and no applying marker");
+        var raBeforeHashes = CaptureDirectoryHashes(raDir);
+        var raInspect = await MergeRevertService.InspectRepositoryInProgressAsync(extRepo, journal);
+        var raConflictCommit = await GitSyncService.CommitAsync(
+            extRepo,
+            new CommitExecutionOptions { Message = "blocked conflicted rebase-apply", ExpectedSnapshot = await QueryStagedSnapshot.CaptureAsync(extRepo) },
+            journalStore: journal);
+        await File.WriteAllTextAsync(Path.Combine(extRepo, "conflict.txt"), "resolved apply externally\n", Utf8NoBom);
+        await GitInAsync(realGit, extRepo, "add", "conflict.txt");
+        var raResolvedCommit = await GitSyncService.CommitAsync(
+            extRepo,
+            new CommitExecutionOptions { Message = "blocked resolved rebase-apply", ExpectedSnapshot = await QueryStagedSnapshot.CaptureAsync(extRepo) },
+            journalStore: journal);
+        Check(raInspect.InProgressKind == GitInProgressKind.Rebase &&
+              raInspect.Origin == ConflictOwnershipOrigin.ExternalOrUnknown &&
+              !raInspect.CanOfferSafeAbort &&
+              !raConflictCommit.Succeeded && raConflictCommit.FailureKind == CommitFailureKind.ConflictsPresent &&
+              !raResolvedCommit.Succeeded && raResolvedCommit.FailureKind == CommitFailureKind.InProgressBlocked &&
+              HashesEqual(raBeforeHashes, CaptureDirectoryHashes(raDir)),
+              "External .git/rebase-apply stays read-only, blocks commit, and preserves admin files intact");
+        await GitInAsync(realGit, extRepo, "rebase", "--abort");
+
+        // 7c. External git bisect (BISECT_LOG) & CHERRY_PICK_HEAD detection
+        await GitInAsync(realGit, extRepo, "checkout", "main");
+        await CommitFileAsync(realGit, extRepo, "step2.txt", "s2\n", "step2");
+        await CommitFileAsync(realGit, extRepo, "step3.txt", "s3\n", "step3");
+        await GitInAsync(realGit, extRepo, "bisect", "start");
+        await GitInAsync(realGit, extRepo, "bisect", "bad");
+        await GitInAsync(realGit, extRepo, "bisect", "good", "HEAD~2");
+        var bisectLogPath = Path.Combine(extRepo, ".git", "BISECT_LOG");
+        var bisectLogBefore = await File.ReadAllBytesAsync(bisectLogPath);
+        var bisectInspect = await MergeRevertService.InspectRepositoryInProgressAsync(extRepo, journal);
+        await File.WriteAllTextAsync(Path.Combine(extRepo, "bisect-stage.txt"), "staged\n", Utf8NoBom);
+        await GitInAsync(realGit, extRepo, "add", "bisect-stage.txt");
+        var bisectCommit = await GitSyncService.CommitAsync(
+            extRepo,
+            new CommitExecutionOptions { Message = "blocked bisect", ExpectedSnapshot = await QueryStagedSnapshot.CaptureAsync(extRepo) },
+            journalStore: journal);
+        var bisectLogAfter = await File.ReadAllBytesAsync(bisectLogPath);
+        Check(bisectInspect.InProgressKind == GitInProgressKind.Bisect &&
+              bisectInspect.Origin == ConflictOwnershipOrigin.ExternalOrUnknown &&
+              !bisectInspect.CanOfferSafeAbort &&
+              !bisectCommit.Succeeded && bisectCommit.FailureKind == CommitFailureKind.InProgressBlocked &&
+              bisectLogBefore.SequenceEqual(bisectLogAfter),
+              "External BISECT_LOG stays read-only, blocks commit, and remains byte-identical");
+        await GitInAsync(realGit, extRepo, "rm", "-f", "bisect-stage.txt");
+        await GitInAsync(realGit, extRepo, "bisect", "reset");
+
+        var extHeadSha = (await GitInAsync(realGit, extRepo, "rev-parse", "HEAD")).Trim();
+        var cherryPickHead = Path.Combine(extRepo, ".git", "CHERRY_PICK_HEAD");
+        await File.WriteAllTextAsync(cherryPickHead, extHeadSha + "\n", Utf8NoBom);
+        var cherrySnap = await CaptureOperationSnapshot.CaptureAsync(extRepo);
+        Check(cherrySnap.InProgressKind == GitInProgressKind.CherryPick,
+              "External CHERRY_PICK_HEAD continues to be recognized read-only for write blocking");
+        File.Delete(cherryPickHead);
+
+        // 7d. Historical AssumeUnchanged files can still be inspected and cleared cleanly
+        await GitInAsync(realGit, extRepo, "update-index", "--assume-unchanged", "step2.txt");
+        await File.WriteAllTextAsync(Path.Combine(extRepo, "step2.txt"), "modified tracked content\n", Utf8NoBom);
+        var assumedBefore = await new QueryAssumeUnchangedFiles(extRepo).GetResultAsync();
+        var statusBefore = await GitInAsync(realGit, extRepo, "status", "--porcelain", "--", "step2.txt");
+        Check(assumedBefore.Count == 1 && assumedBefore[0] == "step2.txt" && string.IsNullOrWhiteSpace(statusBefore),
+              "QueryAssumeUnchangedFiles detects historical assume-unchanged file hidden from git status");
+
+        var cleared = await new AssumeUnchanged(extRepo, "step2.txt", false).ExecAsync();
+        var assumedAfter = await new QueryAssumeUnchangedFiles(extRepo).GetResultAsync();
+        var statusAfter = await GitInAsync(realGit, extRepo, "status", "--porcelain", "--", "step2.txt");
+        Check(cleared && assumedAfter.Count == 0 && statusAfter.Contains("step2.txt", StringComparison.Ordinal),
+              "AssumeUnchanged(false) removes assume-unchanged flag and restores normal Git working-tree tracking");
+    }
+
+    private static SortedDictionary<string, string> CaptureDirectoryHashes(string dir)
+    {
+        var map = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        if (!Directory.Exists(dir))
+            return map;
+
+        foreach (var file in Directory.GetFiles(dir, "*", SearchOption.AllDirectories))
+        {
+            var rel = Path.GetRelativePath(dir, file).Replace('\\', '/');
+            map[rel] = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(file)));
+        }
+
+        return map;
+    }
+
+    private static bool HashesEqual(SortedDictionary<string, string> left, SortedDictionary<string, string> right)
+    {
+        if (left.Count != right.Count)
+            return false;
+
+        foreach (var kv in left)
+        {
+            if (!right.TryGetValue(kv.Key, out var value) || !string.Equals(kv.Value, value, StringComparison.Ordinal))
+                return false;
+        }
+
+        return true;
     }
 }

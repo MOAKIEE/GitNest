@@ -251,20 +251,4 @@ internal static partial class Program
         _window = null;
         File.WriteAllText(probeGlobalCfg, string.Empty);
     }
-
-    private static List<string> CollectAllStrings(Control root)
-    {
-        var items = new List<string>();
-        foreach (var tb in root.GetVisualDescendants().OfType<TextBlock>())
-        {
-            if (!string.IsNullOrEmpty(tb.Text))
-                items.Add(tb.Text);
-        }
-        foreach (var box in root.GetVisualDescendants().OfType<TextBox>())
-        {
-            if (!string.IsNullOrEmpty(box.Text))
-                items.Add(box.Text);
-        }
-        return items;
-    }
 }

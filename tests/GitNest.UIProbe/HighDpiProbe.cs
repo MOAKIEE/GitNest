@@ -15,7 +15,7 @@ internal static partial class Program
     static partial void RunHighDpi()
     {
         // 1. Verify PerMonitorV2 DPI awareness manifest is embedded in published GitNest.exe PE resource
-        var repoRoot = LocateSourceRepositoryRootForProbe();
+        var repoRoot = LocateSourceRepositoryRoot();
         Check(repoRoot != null, "Located repository root for published binary inspection");
         var publishedExe = Path.Combine(repoRoot!, "artifacts", "windows-x64", "GitNest.exe");
         Check(File.Exists(publishedExe), "Published artifacts/windows-x64/GitNest.exe exists");
@@ -137,18 +137,6 @@ internal static partial class Program
         using var bitmap = new RenderTargetBitmap(new PixelSize(widthPx, heightPx), dpi);
         bitmap.Render(window);
         bitmap.Save(Path.Combine(_output, name + ".png"));
-    }
-
-    private static string LocateSourceRepositoryRootForProbe()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir != null)
-        {
-            if (File.Exists(Path.Combine(dir.FullName, "SourceGit.slnx")))
-                return dir.FullName;
-            dir = dir.Parent;
-        }
-        return null!;
     }
 
     private static string ReadEmbeddedWin32Manifest(string exePath)

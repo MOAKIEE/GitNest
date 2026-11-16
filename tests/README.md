@@ -1,60 +1,66 @@
-# GitNest 集成检查
+# GitNest 测试与界面探针说明
 
-在项目根目录运行：
+本项目测试分为两部分：面向逻辑与真实 Git 行为的 **集成检查**（`GitNest.IntegrationTests`），以及面向 Avalonia 视图、交互与截图回归的 **界面探针**（`GitNest.UIProbe`）。两个项目均按**功能模块**拆分，改某个功能时只需运行对应的小测试。
+
+## 1. 集成检查（`GitNest.IntegrationTests`）
+
+需要 Windows x64、项目 SDK（见根目录 `global.json`）和 Git for Windows。临时测试目录统一创建在系统临时目录下的 `GitNest-tests-<随机标识>/`，测试结束后恢复环境变量并自动清理。
+
+### 常用运行方式
 
 ```powershell
+# 查看全部功能 suite 及说明
+./build/scripts/test-gitnest.ps1 -List
+
+# 仅跑当前工作区改动对应的相关小测试（按 git status / git diff 自动映射）
+./build/scripts/test-gitnest.ps1 -Changed
+./build/scripts/test-gitnest.ps1 -Changed -DryRun
+
+# 仅跑指定的一个或多个功能 suite（加 -NoBuild 可跳过重复编译）
+./build/scripts/test-gitnest.ps1 -Suite merge -NoBuild
+./build/scripts/test-gitnest.ps1 -Suite commit,sync -NoBuild
+
+# 运行完整套件（构建一次后多进程并行执行，也可通过 -Jobs 1 强制串行）
 ./build/scripts/test-gitnest.ps1
 ```
 
-需要 Windows x64、项目 SDK 和 Git for Windows。脚本构建并运行 `GitNest.IntegrationTests` 控制台程序；检查失败时返回非零退出码，成功时打印通过数量。
+若需指定特定版本的 `git.exe`，可设置环境变量 `GITNEST_TEST_GIT_EXECUTABLE` 为目标 `git.exe` 的绝对路径后再运行脚本。
 
-版本探测使用该程序自己的 apphost 作为可执行夹具，检查真实进程退出、输出管道和超时行为。配置读取调用真实 Git，使用独立临时全局配置和临时仓库，并核对配置文件内容哈希。
+### 功能 Suite 一览
 
-临时路径固定在系统临时目录下的 `GitNest-tests-<随机标识>/`，清理前验证路径；测试进程退出前恢复覆盖的环境变量。
-
-仅运行丢弃与恢复审查回归（包括基础 Git 检查）：
-
-```powershell
-./.tools/dotnet/dotnet.exe run --project tests/GitNest.IntegrationTests -c Release -- --review-discard
-```
-
-将参数替换为 `--review-remote` 可定向检查远端地址、指定修订与标签推送范围、跟踪缓存、分支保护及历史改写回归。
-
-验证其他 Git for Windows 版本时，可将 `GITNEST_TEST_GIT_EXECUTABLE` 环境变量设为该版本 `git.exe` 的绝对路径，再运行同一集成检查命令。未设置时自动检测本机 Git。
-
-为加快局部迭代，集成测试脚本支持按套件拆分与复用已有编译产物（提交前仍运行无过滤完整套）：
-
-```powershell
-./build/scripts/test-gitnest.ps1 -List
-./build/scripts/test-gitnest.ps1 -Suite next-stage-6 -NoBuild
-./build/scripts/test-gitnest.ps1 -Suite core,config,commit-sync -NoBuild
-```
-
-当前内置全部套件（合计 636 项检查）：`core`、`review-discard`、`review-remote`、`worktree`、`comparison`、`config`、`commit-sync`、`operation-safety`、`branch-delete`、`worktree-delete`、`merge-revert`、`stash-discard`、`history-reset`、`phase37`、`phase41`、`phase43`、`update`、`next-stage`、`next-stage-1`、`next-stage-2`、`next-stage-3`、`next-stage-4`、`next-stage-5`、`next-stage-6`。
-
-## 界面探针
-
-```powershell
-./build/scripts/probe-gitnest.ps1
-```
-
-在交互式 Windows 会话运行。探针加载实际应用资源、控件和 ViewModel，使用隔离配置及真实 Git 工作树，触发控件绑定和双击路由事件，等待文件监听刷新，并以 `RenderTargetBitmap` 保存截图。结果与 PNG 位于 `artifacts/probes/phase-2.2/`；临时仓库完成后移至回收站。编辑器和终端使用探针进程记录实际收到的路径及工作目录。原生文件选择器与资源管理器窗口需要另行桌面验收。
-
-运行 `./build/scripts/probe-gitnest.ps1 -Comparison` 另加累计差异页面检查，包含目标持久化、两种比较方式、文本／二进制查看、未提交修改单独展示、定时过期检查、刷新、目标删除、快速切换目标以及关闭后丢弃旧请求。结果与截图写入 `artifacts/probes/phase-2.3/`。
-
-运行 `./build/scripts/probe-gitnest.ps1 -Config` 检查仓库配置界面，包含 `Global`/`Local`/`Worktree` 来源标签、敏感凭据与诊断脱敏、URL 特定代理覆盖、`credential.helper` 有序重置链、签名依赖提示、浅色／深色窄窗口高优先级覆盖提示、保存前冲突保护与部分失败逐项汇报。结果与截图写入 `artifacts/probes/phase-2.4/`。
-
-其他具名探针使用同一脚本，各参数单独运行：
-
-| 参数 | 检查内容 | 输出目录（`artifacts/probes/` 下） |
+| Suite | 对应测试文件 | 覆盖功能 |
 | --- | --- | --- |
-| `-ConfigRefresh` | 外部配置变更、草稿保留与刷新 | `phase-3.7` |
-| `-CommitSync` | 提交快照、分步推送与同步反馈 | `phase-2.5` |
-| `-OperationRecovery` | 操作记录、未完成状态及恢复 | `phase-3.1` |
-| `-BranchDelete` | 保护分支、多地址阻断、删除与显式 lease | `phase-3.2` |
-| `-WorktreeDelete` | 工作树预检、删除、联动清理及部分失败 | `phase-3.3` |
-| `-MergeRevert` | 定向合并、撤销、外部状态保护与冲突归属 | `phase-3.4` |
-| `-StashDiscardIgnore` | 暂存工作、丢弃恢复、回收与忽略规则 | `phase-3.5` |
-| `-ResetRewrite` | 本地撤回、远端改写、指定修订推送、保护与恢复 | `phase-3.6` |
-| `-TrimSurface` | 首版入口、资源裁剪、独立 Amend、单页设置与保留能力抽检 | `phase-4.1` |
-| `-HighDpi` | PE DPI 清单和 150%／200% 离屏布局渲染 | `phase-4.2` |
+| `core` | `CoreTests.cs` | Git 可执行探测与超时、提交身份读取、空仓只读查询、资源键一致性、统计/归档/图像解码 |
+| `update` | `UpdateTests.cs` | SemVer 版本号比较、异常标签拒绝、`UpdateChecker` GitHub 发布检查 |
+| `worktree` | `WorktreeTests.cs` | 工作树状态读取、任务元数据存储、编辑器参数、工作树监听与关闭安全 |
+| `comparison` | `ComparisonTests.cs` | 任务累计差异（`MergeBase`/`TwoTips`）、重命名、二进制统计、快照失效与防注入 |
+| `history-diff` | `HistoryDiffTests.cs` | 提交历史分页与搜索、CJK/特殊路径 `CompareRevisions`、`Diff` 与 `IsBinary` |
+| `config` | `ConfigTests.cs` | 分层配置快照与脱敏、作用域写入、锁保护、外部变更刷新、`RepositoryConfigure`、旧配置迁移、`IssueTracker` |
+| `operation-safety` | `OperationSafetyTests.cs` | 操作快照校验、跨工作树写锁、`BackupRefs`、操作日志脱敏与崩溃对账、外部 `rebase`/`bisect` 只读保护、`AssumeUnchanged` |
+| `commit` | `CommitTests.cs` | 暂存/取消暂存、局部暂存保留、缺身份拦截、快照篡改拦截、`index.lock`、`pre-commit`、`commit.template` 保留 |
+| `sync` | `SyncTests.cs` | 同步概览、`Fetch`/`Pull(--ff-only)`/单分支与指定修订 `Push`、分离与多推送地址、二步重试、认证失败脱敏 |
+| `amend` | `AmendTests.cs` | 独立 `AmendLastCommit`（本地增补、未知/未拉取/保护分支阻断、opt-in lease、并发竞争与重试） |
+| `branch-delete` | `BranchDeleteTests.cs` | 本地/远端删分支、多远端 upstream、`-d`/`-D` 备份恢复、分离/多推送地址、lease 部分失败、默认分支保护 |
+| `worktree-delete` | `WorktreeDeleteTests.cs` | 工作树删除预检、ignored/锁定/嵌套仓库/子模块阻断、detached 备份、顺序联动清理与干跑 `prune` |
+| `merge` | `MergeTests.cs` | 定向合并、`DontCommit` 暂停、远端快照、冲突自动中止与外部介入止损、外部冲突只读、hook/签名错误区分 |
+| `revert` | `RevertTests.cs` | 单提交 Revert、多父合并提交拦截、冲突自动中止与外部介入止损、hook/签名错误区分 |
+| `discard` | `DiscardTests.cs` | 双基线丢弃（`RestoreWorktreeToIndex`/`RestoreToHead`）、30 天恢复与过期清理、队列快照校验、重命名冲突与系统回收站 |
+| `stash-ignore` | `StashIgnoreTests.cs` | `Stash` 推入/碰撞检查/按 SHA 应用/冲突保留、切分支 `StashAndReapply`、`IgnoreRuleService` 规则与冲突警告 |
+| `submodule-lfs` | `SubmoduleLfsTests.cs` | 标签/子模块只读查询、克隆子模块初始化、Git LFS 追踪与 Diff、切换分支子模块显式二次确认与部分失败 |
+| `history-reset` | `HistoryResetTests.cs` | 本地撤回（unborn/根/detached/非第一父拦截、碰撞、`--mixed`/`--hard`、备份恢复、`ResetWithoutCheckout`） |
+| `remote-rewrite` | `RemoteRewriteTests.cs` | 远端历史改写（默认分支保护与局部解锁、离线/分叉阻断、分离与多推送地址、lease 竞争、超时核对与日志对账） |
+
+## 2. 界面探针（`GitNest.UIProbe`）
+
+在交互式 Windows 会话运行，使用真实 Avalonia 视图、隔离配置与临时 Git 仓库，并将截图与 `results.txt` 写入 `artifacts/probes/<探针名>/`；临时仓库结束后移至回收站。
+
+```powershell
+# 查看全部探针
+./build/scripts/probe-gitnest.ps1 -List
+
+# 运行指定功能探针（加 -NoBuild 复用编译产物）
+./build/scripts/probe-gitnest.ps1 -Probe amend -NoBuild
+./build/scripts/probe-gitnest.ps1 -Probe config
+```
+
+内置探针包括：`overview`、`comparison`、`config`、`commit-sync`、`amend`、`operation-recovery`、`branch-delete`、`worktree-delete`、`merge-revert`、`stash-discard`、`history-reset`、`submodule-lfs`、`surface`、`high-dpi`（依赖 `artifacts/windows-x64/GitNest.exe`，需先执行 `./build/scripts/build-gitnest.ps1 -Publish`）。

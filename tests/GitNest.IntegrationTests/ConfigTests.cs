@@ -179,15 +179,8 @@ internal static partial class Program
         File.WriteAllText(globalCfg, string.Empty);
 
         await RunConfigureWorkflowTestsAsync(realGit, work, globalCfg);
-    }
-
-    private static Task<string> GitInAsync(string git, string workDir, params string[] arguments)
-    {
-        var allArgs = new string[arguments.Length + 2];
-        allArgs[0] = "-C";
-        allArgs[1] = workDir;
-        Array.Copy(arguments, 0, allArgs, 2, arguments.Length);
-        return GitAsync(git, allArgs);
+        await RunConfigLockAndExternalSyncTestsAsync(realGit, work, globalCfg);
+        await RunRepositorySettingsMigrationTestsAsync(realGit, work);
     }
 
     private static async Task RunConfigureWorkflowTestsAsync(string realGit, string root, string globalCfg)
@@ -340,6 +333,234 @@ internal static partial class Program
               partialSummary.FailureAndConflictLines.Any(l => l.Contains("upstream", StringComparison.Ordinal)),
               "Partial failure reports exact per-item failure rather than overall success");
 
+        // 7. IssueTracker rules persist to .git/config and shared .issuetracker and match commit links
+        await cfgVm.ReloadAsync();
+        cfgVm.AddIssueTracker("LocalJira", @"PROJ-(\d+)", "https://jira.example.invalid/browse/PROJ-$1");
+        cfgVm.SelectedIssueTracker!.IsShared = false;
+        cfgVm.AddIssueTracker("SharedGitHub", @"#(\d+)", "https://github.example.invalid/team/repo/issues/$1");
+        cfgVm.SelectedIssueTracker!.IsShared = true;
+        await cfgVm.SaveAsync();
+
+        var localIssueRegex = (await GitInAsync(realGit, wfRepo, "config", "--local", "--get", "issuetracker.LocalJira.regex")).Trim();
+        var sharedIssueFile = Path.Combine(wfRepo, ".issuetracker");
+        var sharedIssueRegex = (await GitInAsync(realGit, wfRepo, "config", "-f", sharedIssueFile, "--get", "issuetracker.SharedGitHub.regex")).Trim();
+
+        var loadedRules = new List<SourceGit.Models.IssueTracker>();
+        await new SourceGit.Commands.IssueTracker(wfRepo, true).ReadAllAsync(loadedRules, true);
+        await new SourceGit.Commands.IssueTracker(wfRepo, false).ReadAllAsync(loadedRules, false);
+
+        var collector = new InlineElementCollector();
+        foreach (var rule in loadedRules)
+            rule.Matches(collector, "Fix PROJ-42 and #101");
+        var matchedUrls = Enumerable.Range(0, collector.Count)
+            .Select(i => collector[i])
+            .Where(e => e.Type == InlineElementType.Link)
+            .Select(e => e.Link)
+            .ToList();
+
+        Check(localIssueRegex == @"PROJ-(\d+)" &&
+              File.Exists(sharedIssueFile) &&
+              sharedIssueRegex == @"#(\d+)" &&
+              matchedUrls.Contains("https://jira.example.invalid/browse/PROJ-42") &&
+              matchedUrls.Contains("https://github.example.invalid/team/repo/issues/101"),
+              "RepositoryConfigure IssueTracker rules persist to .git/config and .issuetracker and match commit links");
+
+        repoVm.Close();
         File.WriteAllText(globalCfg, string.Empty);
+    }
+
+    private static async Task RunConfigLockAndExternalSyncTestsAsync(string realGit, string work, string globalCfg)
+    {
+        var originBare = Path.Combine(work, "lock-origin.git");
+        await InitBareRepoAsync(realGit, originBare);
+
+        var mainRepo = Path.Combine(work, "lock-sync-repo");
+        await InitRepoAsync(realGit, mainRepo, "main", "Base Author", "base@example.invalid");
+        await GitInAsync(realGit, mainRepo, "remote", "add", "origin", originBare);
+        await CommitFileAsync(realGit, mainRepo, "app.txt", "line1\n", "initial commit");
+        await GitInAsync(realGit, mainRepo, "push", "-u", "origin", "main");
+        await GitInAsync(realGit, mainRepo, "branch", "release/v1");
+
+        var linkedWt = Path.Combine(work, "lock-linked-wt");
+        await GitInAsync(realGit, mainRepo, "worktree", "add", linkedWt, "-b", "wt/config-lock");
+
+        // 1. Scoped write lock awareness (config.lock, config.worktree.lock, global .lock) never deletes locks
+        var commonDir = (await GitInAsync(realGit, mainRepo, "rev-parse", "--path-format=absolute", "--git-common-dir")).Trim();
+        var repoConfigLock = Path.Combine(commonDir, "config.lock");
+        File.WriteAllText(repoConfigLock, "locked by external git process\n", Utf8NoBom);
+
+        var scopedCfgCmd = new Config(mainRepo);
+        var localLockedRes = await scopedCfgCmd.SetScopedAsync(GitConfigWriteScope.Local, "user.name", "ShouldFail");
+        var remoteLockedRes = await new SourceGit.Commands.Remote(mainRepo).AddTargetedAsync("upstream", originBare);
+        var branchLockedRes = await new SourceGit.Commands.Branch(mainRepo, "main")
+            .SetUpstreamTargetedAsync("origin", "main", allowUnfetchedOrUnborn: true);
+
+        Check(!localLockedRes.IsSuccess &&
+              File.Exists(repoConfigLock) &&
+              (await GitInAsync(realGit, mainRepo, "config", "--local", "--get", "user.name")).Trim() == "Base Author",
+              "Config.SetScopedAsync aborts when repo config.lock exists and preserves lock file untouched");
+        Check(!remoteLockedRes.IsSuccess && File.Exists(repoConfigLock),
+              "Remote.AddTargetedAsync aborts when config.lock exists without deleting lock file");
+        Check(!branchLockedRes.IsSuccess && File.Exists(repoConfigLock),
+              "Branch.SetUpstreamTargetedAsync aborts when config.lock exists without deleting lock file");
+        File.Delete(repoConfigLock);
+
+        await GitInAsync(realGit, mainRepo, "config", "--local", "extensions.worktreeConfig", "true");
+        var linkedGitDir = (await GitInAsync(realGit, linkedWt, "rev-parse", "--path-format=absolute", "--git-dir")).Trim();
+        var wtConfigLock = Path.Combine(linkedGitDir, "config.worktree.lock");
+        File.WriteAllText(wtConfigLock, "locked worktree config\n", Utf8NoBom);
+        var wtLockedRes = await new Config(linkedWt).SetScopedAsync(GitConfigWriteScope.Worktree, "user.name", "WTBlocked");
+        Check(!wtLockedRes.IsSuccess && File.Exists(wtConfigLock),
+              "Worktree-scoped config write aborts when config.worktree.lock exists and never deletes lock file");
+        File.Delete(wtConfigLock);
+
+        File.WriteAllText(globalCfg, string.Empty, Utf8NoBom);
+        var globalLockPath = globalCfg + ".lock";
+        File.WriteAllText(globalLockPath, "locked global config\n", Utf8NoBom);
+
+        var globalLockedRes = await scopedCfgCmd.SetScopedAsync(GitConfigWriteScope.Global, "user.name", "GlobalBlocked");
+        Check(!globalLockedRes.IsSuccess && File.Exists(globalLockPath),
+              "Global-scoped config write aborts when global config .lock exists without deleting lock file");
+
+        var repoVm = new SourceGit.ViewModels.Repository(false, mainRepo, Path.Combine(mainRepo, ".git"));
+        var cfgVm = new SourceGit.ViewModels.RepositoryConfigure(repoVm);
+        await cfgVm.EnsureLoadedAsync();
+        cfgVm.TargetScope = GitConfigWriteScope.Global;
+        cfgVm.UserNameField.EditText = "BlockedByGlobalLock";
+        var globalVmSave = await cfgVm.SaveAsync();
+        Check(globalVmSave.IsError && File.Exists(globalLockPath),
+              "RepositoryConfigure.SaveAsync aborts on Global lock and preserves user draft");
+        File.Delete(globalLockPath);
+
+        // 2. External change detection: clean auto-reload vs dirty draft diff banner + includeIf onbranch
+        var releaseInc = Path.Combine(work, "release-override.gitconfig");
+        await GitAsync(realGit, "config", "--file", releaseInc, "user.name", "Release Bot");
+        await GitAsync(realGit, "config", "--file", globalCfg, "includeIf.onbranch:release/*.path", releaseInc.Replace('\\', '/'));
+
+        cfgVm.TargetScope = GitConfigWriteScope.Local;
+        await cfgVm.ReloadAsync();
+        Check(!cfgVm.HasExternalConfigChanges && cfgVm.UserNameField.EditText == "Base Author",
+              "Clean RepositoryConfigure loads initial local baseline cleanly");
+
+        await GitInAsync(realGit, mainRepo, "config", "--local", "user.name", "Clean External Update");
+        await cfgVm.CheckExternalChangesAsync();
+        Check(!cfgVm.HasExternalConfigChanges && cfgVm.UserNameField.EditText == "Clean External Update",
+              "CheckExternalChangesAsync auto-reloads clean RepositoryConfigure without diff banner");
+
+        await GitInAsync(realGit, mainRepo, "config", "--local", "--unset", "user.name");
+        await GitInAsync(realGit, mainRepo, "config", "--local", "user.name", "Initial Before Conflict");
+        await cfgVm.ReloadAsync();
+        cfgVm.UserEmailField.EditText = "dirty-draft@example.invalid";
+
+        await GitInAsync(realGit, mainRepo, "config", "--local", "--unset", "user.name");
+        await GitInAsync(realGit, mainRepo, "checkout", "release/v1");
+        await cfgVm.CheckExternalChangesAsync();
+
+        Check(cfgVm.HasExternalConfigChanges &&
+              cfgVm.ExternalConfigDiffItems.Any(d => d.TargetName == "user.name") &&
+              cfgVm.UserEmailField.EditText == "dirty-draft@example.invalid",
+              "Dirty RepositoryConfigure preserves drafts and shows ExternalConfigDiffItems on external branch includeIf change");
+
+        await cfgVm.KeepDraftsWithExternalBaselineAsync();
+        Check(!cfgVm.HasExternalConfigChanges && cfgVm.UserEmailField.EditText == "dirty-draft@example.invalid",
+              "KeepDraftsWithExternalBaselineAsync updates baseline while keeping user draft intact");
+
+        var afterKeepSave = await cfgVm.SaveAsync();
+        var diskEmailAfterSave = (await GitInAsync(realGit, mainRepo, "config", "--local", "--get", "user.email")).Trim();
+        var effectiveNameAfterSave = (await GitInAsync(realGit, mainRepo, "config", "--get", "user.name")).Trim();
+        Check(!afterKeepSave.IsError &&
+              diskEmailAfterSave == "dirty-draft@example.invalid" &&
+              effectiveNameAfterSave == "Release Bot",
+              "Saving after KeepDraftsWithExternalBaselineAsync writes non-conflicting draft while preserving external includeIf change");
+
+        cfgVm.UserEmailField.EditText = "abandoned-draft@example.invalid";
+        await GitInAsync(realGit, mainRepo, "config", "--local", "user.email", "accepted-external@example.invalid");
+        await cfgVm.CheckExternalChangesAsync();
+        Check(cfgVm.HasExternalConfigChanges,
+              "Direct external edit to dirty key raises ExternalConfigChangeBanner");
+        await cfgVm.AcceptExternalReloadAsync();
+        Check(!cfgVm.HasExternalConfigChanges && cfgVm.UserEmailField.EditText == "accepted-external@example.invalid",
+              "AcceptExternalReloadAsync discards conflicting draft and reloads external value");
+
+        repoVm.Close();
+        await GitInAsync(realGit, mainRepo, "worktree", "remove", "--force", linkedWt);
+        File.WriteAllText(globalCfg, string.Empty, Utf8NoBom);
+    }
+
+    private static async Task RunRepositorySettingsMigrationTestsAsync(string realGit, string work)
+    {
+        var legacyRepo = Path.Combine(work, "legacy-settings-repo");
+        await GitAsync(realGit, "init", "-b", "main", legacyRepo);
+        var legacyGitDir = Path.Combine(legacyRepo, ".git");
+        var settingsPath = Path.Combine(legacyGitDir, "gitnest.settings");
+        var backupPath = settingsPath + ".bak";
+        var legacyJson = """
+            {
+              "DefaultRemote": "upstream",
+              "PreferredMergeMode": 1,
+              "ConventionalTypesOverride": "feat,fix,docs",
+              "EnableRecursiveWhenAutoUpdatingSubmodules": false,
+              "AskBeforeAutoUpdatingSubmodules": false,
+              "CommitTemplates": [
+                {
+                  "Name": "BranchFiles",
+                  "Content": "${branch_name}: ${files:2}"
+                }
+              ],
+              "UnprotectedBranches": [
+                "feat/legacy"
+              ]
+            }
+            """;
+        await File.WriteAllTextAsync(settingsPath, legacyJson, Utf8NoBom);
+        var legacyRawBytes = await File.ReadAllBytesAsync(settingsPath);
+
+        RepositorySettings.ClearCacheForRepository(legacyGitDir);
+        var loadedSettings = RepositorySettings.Get(legacyGitDir);
+        Check(loadedSettings.DefaultRemote == "upstream" &&
+              loadedSettings.PreferredMergeMode == 1 &&
+              loadedSettings.ConventionalTypesOverride == "feat,fix,docs" &&
+              loadedSettings.IsBranchProtectionDisabled("feat/legacy"),
+              "Legacy gitnest.settings preserves all active settings on load");
+        var bytesAfterReadOnlyLoad = await File.ReadAllBytesAsync(settingsPath);
+        Check(legacyRawBytes.SequenceEqual(bytesAfterReadOnlyLoad) && !File.Exists(backupPath),
+              "Read-only loading of legacy gitnest.settings leaves file untouched and writes no backup eagerly");
+
+        loadedSettings.Save();
+        Check(File.Exists(backupPath) && (await File.ReadAllBytesAsync(backupPath)).SequenceEqual(legacyRawBytes),
+              "First migration write creates byte-identical backup of legacy gitnest.settings");
+        using (var migratedDoc = System.Text.Json.JsonDocument.Parse(await File.ReadAllBytesAsync(settingsPath)))
+        {
+            var hasRemovedProps = migratedDoc.RootElement.TryGetProperty("CommitTemplates", out _) ||
+                                  migratedDoc.RootElement.TryGetProperty("AskBeforeAutoUpdatingSubmodules", out _) ||
+                                  migratedDoc.RootElement.TryGetProperty("EnableRecursiveWhenAutoUpdatingSubmodules", out _);
+            Check(!hasRemovedProps &&
+                  migratedDoc.RootElement.GetProperty("DefaultRemote").GetString() == "upstream" &&
+                  migratedDoc.RootElement.GetProperty("PreferredMergeMode").GetInt32() == 1 &&
+                  migratedDoc.RootElement.GetProperty("ConventionalTypesOverride").GetString() == "feat,fix,docs",
+                  "Migrated gitnest.settings strips removed legacy keys while preserving active repository settings");
+        }
+
+        var bakBytesAfterFirstSave = await File.ReadAllBytesAsync(backupPath);
+        loadedSettings.Save();
+        Check((await File.ReadAllBytesAsync(backupPath)).SequenceEqual(bakBytesAfterFirstSave),
+              "Subsequent Save calls do not overwrite initial migration backup");
+
+        RepositorySettings.ClearCacheForRepository(legacyGitDir);
+        var reloadedSettings = RepositorySettings.Get(legacyGitDir);
+        Check(reloadedSettings.DefaultRemote == "upstream" &&
+              reloadedSettings.PreferredMergeMode == 1 &&
+              reloadedSettings.ConventionalTypesOverride == "feat,fix,docs" &&
+              reloadedSettings.IsBranchProtectionDisabled("feat/legacy"),
+              "Cleared and reloaded migrated gitnest.settings preserves all settings cleanly");
+
+        await File.WriteAllTextAsync(settingsPath, legacyJson, Utf8NoBom);
+        RepositorySettings.ClearCacheForRepository(legacyGitDir);
+        RepositorySettings.Get(legacyGitDir).Save();
+        var altBackupPath = settingsPath + ".legacy-1.bak";
+        Check(File.Exists(altBackupPath) &&
+              (await File.ReadAllBytesAsync(altBackupPath)).SequenceEqual(legacyRawBytes) &&
+              (await File.ReadAllBytesAsync(backupPath)).SequenceEqual(bakBytesAfterFirstSave),
+              "Legacy migration uses unique alternate backup filename when .bak already exists");
     }
 }
