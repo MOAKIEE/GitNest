@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
@@ -23,20 +22,33 @@ internal static partial class Program
     private static readonly List<string> _results = [];
     private static VM.Launcher _launcher;
     private static Window _window;
+    private static bool _screenshots;
 
     private static readonly (string Name, string Description)[] ProbeCatalog =
     [
         ("overview", "Worktree task overview, alias editing, double-tap open, file watcher & editor/terminal launch"),
         ("comparison", "TaskComparison view, MergeBase/TwoTips modes, binary viewer, stale notice & dispose safety"),
-        ("config", "Scoped RepositoryConfigure UI, secret masking, signing banner, Global warning, external reload & IssueTracker"),
-        ("commit-sync", "Partial staging hint, inline identity prompt, Commit&Push retry, Fetch, diverged Pull & Push preview"),
+        ("config", "Scoped configuration UI, secret masking, signing banner, Global warning & Save feedback"),
+        ("config-worktree", "Worktree scope selection and explicit empty override through the Save button"),
+        ("config-refresh", "External configuration banner and Keep Drafts / Save interaction"),
+        ("commit", "Partial staging and local identity prompt through the Commit button"),
+        ("sync", "Fetch status, diverged Pull handoff and single-branch Push preview"),
+        ("commit-sync", "Compatibility group: commit + sync"),
         ("amend", "WorkingCopy More menu, dedicated AmendLastCommit modal, protected block, opt-in lease & retry"),
         ("operation-recovery", "Startup recovery banner, ViewLogs Operations & Recovery tab, secret redaction & expired backup prune"),
-        ("branch-delete", "Branch deletion guards, -d/-D confirmation, multi-remote lease partial failure & DeleteMultipleBranches"),
-        ("worktree-delete", "Worktree deletion preflight, dirty/locked/nested guards, open-tab switch, detached backup & PruneWorktrees"),
-        ("merge-revert", "Directed merge, conflict auto-abort, single-commit revert vs merge block, DontCommit & external rebase/bisect"),
-        ("stash-discard", "Discard dual baselines, 30d backup view, StashChanges/ApplyStash/DropStash, Checkout StashAndReapply & AddToIgnore"),
-        ("history-reset", "Reset collision/protection, lease partial failure, RewriteRemoteHistory, ResetWithoutCheckout, ViewLogs & PushRevision"),
+        ("branch-delete", "Force confirmation, linked upstream partial result, backup restore & batch results"),
+        ("worktree-delete", "Dirty/locked guards, force confirmation, open-tab switch, unlock & Prune preview"),
+        ("merge", "Directed merge preview, confirmation and conflict result card"),
+        ("revert", "Single-commit Revert confirmation and merge-commit block"),
+        ("conflict", "External merge conflict read-only panel and Refresh button"),
+        ("merge-revert", "Compatibility group: merge + revert + conflict"),
+        ("discard", "Discard baseline selection, confirmation and recovery list"),
+        ("stash-ignore", "Stash/Apply/Drop buttons and local ignore-rule selection"),
+        ("stash-discard", "Compatibility group: stash-ignore + discard"),
+        ("history-reset", "Reset mode bindings, local confirmation and protected branch guard"),
+        ("remote-rewrite", "Pinned lease preview and offline block in RewriteRemoteHistory"),
+        ("push-revision", "Selected-commit Push button, force guard and changed-endpoint rejection"),
+        ("reset-recovery", "Reset backup recovery options after newer commits and Restore button"),
         ("submodule-lfs", "Read-only Tags & Submodules, narrowed Git LFS toolbar menu & Checkout submodule opt-in 2-step confirm"),
         ("surface", "Retained UI surface checks: CommandPalette, context menus, history picker, AssumeUnchangedManager, Preferences, SelfUpdate, codecs & Statistics"),
         ("high-dpi", "Published PE PerMonitorV2 manifest and 150%/200% high-DPI viewport overflow checks"),
@@ -45,6 +57,7 @@ internal static partial class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        Console.OutputEncoding = new UTF8Encoding(false);
         if (Environment.GetEnvironmentVariable("GITNEST_PROBE_TOOL_OUTPUT") is { } capture)
         {
             File.WriteAllText(capture, Environment.CurrentDirectory + "\n" + string.Join("\n", args));
@@ -56,6 +69,11 @@ internal static partial class Program
         for (int i = 0; i < args.Length; i++)
         {
             var arg = args[i];
+            if (arg == "--screenshots")
+            {
+                _screenshots = true;
+                continue;
+            }
             if (arg == "--list-probes")
             {
                 foreach (var (name, _) in ProbeCatalog)
@@ -98,6 +116,8 @@ internal static partial class Program
         Directory.CreateDirectory(_root);
         var originalGlobal = Environment.GetEnvironmentVariable("GIT_CONFIG_GLOBAL");
         var originalSystem = Environment.GetEnvironmentVariable("GIT_CONFIG_NOSYSTEM");
+        var originalOptionalLocks = Environment.GetEnvironmentVariable("GIT_OPTIONAL_LOCKS");
+        var timer = Stopwatch.StartNew();
         try
         {
             OS.BasicDirectories.ConfigDir = Path.Combine(_root, "config");
@@ -108,6 +128,8 @@ internal static partial class Program
             File.WriteAllText(global, "");
             Environment.SetEnvironmentVariable("GIT_CONFIG_GLOBAL", global);
             Environment.SetEnvironmentVariable("GIT_CONFIG_NOSYSTEM", "1");
+            // Background status reads must not race the next probe write while refreshing the index.
+            Environment.SetEnvironmentVariable("GIT_OPTIONAL_LOCKS", "0");
             OS.GitExecutable = OS.FindGitExecutable();
             App.BuildAvaloniaApp().SetupWithoutStarting();
             App.SetLocale("zh_CN");
@@ -118,20 +140,32 @@ internal static partial class Program
                 case "overview": RunOverview(); break;
                 case "comparison": RunComparison(); break;
                 case "config": RunConfig(); break;
-                case "commit-sync": RunCommitSync(); break;
+                case "config-worktree": RunConfigWorktree(); break;
+                case "config-refresh": RunConfigRefresh(); break;
+                case "commit": RunCommit(); break;
+                case "sync": RunSync(); break;
+                case "commit-sync": RunCommit(); CloseFixture(); RunSync(); break;
                 case "amend": RunAmend(); break;
                 case "operation-recovery": RunOperationRecovery(); break;
                 case "branch-delete": RunBranchDelete(); break;
                 case "worktree-delete": RunWorktreeDelete(); break;
-                case "merge-revert": RunMergeRevert(); break;
-                case "stash-discard": RunStashDiscard(); break;
-                case "history-reset": RunResetRewrite(); break;
+                case "merge": RunMerge(); break;
+                case "revert": RunRevert(); break;
+                case "conflict": RunConflict(); break;
+                case "merge-revert": RunMerge(); CloseFixture(); RunRevert(); CloseFixture(); RunConflict(); break;
+                case "discard": RunDiscard(); break;
+                case "stash-ignore": RunStashIgnore(); break;
+                case "stash-discard": RunStashIgnore(); CloseFixture(); RunDiscard(); break;
+                case "history-reset": RunHistoryReset(); break;
+                case "remote-rewrite": RunRemoteRewrite(); break;
+                case "push-revision": RunPushRevision(); break;
+                case "reset-recovery": RunResetRecovery(); break;
                 case "submodule-lfs": RunSubmoduleLfs(); break;
                 case "surface": RunSurface(); break;
                 case "high-dpi": RunHighDpi(); break;
             }
 
-            _results.Add($"Passed {_checks} probe checks.");
+            _results.Add($"Passed {_checks} probe checks in {timer.Elapsed.TotalSeconds:F2}s.");
             return 0;
         }
         catch (Exception ex)
@@ -145,6 +179,7 @@ internal static partial class Program
             CloseFixture();
             Environment.SetEnvironmentVariable("GIT_CONFIG_GLOBAL", originalGlobal);
             Environment.SetEnvironmentVariable("GIT_CONFIG_NOSYSTEM", originalSystem);
+            Environment.SetEnvironmentVariable("GIT_OPTIONAL_LOCKS", originalOptionalLocks);
             File.WriteAllLines(Path.Combine(_output, "results.txt"), _results);
             Console.WriteLine(_results[^1]);
             if (Directory.Exists(_root))
@@ -303,6 +338,8 @@ internal static partial class Program
             RedirectStandardError = true,
             CreateNoWindow = true,
             UseShellExecute = false,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
         };
         foreach (var arg in args)
             info.ArgumentList.Add(arg);
@@ -433,23 +470,26 @@ internal static partial class Program
     private static void Pump()
     {
         Dispatcher.UIThread.RunJobs();
-        Thread.Sleep(50);
-        Dispatcher.UIThread.RunJobs();
+        _window?.UpdateLayout();
     }
 
     private static void Await(Func<bool> condition)
     {
         var timer = Stopwatch.StartNew();
-        while (!condition())
+        while (true)
         {
-            if (timer.Elapsed > TimeSpan.FromSeconds(20)) throw new TimeoutException("Probe condition timed out.");
             Pump();
+            if (condition())
+                return;
+            if (timer.Elapsed > TimeSpan.FromSeconds(20)) throw new TimeoutException("Probe condition timed out.");
+            Thread.Sleep(10);
         }
-        Pump();
     }
 
     private static void Screenshot(Window window, string name)
     {
+        if (!_screenshots)
+            return;
         Pump();
         window.UpdateLayout();
         using var bitmap = new RenderTargetBitmap(new PixelSize((int)window.Bounds.Width, (int)window.Bounds.Height));
@@ -461,7 +501,16 @@ internal static partial class Program
     {
         for (int attempt = 0; ; attempt++)
         {
-            var info = new ProcessStartInfo(OS.GitExecutable) { WorkingDirectory = directory, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true, UseShellExecute = false };
+            var info = new ProcessStartInfo(OS.GitExecutable)
+            {
+                WorkingDirectory = directory,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
+                CreateNoWindow = true,
+                UseShellExecute = false,
+            };
             foreach (var arg in args) info.ArgumentList.Add(arg);
             using var process = Process.Start(info)!;
             var output = process.StandardOutput.ReadToEndAsync();
@@ -483,14 +532,23 @@ internal static partial class Program
 
     static partial void RunComparison();
     static partial void RunConfig();
-    static partial void RunCommitSync();
+    static partial void RunConfigWorktree();
+    static partial void RunConfigRefresh();
+    static partial void RunCommit();
+    static partial void RunSync();
     static partial void RunAmend();
     static partial void RunOperationRecovery();
     static partial void RunBranchDelete();
     static partial void RunWorktreeDelete();
-    static partial void RunMergeRevert();
-    static partial void RunStashDiscard();
-    static partial void RunResetRewrite();
+    static partial void RunMerge();
+    static partial void RunRevert();
+    static partial void RunConflict();
+    static partial void RunDiscard();
+    static partial void RunStashIgnore();
+    static partial void RunHistoryReset();
+    static partial void RunRemoteRewrite();
+    static partial void RunPushRevision();
+    static partial void RunResetRecovery();
     static partial void RunSubmoduleLfs();
     static partial void RunSurface();
     static partial void RunHighDpi();

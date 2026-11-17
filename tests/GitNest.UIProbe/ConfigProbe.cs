@@ -1,13 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using SourceGit;
 using SourceGit.Models;
 using VM = SourceGit.ViewModels;
 using Views = SourceGit.Views;
-using OS = SourceGit.Native.OS;
 
 internal static partial class Program
 {
@@ -142,143 +140,7 @@ internal static partial class Program
         configWin.Close();
         _window = null;
 
-        // Scenario 4: Repository with extensions.worktreeConfig enabled
-        var wtMain = Path.Combine(_root, "worktree-main");
-        var wtLinked = Path.Combine(_root, "worktree-linked");
-        Git(_root, "init", "-b", "main", wtMain);
-        Git(wtMain, "config", "--local", "user.name", "WT Main");
-        Git(wtMain, "config", "--local", "user.email", "wt-main@example.invalid");
-        File.WriteAllText(Path.Combine(wtMain, "f.txt"), "base\n");
-        Git(wtMain, "add", ".");
-        Git(wtMain, "commit", "-m", "base");
-        Git(wtMain, "config", "--local", "extensions.worktreeConfig", "true");
-        Git(wtMain, "worktree", "add", "-b", "wt/config-scope", wtLinked);
-
-        App.SetTheme("Light", "");
-        var wtRepoVm = new VM.Repository(false, wtLinked, Git(wtLinked, "rev-parse", "--path-format=absolute", "--git-dir"));
-        var wtCfgVm = new VM.RepositoryConfigure(wtRepoVm);
-        var wtWin = new Views.RepositoryConfigure
-        {
-            DataContext = wtCfgVm,
-            Width = 820,
-            Height = 640,
-            ShowInTaskbar = false,
-            Title = "GitNest Worktree 作用域探针",
-        };
-        _window = wtWin;
-        wtWin.Show();
-
-        Await(() => !wtCfgVm.IsLoading && wtCfgVm.WorktreeConfigEnabled);
-        var wtScopeCombo = wtWin.FindControl<ComboBox>("ScopeSelectorCombo")!;
-        Check(wtCfgVm.AvailableWriteScopes.Any(s => s.Scope == GitConfigWriteScope.Worktree),
-              "Worktree write scope is available only when extensions.worktreeConfig is enabled");
-
-        wtScopeCombo.SelectedItem = wtCfgVm.AvailableWriteScopes.Single(s => s.Scope == GitConfigWriteScope.Worktree);
-        Await(() => wtCfgVm.TargetScope == GitConfigWriteScope.Worktree);
-
-        // Explicitly set empty "" on inherited http.proxy inside worktree scope via real UI button click
-        var proxyMetaBar = wtWin.GetVisualDescendants().OfType<Views.ConfigFieldMetaBar>().Single(b => ReferenceEquals(b.DataContext, wtCfgVm.HttpProxyField));
-        ClickButtonByText(proxyMetaBar, App.Text("Configure.Field.SetEmpty"));
-        Await(() => wtCfgVm.HttpProxyField.PendingExplicitEmpty);
-
-        ClickButtonByText(wtWin, App.Text("Configure.Actions.Save"));
-        Await(() => !wtCfgVm.IsSaving && wtCfgVm.SaveFeedback.IsSuccess);
-        Check(Git(wtLinked, "config", "--worktree", "http.proxy").Length == 0 &&
-              Git(wtMain, "config", "--get", "http.proxy") == "http://global-proxy.local:8080",
-              "Worktree explicit empty \"\" overrides global proxy without modifying main worktree or global config");
-
-        Screenshot(wtWin, "config-worktree-scope");
-
-        wtWin.Close();
-        _window = null;
-        File.WriteAllText(globalCfg, string.Empty);
-
-        RunConfigRefreshSection();
-    }
-
-    private static void RunConfigRefreshSection()
-    {
-        var phaseRoot = Path.Combine(_root, "config-refresh-probe");
-        Directory.CreateDirectory(phaseRoot);
-        var repoPath = Path.Combine(phaseRoot, "repo");
-        Directory.CreateDirectory(repoPath);
-
-        Git(repoPath, "init", "-b", "main");
-        Git(repoPath, "config", "user.name", "Probe Author");
-        Git(repoPath, "config", "user.email", "probe@example.invalid");
-        File.WriteAllText(Path.Combine(repoPath, "README.md"), "init\n");
-        Git(repoPath, "add", "README.md");
-        Git(repoPath, "commit", "-m", "init");
-
-        var globalCfg = Environment.GetEnvironmentVariable("GIT_CONFIG_GLOBAL")!;
-        File.WriteAllText(globalCfg, string.Empty);
-
-        App.SetTheme("Light", "");
-        var repoVm = new VM.Repository(false, repoPath, Path.Combine(repoPath, ".git"));
-        var cfgChangedEvents = 0;
-        repoVm.ConfigurationStateChanged += () => cfgChangedEvents++;
-
-        var vm = new VM.RepositoryConfigure(repoVm);
-        var win = new Views.RepositoryConfigure
-        {
-            DataContext = vm,
-            Width = 860,
-            Height = 700,
-            ShowInTaskbar = false,
-            Title = "GitNest 3.7 配置外部变更与刷新探针",
-        };
-        _window = win;
-        win.Show();
-
-        Await(() => !vm.IsLoading && vm.UserNameField.EditText == "Probe Author");
-
-        // 1. Switch to Global scope and verify GlobalScopeTargetHint renders
-        var scopeCombo = win.FindControl<ComboBox>("ScopeSelectorCombo")!;
-        var globalIdx = vm.AvailableWriteScopes.ToList().FindIndex(s => s.Scope == GitConfigWriteScope.Global);
-        scopeCombo.SelectedIndex = globalIdx;
-        Await(() => vm.ShowGlobalScopeWarning && !string.IsNullOrWhiteSpace(vm.GlobalScopeTargetHint));
-        Check(vm.GlobalScopeTargetHint.Contains(Path.GetFileName(globalCfg), StringComparison.Ordinal),
-              "GlobalScopeTargetHint surfaces effective global config file target clearly");
-        Screenshot(win, "config-global-target-hint");
-
-        // 2. Switch back to Local, make dirty draft, apply external Git change, trigger RefreshConfigurationState()
-        var localIdx = vm.AvailableWriteScopes.ToList().FindIndex(s => s.Scope == GitConfigWriteScope.Local);
-        scopeCombo.SelectedIndex = localIdx;
-        Await(() => vm.TargetScope == GitConfigWriteScope.Local);
-
-        vm.UserEmailField.EditText = "draft-user@example.invalid";
-        Git(repoPath, "config", "--local", "user.name", "External Collaborator");
-
-        repoVm.RefreshConfigurationState();
-        Await(() => cfgChangedEvents > 0 && vm.HasExternalConfigChanges && vm.ExternalConfigDiffItems.Count > 0);
-        var externalBanner = win.FindControl<Border>("ExternalConfigChangeBanner")!;
-        Check(externalBanner.IsVisible && vm.UserEmailField.EditText == "draft-user@example.invalid",
-              "ExternalConfigChangeBanner becomes visible on external change while preserving dirty draft");
-        Screenshot(win, "config-external-diff-banner");
-
-        // 3. Click KeepDraftsExternalBtn -> baseline updated, draft kept, Save writes draft cleanly
-        var keepBtn = win.FindControl<Button>("KeepDraftsExternalBtn")!;
-        keepBtn.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, keepBtn));
-        Await(() => !vm.HasExternalConfigChanges && !externalBanner.IsVisible && vm.UserEmailField.EditText == "draft-user@example.invalid");
-
-        ClickButtonByText(win, App.Text("Configure.Actions.Save"));
-        Await(() => !vm.IsSaving && vm.SaveFeedback.IsSuccess);
-        Check(Git(repoPath, "config", "--local", "--get", "user.name") == "External Collaborator" &&
-              Git(repoPath, "config", "--local", "--get", "user.email") == "draft-user@example.invalid",
-              "Saving after KeepDraftsExternalBtn preserves external update while persisting user draft");
-        Screenshot(win, "config-keep-drafts-saved");
-
-        // 4. Close Repository and confirm RefreshConfigurationState does not dispatch post-close
-        var beforeCloseEvents = cfgChangedEvents;
         repoVm.Close();
-        repoVm.RefreshConfigurationState();
-        Pump();
-        Pump();
-        Check(cfgChangedEvents == beforeCloseEvents,
-              "Repository.Close blocks subsequent RefreshConfigurationState UI notifications");
-
-        win.Close();
-        _window = null;
         File.WriteAllText(globalCfg, string.Empty);
     }
 }

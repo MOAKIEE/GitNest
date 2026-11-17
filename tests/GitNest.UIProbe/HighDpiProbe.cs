@@ -129,6 +129,8 @@ internal static partial class Program
 
     private static void ScreenshotAtDpi(Window window, string name, double scale)
     {
+        if (!_screenshots)
+            return;
         Pump();
         window.UpdateLayout();
         var widthPx = Math.Max(1, (int)Math.Round(window.Bounds.Width * scale));

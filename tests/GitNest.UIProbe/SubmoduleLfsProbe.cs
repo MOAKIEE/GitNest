@@ -193,7 +193,7 @@ internal static partial class Program
         Await(() => failPhase2.IsCompleted);
         Pump();
         Check(failCheckoutVm.IsSubmoduleFailureResult && failCheckoutVm.HasResultView && launcher.ActivePage.Popup == failCheckoutVm,
-              "Broken submodule update keeps popup open and displays separated main-success / submodule-failure result");
+              $"Broken submodule update keeps its partial result [failure={failCheckoutVm.IsSubmoduleFailureResult}, result={failCheckoutVm.HasResultView}, popup={launcher.ActivePage.Popup == failCheckoutVm}, summary={failCheckoutVm.ResultSummary}]");
         Screenshot(checkoutHostWin, "checkout-submodule-partial-failure-light");
 
         checkoutHostWin.Close();

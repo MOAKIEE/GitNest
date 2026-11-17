@@ -1,6 +1,6 @@
 # GitNest 测试与界面探针说明
 
-本项目测试分为两部分：面向逻辑与真实 Git 行为的 **集成检查**（`GitNest.IntegrationTests`），以及面向 Avalonia 视图、交互与截图回归的 **界面探针**（`GitNest.UIProbe`）。两个项目均按**功能模块**拆分，改某个功能时只需运行对应的小测试。
+本项目测试分为面向逻辑与真实 Git 行为的 **集成检查**（`GitNest.IntegrationTests`），以及面向 Avalonia 绑定、按钮交互和布局的 **界面探针**（`GitNest.UIProbe`）。日常按功能运行；写入保护、并发、备份恢复等业务边界由集成检查覆盖，探针保留关键界面流程。
 
 ## 1. 集成检查（`GitNest.IntegrationTests`）
 
@@ -52,15 +52,55 @@
 
 ## 2. 界面探针（`GitNest.UIProbe`）
 
-在交互式 Windows 会话运行，使用真实 Avalonia 视图、隔离配置与临时 Git 仓库，并将截图与 `results.txt` 写入 `artifacts/probes/<探针名>/`；临时仓库结束后移至回收站。
+在交互式 Windows 会话运行，使用真实 Avalonia 视图、隔离配置与临时 Git 仓库。默认执行绑定、按钮和状态断言，将 `results.txt` 写入 `artifacts/probes/<探针名>/`；加 `-Screenshots` 生成供人工检查的 PNG。临时仓库结束后移至回收站。
 
 ```powershell
-# 查看全部探针
+# 查看入口；默认只运行 overview
 ./build/scripts/probe-gitnest.ps1 -List
 
-# 运行指定功能探针（加 -NoBuild 复用编译产物）
-./build/scripts/probe-gitnest.ps1 -Probe amend -NoBuild
-./build/scripts/probe-gitnest.ps1 -Probe config
+# 只验证修改的功能；多个入口共用一次构建
+./build/scripts/probe-gitnest.ps1 -Probe history-reset,remote-rewrite
+
+# 复用已构建的当前代码
+./build/scripts/probe-gitnest.ps1 -Probe commit,sync -NoBuild
+
+# 检查布局时生成截图
+./build/scripts/probe-gitnest.ps1 -Probe discard -Screenshots -NoBuild
+
+# 运行所有独立探针（包含依赖发布产物的 high-dpi）
+./build/scripts/probe-gitnest.ps1 -All -NoBuild
 ```
 
-内置探针包括：`overview`、`comparison`、`config`、`commit-sync`、`amend`、`operation-recovery`、`branch-delete`、`worktree-delete`、`merge-revert`、`stash-discard`、`history-reset`、`submodule-lfs`、`surface`、`high-dpi`（依赖 `artifacts/windows-x64/GitNest.exe`，需先执行 `./build/scripts/build-gitnest.ps1 -Publish`）。
+每个入口使用独立进程，顺序执行并输出检查数与耗时；单个探针默认超时 90 秒，可用 `-TimeoutSeconds` 调整。`-All` 与多选入口会去重，失败后继续验证其余入口，最后统一报告失败项。
+
+| 探针 | 必要界面检查 |
+| --- | --- |
+| `overview` | 工作树概览、任务编辑、双击打开与文件监听 |
+| `comparison` | 累计差异导航、目标选择、文本/二进制视图与失效刷新 |
+| `config` | 配置来源、脱敏、签名提示、作用域选择与保存反馈 |
+| `config-worktree` | Worktree 作用域与显式空值覆盖 |
+| `config-refresh` | 外部配置变更横幅、保留草稿与保存 |
+| `commit` | 部分暂存提示、身份输入与提交按钮 |
+| `sync` | Commit & Push 重试、Fetch、分叉 Pull 引导与 Push 预览 |
+| `amend` | 独立 Amend 弹窗、保护提示、显式 opt-in 与重试 |
+| `branch-delete` | 强制确认、部分失败结果、备份恢复与批量结果 |
+| `worktree-delete` | 变更计数、强制确认、解锁、打开标签切换与 Prune |
+| `merge` | 合并方向、文件预览、确认与冲突结果卡 |
+| `revert` | 单提交撤销确认与合并提交阻断提示 |
+| `conflict` | 外部冲突只读面板与刷新按钮 |
+| `discard` | 基线选择绑定、丢弃确认与恢复列表 |
+| `stash-ignore` | Stash / Apply / Drop 按钮与本地忽略规则 |
+| `history-reset` | 两种撤回模式绑定、本地确认与保护提示 |
+| `remote-rewrite` | 固定 lease 预览与离线确认阻断 |
+| `push-revision` | 指定提交推送、强制确认后的地址校验与备份 |
+| `reset-recovery` | 后续提交警告、新恢复分支选择与恢复按钮 |
+| `operation-recovery` | 恢复横幅、日志脱敏、恢复与过期备份清理 |
+| `submodule-lfs` | 只读标签/子模块、LFS 菜单与子模块更新二次确认 |
+| `surface` | 命令与上下文菜单、偏好设置、更新、图像与统计窗口 |
+| `high-dpi` | 发布程序 DPI 清单与 150% / 200% 视口溢出检查 |
+
+`high-dpi` 需要先执行 `./build/scripts/build-gitnest.ps1 -Publish`，生成 `artifacts/windows-x64/GitNest.exe`。
+
+旧组合名继续可用：`commit-sync` 展开为 `commit,sync`，`merge-revert` 展开为 `merge,revert,conflict`，`stash-discard` 展开为 `stash-ignore,discard`。原 `history-reset` 中的远端重写、指定提交推送、备份恢复与配置检查已分别移到 `remote-rewrite`、`push-revision`、`reset-recovery` 和 `config` 系列入口。
+
+真实 Git 的写入保护、lease 竞争、备份恢复、子模块失败与路径边界由集成检查覆盖；探针重点验证这些结果在界面中的绑定和交互。

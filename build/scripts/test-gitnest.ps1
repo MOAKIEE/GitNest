@@ -31,7 +31,7 @@ function Get-RunnerCommand {
 }
 
 function Resolve-SuitesForChangedPaths {
-    param([string[]]$Paths)
+    param([string[]]$Paths, [string[]]$KnownSuites)
 
     $matched = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     $nonDocChange = $false
@@ -76,9 +76,15 @@ function Resolve-SuitesForChangedPaths {
             '^tests/GitNest\.IntegrationTests/HistoryResetTests\.cs$'   { [void]$matched.Add('history-reset'); $hit = $true }
             '^tests/GitNest\.IntegrationTests/RemoteRewriteTests\.cs$'  { [void]$matched.Add('remote-rewrite'); $hit = $true }
             '^tests/GitNest\.IntegrationTests/(Program\.cs|GitNest\.IntegrationTests\.csproj)$' {
-                [void]$matched.Add('core'); $hit = $true
+                foreach ($name in $KnownSuites) { [void]$matched.Add($name) }
+                $hit = $true
             }
-            '^tests/GitNest\.IntegrationTests/' { $hit = $true }
+            '^tests/GitNest\.IntegrationTests/' {
+                if (-not $hit) {
+                    foreach ($name in $KnownSuites) { [void]$matched.Add($name) }
+                }
+                $hit = $true
+            }
             '^tests/GitNest\.UIProbe/'          { $hit = $true } # UIProbe is tested via probe-gitnest.ps1
             '^build/scripts/probe-gitnest\.ps1$' { $hit = $true }
             '^build/scripts/test-gitnest\.ps1$'  { [void]$matched.Add('core'); $hit = $true }
@@ -172,7 +178,7 @@ function Resolve-SuitesForChangedPaths {
         }
     }
 
-    if ($nonDocChange -and $matched.Count -eq 0 -and $unmappedSource.Count -gt 0) {
+    if ($nonDocChange -and $unmappedSource.Count -gt 0) {
         [void]$matched.Add('core')
     }
 
@@ -257,7 +263,7 @@ try {
             return
         }
 
-        $resolution = Resolve-SuitesForChangedPaths -Paths @($changedFiles)
+        $resolution = Resolve-SuitesForChangedPaths -Paths @($changedFiles) -KnownSuites $allSuites
         if (-not $resolution.HasNonDocChange) {
             Write-Host 'Only documentation or non-code files changed. Skipping integration tests.'
             return
@@ -309,21 +315,17 @@ try {
     $workerLimit = [Math]::Min($workerLimit, $targetSuites.Count)
 
     $totalStopwatch = [Diagnostics.Stopwatch]::StartNew()
-    $logDir = Join-Path ([IO.Path]::GetTempPath()) ("GitNest-runner-" + [Guid]::NewGuid().ToString('N'))
-    New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+    $active = [Collections.Generic.List[hashtable]]::new()
 
     try {
         $queue = [Collections.Generic.Queue[string]]::new()
         foreach ($s in $targetSuites) { $queue.Enqueue($s) }
 
-        $active = [Collections.Generic.List[hashtable]]::new()
         $completed = [Collections.Generic.List[hashtable]]::new()
 
         while ($queue.Count -gt 0 -or $active.Count -gt 0) {
             while ($active.Count -lt $workerLimit -and $queue.Count -gt 0) {
                 $suiteName = $queue.Dequeue()
-                $outFile = Join-Path $logDir "$suiteName.out.txt"
-                $errFile = Join-Path $logDir "$suiteName.err.txt"
                 $psi = [Diagnostics.ProcessStartInfo]::new($runner.File)
                 $psi.WorkingDirectory = $repoRoot
                 $psi.UseShellExecute = $false
@@ -345,8 +347,6 @@ try {
                     Process = $proc
                     StdOutTask = $stdOutTask
                     StdErrTask = $stdErrTask
-                    OutFile = $outFile
-                    ErrFile = $errFile
                     Stopwatch = [Diagnostics.Stopwatch]::StartNew()
                 })
             }
@@ -408,8 +408,12 @@ try {
         Write-Host ("Passed {0} checks across {1} suites in {2:N2}s (workers={3})." -f $totalChecks, $completed.Count, $totalStopwatch.Elapsed.TotalSeconds, $workerLimit)
     }
     finally {
-        if (Test-Path $logDir) {
-            Remove-Item -Path $logDir -Recurse -Force -ErrorAction SilentlyContinue
+        foreach ($item in $active) {
+            if (-not $item.Process.HasExited) {
+                $item.Process.Kill($true)
+                $item.Process.WaitForExit()
+            }
+            $item.Process.Dispose()
         }
     }
 }
