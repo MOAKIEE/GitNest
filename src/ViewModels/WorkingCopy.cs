@@ -497,16 +497,20 @@ namespace SourceGit.ViewModels
                 _repo.ShowPopup(new Discard(_repo));
         }
 
-        public void Discard(List<Models.Change> changes, Models.Change next)
+        public void Discard(List<Models.Change> changes, Models.Change next, List<string> selectedFolderPaths = null)
         {
             if (_repo.CanCreatePopup())
-                _repo.ShowPopup(new Discard(_repo, changes, next));
+                _repo.ShowPopup(new Discard(_repo, changes, next, selectedFolderPaths: selectedFolderPaths));
         }
 
-        public void DiscardWithBaseline(List<Models.Change> changes, Models.Change next, Models.DiscardBaselineKind baseline)
+        public void DiscardWithBaseline(
+            List<Models.Change> changes,
+            Models.Change next,
+            Models.DiscardBaselineKind baseline,
+            List<string> selectedFolderPaths = null)
         {
             if (_repo.CanCreatePopup())
-                _repo.ShowPopup(new Discard(_repo, changes, next, baseline));
+                _repo.ShowPopup(new Discard(_repo, changes, next, baseline, selectedFolderPaths: selectedFolderPaths));
         }
 
         public void ClearFilter()

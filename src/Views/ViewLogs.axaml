@@ -461,13 +461,15 @@
                                Text="{DynamicResource Text.OperationRecovery.InspectingBackup}"
                                IsVisible="{Binding IsInspectingResetBackup, Mode=OneWay}"/>
 
-                    <RadioButton GroupName="GitNestBackupRestoreMode"
+                    <RadioButton x:Name="RestoreModeNewBranchRadio"
+                                 GroupName="GitNestBackupRestoreMode"
                                  FontSize="12"
                                  IsChecked="{Binding RestoreModeNewBranch, Mode=TwoWay}">
                       <TextBlock TextWrapping="Wrap" Text="{DynamicResource Text.OperationRecovery.RestoreModeNewBranch}"/>
                     </RadioButton>
 
-                    <RadioButton GroupName="GitNestBackupRestoreMode"
+                    <RadioButton x:Name="RestoreModeExistingBranchRadio"
+                                 GroupName="GitNestBackupRestoreMode"
                                  FontSize="12"
                                  IsChecked="{Binding RestoreModeExistingBranch, Mode=TwoWay}"
                                  IsEnabled="{Binding CanSelectRestoreExistingBranch, Mode=OneWay}">

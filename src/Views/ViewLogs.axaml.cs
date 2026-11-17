@@ -11,6 +11,16 @@ namespace SourceGit.Views
         {
             CloseOnESC = true;
             InitializeComponent();
+
+            var restoreGroup = $"GitNestBackupRestoreMode_{Guid.NewGuid():N}";
+            RestoreModeNewBranchRadio.GroupName = restoreGroup;
+            RestoreModeExistingBranchRadio.GroupName = restoreGroup;
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            DataContext = null;
+            base.OnClosed(e);
         }
 
         protected override async void OnOpened(EventArgs e)

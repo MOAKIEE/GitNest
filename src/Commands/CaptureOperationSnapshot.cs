@@ -318,10 +318,24 @@ namespace SourceGit.Commands
             CancellationToken cancellationToken)
         {
             var abs = Native.OS.GetAbsPath(repoPath, relPath);
+            var info = new FileInfo(abs);
+            var attrs = info.Attributes;
+            var isReparse = info.LinkTarget != null ||
+                            ((int)attrs != -1 && (attrs & FileAttributes.ReparsePoint) != 0);
+            if (isReparse)
+            {
+                var target = !string.IsNullOrEmpty(info.LinkTarget)
+                    ? info.LinkTarget
+                    : new DirectoryInfo(abs).LinkTarget ?? string.Empty;
+                return (true, 0, $"symlink:{target}");
+            }
+
+            if ((int)attrs != -1 && (attrs & FileAttributes.Directory) != 0)
+                return (true, 0, "dir");
+
             if (!File.Exists(abs))
                 return (false, 0, string.Empty);
 
-            var info = new FileInfo(abs);
             if (!computeHash)
                 return (true, info.Length, string.Empty);
 

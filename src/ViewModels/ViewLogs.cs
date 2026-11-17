@@ -245,11 +245,14 @@ namespace SourceGit.ViewModels
             get => _restoreModeNewBranch;
             set
             {
-                if (SetProperty(ref _restoreModeNewBranch, value))
+                if (!value)
+                    return;
+
+                if (SetProperty(ref _restoreModeNewBranch, true))
                 {
                     OnPropertyChanged(nameof(RestoreModeExistingBranch));
                     OnPropertyChanged(nameof(CanRestoreSelectedBackup));
-                    if (value && _resetBackupPreflight != null && !string.IsNullOrEmpty(_resetBackupPreflight.SuggestedNewBranchName))
+                    if (_resetBackupPreflight != null && !string.IsNullOrEmpty(_resetBackupPreflight.SuggestedNewBranchName))
                         RestoreTargetBranch = _resetBackupPreflight.SuggestedNewBranchName;
                 }
             }
@@ -260,17 +263,15 @@ namespace SourceGit.ViewModels
             get => !_restoreModeNewBranch;
             set
             {
-                if (value && !CanSelectRestoreExistingBranch)
+                if (!value || !CanSelectRestoreExistingBranch)
                     return;
 
-                if (SetProperty(ref _restoreModeNewBranch, !value))
+                if (SetProperty(ref _restoreModeNewBranch, false))
                 {
                     OnPropertyChanged(nameof(RestoreModeNewBranch));
                     OnPropertyChanged(nameof(CanRestoreSelectedBackup));
-                    if (value && !string.IsNullOrEmpty(_resetBackupPreflight?.TargetBranchName))
+                    if (!string.IsNullOrEmpty(_resetBackupPreflight?.TargetBranchName))
                         RestoreTargetBranch = _resetBackupPreflight.TargetBranchName;
-                    else if (!value && !string.IsNullOrEmpty(_resetBackupPreflight?.SuggestedNewBranchName))
-                        RestoreTargetBranch = _resetBackupPreflight.SuggestedNewBranchName;
                 }
             }
         }

@@ -11,8 +11,8 @@ namespace SourceGit.Commands
     /// <summary>
     /// Enforces baseline separation for discarding changes:
     /// 1. RestoreWorktreeToIndex (`git restore --worktree` only; preserves index).
-    /// 2. RestoreToHead (`git restore --staged --worktree --source=HEAD`, plus index-added cleanup via reset + backup + recycle).
-    /// 3. MoveUntrackedToRecycleBin (system Recycle Bin only, never silent delete or implicit git clean).
+    /// 2. RestoreToHead (`git restore --staged --worktree --source=HEAD`, plus index-added cleanup via reset + backup + configured removal mode).
+    /// 3. MoveUntrackedToRecycleBin (cleans untracked files/symlinks/empty dirs using configured RecycleBin or Direct delete after backup).
     /// Always persists recoverable disk + index content into the 30-day DiscardBackupStore BEFORE touching repo files.
     /// </summary>
     public static class DiscardBackupService
@@ -25,13 +25,43 @@ namespace SourceGit.Commands
             string repoPath,
             IReadOnlyList<Models.Change> targets,
             Models.DiscardBaselineKind baseline,
+            Models.FileRemovalMode removalMode = Models.FileRemovalMode.RecycleBin,
+            IReadOnlyList<string> selectedFolderPaths = null,
             CancellationToken cancellationToken = default)
         {
-            if (targets == null || targets.Count == 0)
+            return await InspectDiscardCoreAsync(
+                repoPath,
+                targets,
+                baseline,
+                Models.FileRemovalModeExtensions.Normalize(removalMode),
+                selectedFolderPaths,
+                includeSnapshot: true,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task<Models.DiscardPreflight> InspectDiscardCoreAsync(
+            string repoPath,
+            IReadOnlyList<Models.Change> targets,
+            Models.DiscardBaselineKind baseline,
+            Models.FileRemovalMode removalMode,
+            IReadOnlyList<string> selectedFolderPaths,
+            bool includeSnapshot,
+            CancellationToken cancellationToken)
+        {
+            var normalizedMode = Models.FileRemovalModeExtensions.Normalize(removalMode);
+            var normalizedFolders = (selectedFolderPaths ?? [])
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Select(NormalizeRelPath)
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Distinct(PathComparer)
+                .ToList();
+
+            if ((targets == null || targets.Count == 0) && normalizedFolders.Count == 0)
             {
                 return new Models.DiscardPreflight
                 {
                     Baseline = baseline,
+                    RemovalMode = normalizedMode,
                     CanProceed = false,
                     BlockingReason = "未选择任何要处理的文件或目录。",
                 };
@@ -43,113 +73,319 @@ namespace SourceGit.Commands
                 return new Models.DiscardPreflight
                 {
                     Baseline = baseline,
+                    RemovalMode = normalizedMode,
                     CanProceed = false,
                     HasUnbornHead = true,
-                    BlockingReason = "当前仓库尚未创建首次提交（unborn HEAD），无法恢复到上次提交（HEAD）。请先创建首次提交，或改用移至回收站。",
+                    BlockingReason = "当前仓库尚未创建首次提交（unborn HEAD），无法恢复到上次提交（HEAD）。请先创建首次提交，或改用清理未跟踪文件。",
                 };
             }
 
+            var (repoGitDir, repoCommonDir) = await Models.RepositoryWriteGuard.ResolveGitDirectoriesAsync(repoPath, cancellationToken).ConfigureAwait(false);
             var headPaths = baseline == Models.DiscardBaselineKind.RestoreToHead
                 ? await ReadHeadTreePathsAsync(repoPath, cancellationToken).ConfigureAwait(false)
                 : new HashSet<string>(PathComparer);
-
             var indexInfo = await ReadIndexEntriesAsync(repoPath, cancellationToken).ConfigureAwait(false);
 
             var tracked = new List<Models.DiscardTargetItem>();
             var untracked = new List<Models.DiscardTargetItem>();
+            var cleanableDirs = new List<string>();
             var skippedSubmodules = new List<string>();
+            var skippedNestedRepos = new List<string>();
+            var skippedIgnored = new List<string>();
+            var invalidPaths = new List<string>();
             var indexAddedOnly = new List<string>();
             var renameCollisions = new List<string>();
 
-            var repoRootFull = Path.TrimEndingDirectorySeparator(Path.GetFullPath(repoPath));
+            var targetByPath = new Dictionary<string, Models.Change>(PathComparer);
+            var directUntrackedLeaves = new List<(string RelPath, DiskEntryInfo Info, Models.Change Source)>();
+            var dirQueue = new Queue<string>();
+            var visitedDirs = new HashSet<string>(PathComparer);
+            var explicitExpandRoots = new HashSet<string>(normalizedFolders, PathComparer);
 
-            foreach (var c in targets)
+            if (targets != null)
             {
-                if (c == null || string.IsNullOrWhiteSpace(c.Path))
-                    continue;
-
-                var relPath = NormalizeRelPath(c.Path);
-                var origPath = string.IsNullOrWhiteSpace(c.OriginalPath) ? string.Empty : NormalizeRelPath(c.OriginalPath);
-
-                var absPath = Path.Combine(repoRootFull, relPath.Replace('/', Path.DirectorySeparatorChar));
-                var isGitlinkMode = indexInfo.TryGetValue(relPath, out var idxEntry) &&
-                                    string.Equals(idxEntry.Mode, "160000", StringComparison.Ordinal);
-                var isNestedRepoDir = Directory.Exists(absPath) &&
-                                      (File.Exists(Path.Combine(absPath, ".git")) || Directory.Exists(Path.Combine(absPath, ".git")));
-
-                if (isGitlinkMode || isNestedRepoDir)
+                foreach (var c in targets)
                 {
-                    skippedSubmodules.Add(relPath);
-                    continue;
+                    if (c == null || string.IsNullOrWhiteSpace(c.Path))
+                        continue;
+
+                    var relPath = NormalizeRelPath(c.Path);
+                    var isUntracked = c.WorkTree == Models.ChangeState.Untracked || c.Index == Models.ChangeState.Untracked;
+                    if (isUntracked &&
+                        TryResolveSafeRepoTarget(repoPath, relPath, repoGitDir, repoCommonDir, out var dirAbs, out _, out _) &&
+                        TryGetDiskEntryInfo(dirAbs, out var dirInfo) &&
+                        !dirInfo.IsSymlink &&
+                        dirInfo.IsDirectory &&
+                        !HasDotGitEntry(dirAbs))
+                    {
+                        explicitExpandRoots.Add(relPath);
+                    }
                 }
 
-                var isUntracked = c.WorkTree == Models.ChangeState.Untracked || c.Index == Models.ChangeState.Untracked;
-                var item = new Models.DiscardTargetItem
+                foreach (var c in targets)
                 {
-                    Path = relPath,
-                    OriginalPath = origPath,
-                    Index = c.Index,
-                    WorkTree = c.WorkTree,
-                    IsSubmodule = false,
-                    IsFolder = Directory.Exists(absPath),
-                };
+                    if (c == null || string.IsNullOrWhiteSpace(c.Path))
+                        continue;
 
-                if (isUntracked)
-                {
-                    untracked.Add(item);
-                }
-                else
-                {
+                    var relPath = NormalizeRelPath(c.Path);
+                    var origPath = string.IsNullOrWhiteSpace(c.OriginalPath) ? string.Empty : NormalizeRelPath(c.OriginalPath);
+                    targetByPath.TryAdd(relPath, c);
+
+                    if (!TryResolveSafeRepoTarget(
+                            repoPath,
+                            relPath,
+                            repoGitDir,
+                            repoCommonDir,
+                            out var absPath,
+                            out _,
+                            out var symlinkAncestorRel))
+                    {
+                        if (!string.IsNullOrEmpty(symlinkAncestorRel) && IsCoveredByExpandRoots(symlinkAncestorRel, explicitExpandRoots))
+                            continue;
+
+                        AddUniquePath(invalidPaths, relPath);
+                        continue;
+                    }
+
+                    var isGitlinkMode = indexInfo.TryGetValue(relPath, out var idxEntry) &&
+                                        string.Equals(idxEntry.Mode, "160000", StringComparison.Ordinal);
+                    if (isGitlinkMode)
+                    {
+                        AddUniquePath(skippedSubmodules, relPath);
+                        continue;
+                    }
+
+                    TryGetDiskEntryInfo(absPath, out var diskInfo);
+                    var isNestedRepoDir = diskInfo.Exists && !diskInfo.IsSymlink && diskInfo.IsDirectory && HasDotGitEntry(absPath);
+
+                    var isUntracked = c.WorkTree == Models.ChangeState.Untracked || c.Index == Models.ChangeState.Untracked;
+                    if (isUntracked)
+                    {
+                        if (isNestedRepoDir)
+                        {
+                            AddUniquePath(skippedNestedRepos, relPath);
+                            continue;
+                        }
+
+                        if (!diskInfo.Exists)
+                            continue;
+
+                        if (diskInfo.IsSymlink)
+                        {
+                            directUntrackedLeaves.Add((relPath, diskInfo, c));
+                        }
+                        else if (diskInfo.IsDirectory)
+                        {
+                            if (visitedDirs.Add(relPath))
+                                dirQueue.Enqueue(relPath);
+                        }
+                        else
+                        {
+                            directUntrackedLeaves.Add((relPath, diskInfo, c));
+                        }
+
+                        continue;
+                    }
+
+                    if (isNestedRepoDir)
+                    {
+                        AddUniquePath(skippedSubmodules, relPath);
+                        continue;
+                    }
+
                     if (baseline == Models.DiscardBaselineKind.RestoreToHead &&
-                        (c.Index == Models.ChangeState.Renamed || c.WorkTree == Models.ChangeState.Renamed) && !string.IsNullOrEmpty(origPath) &&
-                        !indexInfo.ContainsKey(origPath) &&
-                        (File.Exists(Path.Combine(repoRootFull, origPath)) || Directory.Exists(Path.Combine(repoRootFull, origPath))))
-                        renameCollisions.Add(origPath);
+                        (c.Index == Models.ChangeState.Renamed || c.WorkTree == Models.ChangeState.Renamed) &&
+                        !string.IsNullOrEmpty(origPath))
+                    {
+                        if (!TryResolveSafeRepoTarget(repoPath, origPath, repoGitDir, repoCommonDir, out var origAbs, out _, out _))
+                        {
+                            AddUniquePath(invalidPaths, origPath);
+                            continue;
+                        }
+
+                        if (!indexInfo.ContainsKey(origPath) && EntryExistsOnDisk(origAbs))
+                            AddUniquePath(renameCollisions, origPath);
+                    }
+
+                    var item = new Models.DiscardTargetItem
+                    {
+                        Path = relPath,
+                        OriginalPath = origPath,
+                        Index = c.Index,
+                        WorkTree = c.WorkTree,
+                        IsSubmodule = false,
+                        IsFolder = diskInfo.Exists && !diskInfo.IsSymlink && diskInfo.IsDirectory,
+                        IsSymlink = diskInfo.IsSymlink,
+                        IsDirectorySymlink = diskInfo.IsDirectorySymlink,
+                    };
 
                     if (baseline == Models.DiscardBaselineKind.RestoreToHead && !headPaths.Contains(relPath))
                     {
                         item.IsIndexAddedOnly = true;
-                        indexAddedOnly.Add(relPath);
+                        AddUniquePath(indexAddedOnly, relPath);
                     }
 
                     tracked.Add(item);
                 }
             }
 
-            var confirmationPaths = tracked
-                .SelectMany(t => baseline == Models.DiscardBaselineKind.RestoreToHead && HasRenameSource(t)
-                    ? new[] { t.Path, t.OriginalPath }
-                    : new[] { t.Path })
-                .Concat(untracked.Select(u => u.Path))
-                .Where(p => !string.IsNullOrWhiteSpace(p))
-                .Distinct(PathComparer)
-                .ToList();
-            var confirmationSnapshot = (tracked.Count > 0 || untracked.Count > 0)
-                ? await CaptureOperationSnapshot.CaptureAsync(
+            if (baseline == Models.DiscardBaselineKind.MoveUntrackedToRecycleBin)
+            {
+                foreach (var folderRel in normalizedFolders)
+                {
+                    if (!TryResolveSafeRepoTarget(repoPath, folderRel, repoGitDir, repoCommonDir, out var folderAbs, out _, out var symAnc))
+                    {
+                        if (string.IsNullOrEmpty(symAnc) || !IsCoveredByExpandRoots(symAnc, explicitExpandRoots))
+                            AddUniquePath(invalidPaths, folderRel);
+                        continue;
+                    }
+
+                    if (!TryGetDiskEntryInfo(folderAbs, out var folderInfo) || !folderInfo.Exists)
+                        continue;
+
+                    if (indexInfo.TryGetValue(folderRel, out var fIdx) && string.Equals(fIdx.Mode, "160000", StringComparison.Ordinal))
+                    {
+                        AddUniquePath(skippedSubmodules, folderRel);
+                        continue;
+                    }
+
+                    if (folderInfo.IsSymlink)
+                    {
+                        if (!indexInfo.ContainsKey(folderRel))
+                        {
+                            targetByPath.TryGetValue(folderRel, out var matched);
+                            directUntrackedLeaves.Add((folderRel, folderInfo, matched));
+                        }
+                        continue;
+                    }
+
+                    if (!folderInfo.IsDirectory)
+                        continue;
+
+                    if (HasDotGitEntry(folderAbs))
+                    {
+                        AddUniquePath(skippedNestedRepos, folderRel);
+                        continue;
+                    }
+
+                    if (visitedDirs.Add(folderRel))
+                        dirQueue.Enqueue(folderRel);
+                }
+
+                await ExpandUntrackedCandidatesAsync(
+                    repoPath,
+                    repoGitDir,
+                    repoCommonDir,
+                    indexInfo,
+                    targetByPath,
+                    directUntrackedLeaves,
+                    dirQueue,
+                    untracked,
+                    cleanableDirs,
+                    skippedSubmodules,
+                    skippedNestedRepos,
+                    skippedIgnored,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            else if (baseline == Models.DiscardBaselineKind.RestoreToHead && indexAddedOnly.Count > 0 && normalizedFolders.Count > 0)
+            {
+                foreach (var folderRel in normalizedFolders)
+                {
+                    if (TryResolveSafeRepoTarget(repoPath, folderRel, repoGitDir, repoCommonDir, out var folderAbs, out _, out _) &&
+                        TryGetDiskEntryInfo(folderAbs, out var folderInfo) &&
+                        folderInfo.Exists &&
+                        !folderInfo.IsSymlink &&
+                        folderInfo.IsDirectory &&
+                        !HasDotGitEntry(folderAbs))
+                    {
+                        AddUniquePath(cleanableDirs, folderRel);
+                    }
+                }
+            }
+
+            var hasActionableEmptyDir = baseline == Models.DiscardBaselineKind.MoveUntrackedToRecycleBin &&
+                                        untracked.Count == 0 &&
+                                        cleanableDirs.Any(d =>
+                                            TryResolveSafeRepoTarget(repoPath, d, repoGitDir, repoCommonDir, out var abs, out _, out _) &&
+                                            Directory.Exists(abs) &&
+                                            !HasAnyDirectoryEntries(abs));
+
+            var confirmationPaths = baseline == Models.DiscardBaselineKind.MoveUntrackedToRecycleBin
+                ? untracked.Select(u => u.Path).Distinct(PathComparer).ToList()
+                : tracked
+                    .SelectMany(t => baseline == Models.DiscardBaselineKind.RestoreToHead && HasRenameSource(t)
+                        ? new[] { t.Path, t.OriginalPath }
+                        : new[] { t.Path })
+                    .Where(p => !string.IsNullOrWhiteSpace(p))
+                    .Distinct(PathComparer)
+                    .ToList();
+
+            Models.OperationConfirmationSnapshot confirmationSnapshot = null;
+            if (includeSnapshot && confirmationPaths.Count > 0)
+            {
+                confirmationSnapshot = await CaptureOperationSnapshot.CaptureAsync(
                     repoPath,
                     new Models.OperationSnapshotCaptureOptions
                     {
                         TargetPaths = confirmationPaths,
                         IncludeTargetFileDetails = true,
                     },
-                    cancellationToken).ConfigureAwait(false)
-                : null;
+                    cancellationToken).ConfigureAwait(false);
+            }
 
-            if (baseline == Models.DiscardBaselineKind.MoveUntrackedToRecycleBin)
+            if (invalidPaths.Count > 0)
             {
                 return new Models.DiscardPreflight
                 {
                     Baseline = baseline,
-                    CanProceed = untracked.Count > 0,
+                    RemovalMode = normalizedMode,
+                    CanProceed = false,
                     HasUnbornHead = !hasHead,
-                    BlockingReason = untracked.Count > 0
-                        ? string.Empty
-                        : skippedSubmodules.Count > 0
-                            ? "子模块条目不能直接移至系统回收站，已跳过。"
-                            : "所选条目中没有可移至回收站的未跟踪文件或目录。",
+                    BlockingReason = $"拒绝处理越界、.git 元数据或符号链接穿透路径：{string.Join("、", invalidPaths)}",
                     TrackedTargets = tracked,
                     UntrackedTargets = untracked,
+                    CleanableDirectories = cleanableDirs,
                     SkippedSubmodulePaths = skippedSubmodules,
+                    SkippedNestedRepoPaths = skippedNestedRepos,
+                    SkippedIgnoredPaths = skippedIgnored,
+                    InvalidPaths = invalidPaths,
+                    IndexAddedOnlyPaths = indexAddedOnly,
+                    ConfirmationSnapshot = confirmationSnapshot,
+                };
+            }
+
+            if (baseline == Models.DiscardBaselineKind.MoveUntrackedToRecycleBin)
+            {
+                var canProceed = untracked.Count > 0 || hasActionableEmptyDir;
+                var blockingReason = string.Empty;
+                if (!canProceed)
+                {
+                    if (skippedSubmodules.Count > 0)
+                        blockingReason = "子模块条目不能通过未跟踪文件清理流程删除，已跳过。";
+                    else if (skippedNestedRepos.Count > 0)
+                        blockingReason = "嵌套 Git 仓库不会被自动展开或删除，已跳过。";
+                    else if (skippedIgnored.Count > 0)
+                        blockingReason = "所选条目仅包含被 Git 忽略的文件或目录，已按安全策略跳过。";
+                    else
+                        blockingReason = normalizedMode == Models.FileRemovalMode.Direct
+                            ? "所选条目中没有可直接删除的未跟踪文件或目录。"
+                            : "所选条目中没有可移至回收站的未跟踪文件或目录。";
+                }
+
+                return new Models.DiscardPreflight
+                {
+                    Baseline = baseline,
+                    RemovalMode = normalizedMode,
+                    CanProceed = canProceed,
+                    HasUnbornHead = !hasHead,
+                    BlockingReason = blockingReason,
+                    TrackedTargets = tracked,
+                    UntrackedTargets = untracked,
+                    CleanableDirectories = cleanableDirs,
+                    SkippedSubmodulePaths = skippedSubmodules,
+                    SkippedNestedRepoPaths = skippedNestedRepos,
+                    SkippedIgnoredPaths = skippedIgnored,
+                    InvalidPaths = invalidPaths,
                     ConfirmationSnapshot = confirmationSnapshot,
                 };
             }
@@ -157,6 +393,7 @@ namespace SourceGit.Commands
             return new Models.DiscardPreflight
             {
                 Baseline = baseline,
+                RemovalMode = normalizedMode,
                 CanProceed = tracked.Count > 0 && renameCollisions.Count == 0,
                 HasUnbornHead = !hasHead,
                 BlockingReason = renameCollisions.Count > 0
@@ -168,7 +405,11 @@ namespace SourceGit.Commands
                             : "所选条目中没有符合当前基线的已跟踪文件修改。",
                 TrackedTargets = tracked,
                 UntrackedTargets = untracked,
+                CleanableDirectories = cleanableDirs,
                 SkippedSubmodulePaths = skippedSubmodules,
+                SkippedNestedRepoPaths = skippedNestedRepos,
+                SkippedIgnoredPaths = skippedIgnored,
+                InvalidPaths = invalidPaths,
                 IndexAddedOnlyPaths = indexAddedOnly,
                 ConfirmationSnapshot = confirmationSnapshot,
             };
@@ -184,33 +425,72 @@ namespace SourceGit.Commands
             Models.ICommandLog outerLog = null,
             DateTime? utcNowOverride = null,
             CancellationToken cancellationToken = default,
-            Models.DiscardPreflight expectedPreflight = null)
+            Models.DiscardPreflight expectedPreflight = null,
+            Models.FileRemovalMode removalMode = Models.FileRemovalMode.RecycleBin,
+            Func<string, (bool Success, string Error)> directDeleteHandler = null,
+            IReadOnlyList<string> selectedFolderPaths = null)
         {
-            var preflight = await InspectDiscardAsync(repoPath, targets, baseline, cancellationToken).ConfigureAwait(false);
+            var normalizedMode = Models.FileRemovalModeExtensions.Normalize(removalMode);
+            var effectiveFolderPaths = selectedFolderPaths ?? expectedPreflight?.CleanableDirectories;
+            var preflight = await InspectDiscardAsync(
+                repoPath,
+                targets,
+                baseline,
+                normalizedMode,
+                effectiveFolderPaths,
+                cancellationToken).ConfigureAwait(false);
+
             if (!preflight.CanProceed)
             {
+                var preReasons = new Dictionary<string, string>(PathComparer);
+                foreach (var p in preflight.InvalidPaths)
+                    preReasons[p] = preflight.BlockingReason;
                 return new Models.DiscardExecutionResult
                 {
                     Success = false,
                     Baseline = baseline,
+                    RemovalMode = normalizedMode,
+                    FailedPaths = preflight.InvalidPaths.ToList(),
+                    FailureReasons = preReasons,
                     Summary = preflight.BlockingReason,
+                };
+            }
+
+            if (expectedPreflight != null && !PreflightTargetsMatch(expectedPreflight, preflight))
+            {
+                const string changedMsg = "确认期间目标列表或目录内容已发生变化，已中止操作。请刷新更改列表后重新确认。";
+                return new Models.DiscardExecutionResult
+                {
+                    Success = false,
+                    BlockedBySnapshot = true,
+                    Baseline = baseline,
+                    RemovalMode = normalizedMode,
+                    Summary = changedMsg,
                 };
             }
 
             if (baseline == Models.DiscardBaselineKind.MoveUntrackedToRecycleBin)
             {
-                return await ExecuteMoveUntrackedToRecycleBinAsync(
+                return await ExecuteCleanUntrackedAsync(
                     repoPath,
-                    preflight.UntrackedTargets,
+                    targets,
+                    preflight,
+                    normalizedMode,
+                    backupStore,
                     recycleHandler,
+                    directDeleteHandler,
                     journalStore,
                     outerLog,
+                    utcNowOverride,
                     cancellationToken,
-                    expectedPreflight?.ConfirmationSnapshot ?? preflight.ConfirmationSnapshot).ConfigureAwait(false);
+                    expectedPreflight?.ConfirmationSnapshot ?? preflight.ConfirmationSnapshot,
+                    effectiveFolderPaths).ConfigureAwait(false);
             }
 
             var effectiveStore = backupStore ?? Models.DiscardBackupStore.Instance;
             var effectiveRecycle = recycleHandler ?? DefaultRecycleHandler;
+            var effectiveDirectDelete = directDeleteHandler ?? DefaultDirectDeleteHandler;
+            var (repoGitDir, repoCommonDir) = await Models.RepositoryWriteGuard.ResolveGitDirectoriesAsync(repoPath, cancellationToken).ConfigureAwait(false);
 
             var title = baseline == Models.DiscardBaselineKind.RestoreWorktreeToIndex
                 ? $"恢复未暂存修改到暂存区（{preflight.TrackedTargets.Count} 个文件）"
@@ -233,38 +513,57 @@ namespace SourceGit.Commands
                                 backupTargets.Add(new Models.DiscardTargetItem { Path = original });
                         }
                     }
+
                     var captureInputs = new List<Models.DiscardBackupCaptureInput>(backupTargets.Count);
+                    var invalidOrFailed = new List<string>();
+                    var invalidReasons = new Dictionary<string, string>(PathComparer);
 
                     foreach (var target in backupTargets)
                     {
-                        var absPath = ResolveSafeRepoPathAny(repoPath, target.Path);
-                        if (absPath == null)
+                        if (!TryResolveSafeRepoTarget(repoPath, target.Path, repoGitDir, repoCommonDir, out var absPath, out var pathReason, out _))
                         {
-                            return FailBeforeMutation(
-                                baseline,
-                                $"拒绝处理仓库目录之外的异常路径：{target.Path}",
-                                ctx.OperationId);
+                            invalidOrFailed.Add(target.Path);
+                            invalidReasons[target.Path] = pathReason;
+                            continue;
                         }
 
+                        var targetRemovalMode = baseline == Models.DiscardBaselineKind.RestoreToHead && target.IsIndexAddedOnly
+                            ? normalizedMode
+                            : Models.FileRemovalMode.RecycleBin;
                         var input = await BuildCaptureInputAsync(
                             repoPath,
                             absPath,
                             target,
                             baseline,
+                            targetRemovalMode,
                             indexInfo,
                             cancellationToken).ConfigureAwait(false);
                         if (input == null)
                         {
-                            return FailBeforeMutation(
-                                baseline,
-                                $"读取待备份文件内容失败，已中止丢弃以防数据丢失：{target.Path}",
-                                ctx.OperationId);
+                            invalidOrFailed.Add(target.Path);
+                            invalidReasons[target.Path] = "读取待备份文件内容失败，已中止丢弃以防数据丢失。";
+                            continue;
                         }
 
                         captureInputs.Add(input);
                     }
 
+                    if (invalidOrFailed.Count > 0)
+                    {
+                        var firstReason = $"{invalidOrFailed[0]}: {invalidReasons[invalidOrFailed[0]]}";
+                        return FailBeforeMutation(
+                            baseline,
+                            normalizedMode,
+                            firstReason,
+                            ctx.OperationId,
+                            invalidOrFailed,
+                            invalidReasons);
+                    }
+
                     var headSha = await ReadHeadShaAsync(repoPath, cancellationToken).ConfigureAwait(false);
+                    var entryRemovalMode = preflight.IncludesFileRemoval
+                        ? normalizedMode
+                        : Models.FileRemovalMode.RecycleBin;
                     var capture = effectiveStore.Capture(
                         repoPath,
                         ctx.CanonicalCommonDir,
@@ -272,21 +571,36 @@ namespace SourceGit.Commands
                         baseline,
                         title,
                         captureInputs,
-                        utcNowOverride);
+                        utcNowOverride,
+                        entryRemovalMode);
 
-                    if (!capture.Success)
+                    List<string> corruptPaths = null;
+                    if (!capture.Success || !effectiveStore.VerifyPayloadIntegrity(capture.Entry, out corruptPaths))
                     {
+                        var err = capture.Success
+                            ? $"恢复库载荷校验失败：{string.Join("、", corruptPaths ?? [])}"
+                            : capture.Error;
+                        var failTargets = backupTargets.Select(t => t.Path).ToList();
+                        var capReasons = new Dictionary<string, string>(PathComparer);
+                        foreach (var ft in failTargets)
+                            capReasons[ft] = err;
                         return FailBeforeMutation(
                             baseline,
-                            $"写入 30 天本地恢复库失败，已中止丢弃操作（工作区未作任何修改）：{capture.Error}",
-                            ctx.OperationId);
+                            normalizedMode,
+                            $"写入 30 天本地恢复库失败，已中止丢弃操作（工作区未作任何修改）：{err}",
+                            ctx.OperationId,
+                            failTargets,
+                            capReasons);
                     }
 
                     ctx.Log.AppendLine($"[DiscardBackup] 已写入 30 天本地恢复库 ID={capture.BackupId}");
 
-                    var processed = new List<string>();
+                    var restored = new List<string>();
                     var recycled = new List<string>();
+                    var directDeleted = new List<string>();
+                    var skipped = new List<string>();
                     var failed = new List<string>();
+                    var failureReasons = new Dictionary<string, string>(PathComparer);
 
                     if (baseline == Models.DiscardBaselineKind.RestoreWorktreeToIndex)
                     {
@@ -309,6 +623,9 @@ namespace SourceGit.Commands
                         if (!res.IsSuccess)
                         {
                             var errMsg = CombineError(res, "执行 git restore --worktree 失败。");
+                            var cmdReasons = new Dictionary<string, string>(PathComparer);
+                            foreach (var rp in restorePaths)
+                                cmdReasons[rp] = errMsg;
                             return new OperationActionOutcome<Models.DiscardExecutionResult>
                             {
                                 Stage = Models.GitOperationStage.Failed,
@@ -318,15 +635,17 @@ namespace SourceGit.Commands
                                 {
                                     Success = false,
                                     Baseline = baseline,
+                                    RemovalMode = normalizedMode,
                                     BackupId = capture.BackupId,
                                     FailedPaths = restorePaths,
+                                    FailureReasons = cmdReasons,
                                     Summary = $"{errMsg}（原内容已备份 ID={capture.BackupId}）",
                                     OperationRecordId = ctx.OperationId,
                                 },
                             };
                         }
 
-                        processed.AddRange(restorePaths);
+                        restored.AddRange(restorePaths);
                     }
                     else
                     {
@@ -363,6 +682,9 @@ namespace SourceGit.Commands
                             if (!res.IsSuccess)
                             {
                                 var errMsg = CombineError(res, "执行 git restore --staged --worktree --source=HEAD 失败。");
+                                var headReasons = new Dictionary<string, string>(PathComparer);
+                                foreach (var hp in headRestorePaths)
+                                    headReasons[hp] = errMsg;
                                 return new OperationActionOutcome<Models.DiscardExecutionResult>
                                 {
                                     Stage = Models.GitOperationStage.Failed,
@@ -372,20 +694,22 @@ namespace SourceGit.Commands
                                     {
                                         Success = false,
                                         Baseline = baseline,
+                                        RemovalMode = normalizedMode,
                                         BackupId = capture.BackupId,
                                         FailedPaths = headRestorePaths,
+                                        FailureReasons = headReasons,
                                         Summary = $"{errMsg}（备份 ID={capture.BackupId}）",
                                         OperationRecordId = ctx.OperationId,
                                     },
                                 };
                             }
 
-                            processed.AddRange(headRestorePaths);
+                            restored.AddRange(headRestorePaths);
                         }
 
                         if (indexAddedTargets.Count > 0)
                         {
-                            // Unstage files added to index (or new rename targets) that are not in HEAD, then recycle safely.
+                            // Unstage files added to index (or new rename targets) that are not in HEAD, then remove via chosen removal mode.
                             foreach (var t in indexAddedTargets)
                             {
                                 var resetArgs = new[] { "--literal-pathspecs", "reset", "-q", "HEAD", "--", t.Path };
@@ -399,27 +723,45 @@ namespace SourceGit.Commands
 
                                 if (!resetRes.IsSuccess)
                                 {
+                                    var errMsg = CombineError(resetRes, "取消暂存新增文件失败。");
                                     failed.Add(t.Path);
+                                    failureReasons[t.Path] = errMsg;
                                     continue;
                                 }
 
-                                var absPath = ResolveSafeRepoPathAny(repoPath, t.Path);
-                                if (absPath != null && (File.Exists(absPath) || Directory.Exists(absPath)))
+                                if (!TryResolveSafeRepoTarget(repoPath, t.Path, repoGitDir, repoCommonDir, out var absPath, out var pathReason, out _))
                                 {
-                                    var (ok, recycleErr) = effectiveRecycle(absPath);
-                                    if (!ok)
+                                    failed.Add(t.Path);
+                                    failureReasons[t.Path] = pathReason;
+                                    continue;
+                                }
+
+                                if (EntryExistsOnDisk(absPath))
+                                {
+                                    var (ok, removeErr) = RemoveFileOrSymlink(absPath, normalizedMode, effectiveRecycle, effectiveDirectDelete);
+                                    if (!ok || EntryExistsOnDisk(absPath))
                                     {
-                                        ctx.Log.AppendLine($"[RecycleFailed] {t.Path}: {recycleErr}");
+                                        var reason = string.IsNullOrWhiteSpace(removeErr)
+                                            ? (normalizedMode == Models.FileRemovalMode.Direct ? "直接删除失败，原文件保留在磁盘。" : "系统回收站拒绝或未能移走目标（原文件仍保留在磁盘）。")
+                                            : removeErr;
+                                        ctx.Log.AppendLine($"[RemoveFailed:{normalizedMode}] {t.Path}: {reason}");
                                         failed.Add(t.Path);
+                                        failureReasons[t.Path] = reason;
                                         continue;
                                     }
 
-                                    recycled.Add(t.Path);
+                                    if (normalizedMode == Models.FileRemovalMode.Direct)
+                                        directDeleted.Add(t.Path);
+                                    else
+                                        recycled.Add(t.Path);
                                 }
-
-                                if (!processed.Contains(t.Path, PathComparer))
-                                    processed.Add(t.Path);
+                                else
+                                {
+                                    restored.Add(t.Path);
+                                }
                             }
+
+                            PruneCleanableEmptyDirectories(repoPath, repoGitDir, repoCommonDir, preflight.CleanableDirectories, ctx.Log);
                         }
                     }
 
@@ -428,9 +770,8 @@ namespace SourceGit.Commands
                     var postStates = new Dictionary<string, (string WorktreeSha256, string IndexBlobOid)>(PathComparer);
                     foreach (var t in backupTargets)
                     {
-                        var abs = ResolveSafeRepoPathAny(repoPath, t.Path);
-                        var wtSha = abs != null && File.Exists(abs)
-                            ? Models.DiscardBackupStore.ComputeFileSha256Hex(abs)
+                        var wtSha = TryResolveSafeRepoTarget(repoPath, t.Path, repoGitDir, repoCommonDir, out var abs, out _, out _)
+                            ? ComputeLiveWorktreeStateSha(abs)
                             : Models.DiscardBackupStore.AbsentMarker;
                         var idxOid = postIndex.TryGetValue(t.Path, out var idxEntry)
                             ? idxEntry.BlobOid
@@ -439,23 +780,34 @@ namespace SourceGit.Commands
                     }
                     effectiveStore.UpdatePostDiscardState(capture.BackupId, postStates);
 
+                    var processed = restored.Concat(recycled).Concat(directDeleted).Distinct(PathComparer).ToList();
                     var allOk = failed.Count == 0;
                     var finalSummary = allOk
                         ? $"已完成 {title}，原内容已存入 30 天本地恢复库（ID：{capture.BackupId}）。"
-                        : $"部分路径未能完成移至回收站（{string.Join(", ", failed)}），原文件保留在磁盘，已写入恢复库（ID：{capture.BackupId}）。";
+                        : $"部分路径未能完成{(normalizedMode == Models.FileRemovalMode.Direct ? "直接删除" : "移至回收站")}（{string.Join(", ", failed)}），原文件保留在磁盘，已写入恢复库（ID：{capture.BackupId}）。";
 
                     return new OperationActionOutcome<Models.DiscardExecutionResult>
                     {
-                        Stage = allOk ? Models.GitOperationStage.Succeeded : Models.GitOperationStage.PartialSuccess,
+                        Stage = allOk
+                            ? Models.GitOperationStage.Succeeded
+                            : processed.Count > 0
+                                ? Models.GitOperationStage.PartialSuccess
+                                : Models.GitOperationStage.Failed,
                         Summary = finalSummary,
+                        DiagnosticDetail = string.Join(Environment.NewLine, failureReasons.Select(kv => $"{kv.Key}: {kv.Value}")),
                         Payload = new Models.DiscardExecutionResult
                         {
                             Success = allOk,
                             Baseline = baseline,
+                            RemovalMode = normalizedMode,
                             BackupId = capture.BackupId,
                             ProcessedPaths = processed,
+                            RestoredPaths = restored,
                             RecycledPaths = recycled,
+                            DirectDeletedPaths = directDeleted,
+                            SkippedPaths = skipped,
                             FailedPaths = failed,
+                            FailureReasons = failureReasons,
                             Summary = finalSummary,
                             OperationRecordId = ctx.OperationId,
                         },
@@ -472,22 +824,39 @@ namespace SourceGit.Commands
                 Success = exec.Succeeded,
                 BlockedBySnapshot = exec.BlockedBySnapshot,
                 Baseline = baseline,
+                RemovalMode = normalizedMode,
                 Summary = exec.Summary,
                 OperationRecordId = exec.Record?.OperationId ?? string.Empty,
             };
         }
 
-        private static async Task<Models.DiscardExecutionResult> ExecuteMoveUntrackedToRecycleBinAsync(
+        private static async Task<Models.DiscardExecutionResult> ExecuteCleanUntrackedAsync(
             string repoPath,
-            IReadOnlyList<Models.DiscardTargetItem> untrackedTargets,
+            IReadOnlyList<Models.Change> rawTargets,
+            Models.DiscardPreflight preflight,
+            Models.FileRemovalMode removalMode,
+            Models.DiscardBackupStore backupStore,
             Func<string, (bool Success, string Error)> recycleHandler,
+            Func<string, (bool Success, string Error)> directDeleteHandler,
             Models.OperationJournalStore journalStore,
             Models.ICommandLog outerLog,
+            DateTime? utcNowOverride,
             CancellationToken cancellationToken,
-            Models.OperationConfirmationSnapshot expectedSnapshot)
+            Models.OperationConfirmationSnapshot expectedSnapshot,
+            IReadOnlyList<string> selectedFolderPaths)
         {
+            var effectiveStore = backupStore ?? Models.DiscardBackupStore.Instance;
             var effectiveRecycle = recycleHandler ?? DefaultRecycleHandler;
-            var title = $"将 {untrackedTargets.Count} 个未跟踪项目移至回收站";
+            var effectiveDirectDelete = directDeleteHandler ?? DefaultDirectDeleteHandler;
+            var normalizedMode = Models.FileRemovalModeExtensions.Normalize(removalMode);
+            var (repoGitDir, repoCommonDir) = await Models.RepositoryWriteGuard.ResolveGitDirectoriesAsync(repoPath, cancellationToken).ConfigureAwait(false);
+
+            var countLabel = preflight.UntrackedTargets.Count > 0
+                ? $"{preflight.UntrackedTargets.Count} 个未跟踪项目"
+                : $"{preflight.CleanableDirectories.Count} 个空目录";
+            var title = normalizedMode == Models.FileRemovalMode.Direct
+                ? $"直接删除 {countLabel}"
+                : $"将 {countLabel} 移至回收站";
 
             var exec = await OperationJournalService.ExecuteGuardedWriteAsync(
                 repoPath: repoPath,
@@ -495,71 +864,254 @@ namespace SourceGit.Commands
                 title: title,
                 action: async ctx =>
                 {
-                    var trackedSet = await ReadIndexEntriesAsync(repoPath, cancellationToken).ConfigureAwait(false);
-                    var recycled = new List<string>();
-                    var failed = new List<string>();
-                    var failureReasons = new List<string>();
+                    var liveInspect = await InspectDiscardCoreAsync(
+                        repoPath,
+                        rawTargets,
+                        Models.DiscardBaselineKind.MoveUntrackedToRecycleBin,
+                        normalizedMode,
+                        selectedFolderPaths,
+                        includeSnapshot: false,
+                        cancellationToken).ConfigureAwait(false);
 
-                    foreach (var target in untrackedTargets)
+                    if (!liveInspect.CanProceed || !PreflightTargetsMatch(preflight, liveInspect))
+                    {
+                        const string driftMsg = "确认期间目标目录或文件状态已发生变化，已中止清理。请刷新更改列表后重新确认。";
+                        return new OperationActionOutcome<Models.DiscardExecutionResult>
+                        {
+                            Stage = Models.GitOperationStage.Failed,
+                            Summary = driftMsg,
+                            DiagnosticDetail = driftMsg,
+                            Payload = new Models.DiscardExecutionResult
+                            {
+                                Success = false,
+                                BlockedBySnapshot = true,
+                                Baseline = Models.DiscardBaselineKind.MoveUntrackedToRecycleBin,
+                                RemovalMode = normalizedMode,
+                                Summary = driftMsg,
+                                OperationRecordId = ctx.OperationId,
+                            },
+                        };
+                    }
+
+                    var trackedSet = await ReadIndexEntriesAsync(repoPath, cancellationToken).ConfigureAwait(false);
+                    var validationFailed = new List<string>();
+                    var validationReasons = new Dictionary<string, string>(PathComparer);
+
+                    foreach (var target in liveInspect.UntrackedTargets)
+                    {
+                        if (trackedSet.ContainsKey(target.Path))
+                        {
+                            validationFailed.Add(target.Path);
+                            validationReasons[target.Path] = "已受版本库索引跟踪，拒绝按未跟踪文件删除。";
+                            continue;
+                        }
+
+                        if (!TryResolveSafeRepoTarget(repoPath, target.Path, repoGitDir, repoCommonDir, out _, out var pathErr, out _))
+                        {
+                            validationFailed.Add(target.Path);
+                            validationReasons[target.Path] = pathErr;
+                        }
+                    }
+
+                    if (validationFailed.Count > 0)
+                    {
+                        var firstReason = $"{validationFailed[0]}: {validationReasons[validationFailed[0]]}";
+                        return FailBeforeMutation(
+                            Models.DiscardBaselineKind.MoveUntrackedToRecycleBin,
+                            normalizedMode,
+                            firstReason,
+                            ctx.OperationId,
+                            validationFailed,
+                            validationReasons);
+                    }
+
+                    var backupId = string.Empty;
+                    if (liveInspect.UntrackedTargets.Count > 0)
+                    {
+                        var captureInputs = new List<Models.DiscardBackupCaptureInput>(liveInspect.UntrackedTargets.Count);
+                        var captureFailed = new List<string>();
+                        var captureReasons = new Dictionary<string, string>(PathComparer);
+
+                        foreach (var target in liveInspect.UntrackedTargets)
+                        {
+                            TryResolveSafeRepoTarget(repoPath, target.Path, repoGitDir, repoCommonDir, out var absPath, out _, out _);
+                            var input = await BuildCaptureInputAsync(
+                                repoPath,
+                                absPath,
+                                target,
+                                Models.DiscardBaselineKind.MoveUntrackedToRecycleBin,
+                                normalizedMode,
+                                trackedSet,
+                                cancellationToken).ConfigureAwait(false);
+                            if (input == null)
+                            {
+                                captureFailed.Add(target.Path);
+                                captureReasons[target.Path] = "写入本地恢复库前读取源内容失败，已保留原文件。";
+                                continue;
+                            }
+
+                            captureInputs.Add(input);
+                        }
+
+                        if (captureFailed.Count > 0)
+                        {
+                            var reasonSummary = string.Join("; ", captureReasons.Select(kv => $"{kv.Key}: {kv.Value}"));
+                            return FailBeforeMutation(
+                                Models.DiscardBaselineKind.MoveUntrackedToRecycleBin,
+                                normalizedMode,
+                                $"读取待清理文件失败，已中止操作（原文件未作任何删除）：{reasonSummary}",
+                                ctx.OperationId,
+                                captureFailed,
+                                captureReasons);
+                        }
+
+                        var headSha = await ReadHeadShaAsync(repoPath, cancellationToken).ConfigureAwait(false);
+                        var capture = effectiveStore.Capture(
+                            repoPath,
+                            ctx.CanonicalCommonDir,
+                            headSha,
+                            Models.DiscardBaselineKind.MoveUntrackedToRecycleBin,
+                            title,
+                            captureInputs,
+                            utcNowOverride,
+                            normalizedMode);
+
+                        List<string> corruptPaths = null;
+                        if (!capture.Success || !effectiveStore.VerifyPayloadIntegrity(capture.Entry, out corruptPaths))
+                        {
+                            var err = capture.Success
+                                ? $"恢复库载荷校验失败：{string.Join("、", corruptPaths ?? [])}"
+                                : capture.Error;
+                            var failPaths = liveInspect.UntrackedTargets.Select(t => t.Path).ToList();
+                            var capReasons = new Dictionary<string, string>(PathComparer);
+                            foreach (var fp in failPaths)
+                                capReasons[fp] = err;
+                            return FailBeforeMutation(
+                                Models.DiscardBaselineKind.MoveUntrackedToRecycleBin,
+                                normalizedMode,
+                                $"写入 30 天本地恢复库失败，已中止删除（原文件未作任何删除）：{err}",
+                                ctx.OperationId,
+                                failPaths,
+                                capReasons);
+                        }
+
+                        backupId = capture.BackupId;
+                        ctx.Log.AppendLine($"[DiscardBackup] 已写入 30 天本地恢复库 ID={backupId}");
+                    }
+
+                    var recycled = new List<string>();
+                    var directDeleted = new List<string>();
+                    var skipped = new List<string>();
+                    var failed = new List<string>();
+                    var failureReasons = new Dictionary<string, string>(PathComparer);
+
+                    foreach (var target in liveInspect.UntrackedTargets)
                     {
                         if (trackedSet.ContainsKey(target.Path))
                         {
                             failed.Add(target.Path);
-                            failureReasons.Add($"{target.Path}: 已受版本库索引跟踪，拒绝直接回收。");
+                            failureReasons[target.Path] = "已受版本库索引跟踪，拒绝删除。";
                             continue;
                         }
 
-                        var absPath = ResolveSafeRepoPathAny(repoPath, target.Path);
-                        if (absPath == null)
+                        if (!TryResolveSafeRepoTarget(repoPath, target.Path, repoGitDir, repoCommonDir, out var absPath, out var pathReason, out _))
                         {
                             failed.Add(target.Path);
-                            failureReasons.Add($"{target.Path}: 路径越界或非法。");
+                            failureReasons[target.Path] = pathReason;
                             continue;
                         }
 
-                        if (!File.Exists(absPath) && !Directory.Exists(absPath))
+                        if (!EntryExistsOnDisk(absPath))
                         {
-                            recycled.Add(target.Path);
+                            skipped.Add(target.Path);
                             continue;
                         }
 
-                        var (ok, err) = effectiveRecycle(absPath);
-                        if (!ok || File.Exists(absPath) || Directory.Exists(absPath))
+                        var (ok, err) = RemoveFileOrSymlink(absPath, normalizedMode, effectiveRecycle, effectiveDirectDelete);
+                        if (!ok || EntryExistsOnDisk(absPath))
                         {
                             var reason = string.IsNullOrWhiteSpace(err)
-                                ? "系统回收站拒绝或未能移走目标（原文件仍保留在磁盘）。"
+                                ? (normalizedMode == Models.FileRemovalMode.Direct ? "直接删除失败（原文件仍保留在磁盘）。" : "系统回收站拒绝或未能移走目标（原文件仍保留在磁盘）。")
                                 : err;
-                            ctx.Log.AppendLine($"[RecycleFailed] {target.Path}: {reason}");
+                            ctx.Log.AppendLine($"[RemoveFailed:{normalizedMode}] {target.Path}: {reason}");
                             failed.Add(target.Path);
-                            failureReasons.Add($"{target.Path}: {reason}");
+                            failureReasons[target.Path] = reason;
                             continue;
                         }
 
-                        ctx.Log.AppendLine($"[Recycled] {target.Path}");
-                        recycled.Add(target.Path);
+                        ctx.Log.AppendLine(normalizedMode == Models.FileRemovalMode.Direct
+                            ? $"[DirectDeleted] {target.Path}"
+                            : $"[Recycled] {target.Path}");
+                        if (normalizedMode == Models.FileRemovalMode.Direct)
+                            directDeleted.Add(target.Path);
+                        else
+                            recycled.Add(target.Path);
                     }
 
-                    var allOk = failed.Count == 0;
-                    var summary = allOk
-                        ? $"已将 {recycled.Count} 个未跟踪项目安全移至系统回收站。"
-                        : $"移至回收站未全部完成（成功 {recycled.Count}，失败 {failed.Count}，失败文件保留原位）：{string.Join("; ", failureReasons)}";
+                    var removedEmptyDirs = PruneCleanableEmptyDirectories(
+                        repoPath,
+                        repoGitDir,
+                        repoCommonDir,
+                        liveInspect.CleanableDirectories,
+                        ctx.Log);
 
+                    if (liveInspect.UntrackedTargets.Count == 0 && removedEmptyDirs.Count > 0)
+                    {
+                        if (normalizedMode == Models.FileRemovalMode.Direct)
+                            directDeleted.AddRange(removedEmptyDirs);
+                        else
+                            recycled.AddRange(removedEmptyDirs);
+                    }
+
+                    if (!string.IsNullOrEmpty(backupId))
+                    {
+                        var postIndex = await ReadIndexEntriesAsync(repoPath, cancellationToken).ConfigureAwait(false);
+                        var postStates = new Dictionary<string, (string WorktreeSha256, string IndexBlobOid)>(PathComparer);
+                        foreach (var target in liveInspect.UntrackedTargets)
+                        {
+                            var wtSha = TryResolveSafeRepoTarget(repoPath, target.Path, repoGitDir, repoCommonDir, out var abs, out _, out _)
+                                ? ComputeLiveWorktreeStateSha(abs)
+                                : Models.DiscardBackupStore.AbsentMarker;
+                            var idxOid = postIndex.TryGetValue(target.Path, out var idxEntry)
+                                ? idxEntry.BlobOid
+                                : Models.DiscardBackupStore.AbsentMarker;
+                            postStates[target.Path] = (wtSha, idxOid);
+                        }
+                        effectiveStore.UpdatePostDiscardState(backupId, postStates);
+                    }
+
+                    var deletedCount = recycled.Count + directDeleted.Count;
+                    var allOk = failed.Count == 0;
+                    var actionLabel = normalizedMode == Models.FileRemovalMode.Direct ? "直接删除" : "移至系统回收站";
+                    var formattedReasons = string.Join("; ", failureReasons.Select(kv => $"{kv.Key}: {kv.Value}"));
+                    var summary = allOk
+                        ? (string.IsNullOrEmpty(backupId)
+                            ? $"已完成{actionLabel} {deletedCount} 个项目。"
+                            : $"已{actionLabel} {deletedCount} 个未跟踪项目，原内容已存入 30 天本地恢复库（ID：{backupId}）。")
+                        : $"{actionLabel}未全部完成（成功 {deletedCount}，失败 {failed.Count}，失败文件保留原位）：{formattedReasons}";
+
+                    var processed = recycled.Concat(directDeleted).Distinct(PathComparer).ToList();
                     return new OperationActionOutcome<Models.DiscardExecutionResult>
                     {
                         Stage = allOk
                             ? Models.GitOperationStage.Succeeded
-                            : recycled.Count > 0
+                            : deletedCount > 0
                                 ? Models.GitOperationStage.PartialSuccess
                                 : Models.GitOperationStage.Failed,
                         Summary = summary,
-                        DiagnosticDetail = string.Join(Environment.NewLine, failureReasons),
+                        DiagnosticDetail = string.Join(Environment.NewLine, failureReasons.Select(kv => $"{kv.Key}: {kv.Value}")),
                         Payload = new Models.DiscardExecutionResult
                         {
                             Success = allOk,
                             Baseline = Models.DiscardBaselineKind.MoveUntrackedToRecycleBin,
-                            ProcessedPaths = recycled,
+                            RemovalMode = normalizedMode,
+                            BackupId = backupId,
+                            ProcessedPaths = processed,
                             RecycledPaths = recycled,
+                            DirectDeletedPaths = directDeleted,
+                            SkippedPaths = skipped,
                             FailedPaths = failed,
+                            FailureReasons = failureReasons,
                             Summary = summary,
                             OperationRecordId = ctx.OperationId,
                         },
@@ -576,6 +1128,7 @@ namespace SourceGit.Commands
                 Success = exec.Succeeded,
                 BlockedBySnapshot = exec.BlockedBySnapshot,
                 Baseline = Models.DiscardBaselineKind.MoveUntrackedToRecycleBin,
+                RemovalMode = normalizedMode,
                 Summary = exec.Summary,
                 OperationRecordId = exec.Record?.OperationId ?? string.Empty,
             };
@@ -602,7 +1155,7 @@ namespace SourceGit.Commands
 
             var nowUtc = utcNowOverride ?? DateTime.UtcNow;
             var isExpired = entry.ExpiresAtUtc <= nowUtc;
-            var (_, commonDir) = await Models.RepositoryWriteGuard.ResolveGitDirectoriesAsync(repoPath, cancellationToken).ConfigureAwait(false);
+            var (repoGitDir, commonDir) = await Models.RepositoryWriteGuard.ResolveGitDirectoriesAsync(repoPath, cancellationToken).ConfigureAwait(false);
             if (!Models.WorktreeTaskStore.PathsEqual(entry.GitCommonDir, commonDir) ||
                 !Models.WorktreeTaskStore.PathsEqual(entry.WorktreePath, repoPath))
             {
@@ -621,9 +1174,8 @@ namespace SourceGit.Commands
 
             foreach (var file in entry.Files)
             {
-                var abs = ResolveSafeRepoPathAny(repoPath, file.RelativePath);
-                var currentWorktreeSha = abs != null && File.Exists(abs)
-                    ? Models.DiscardBackupStore.ComputeFileSha256Hex(abs)
+                var currentWorktreeSha = TryResolveSafeRepoTarget(repoPath, file.RelativePath, repoGitDir, commonDir, out var abs, out _, out _)
+                    ? ComputeLiveWorktreeStateSha(abs)
                     : Models.DiscardBackupStore.AbsentMarker;
                 var currentIndexOid = liveIndex.TryGetValue(file.RelativePath, out var idx)
                     ? idx.BlobOid
@@ -710,6 +1262,7 @@ namespace SourceGit.Commands
 
             var effectiveRecycle = recycleHandler ?? DefaultRecycleHandler;
             var entry = check.Entry;
+            var (repoGitDir, repoCommonDir) = await Models.RepositoryWriteGuard.ResolveGitDirectoriesAsync(repoPath, cancellationToken).ConfigureAwait(false);
 
             var exec = await OperationJournalService.ExecuteGuardedWriteAsync(
                 repoPath: repoPath,
@@ -741,64 +1294,64 @@ namespace SourceGit.Commands
 
                     foreach (var file in entry.Files)
                     {
-                        var absPath = ResolveSafeRepoPathAny(repoPath, file.RelativePath);
-                        if (absPath == null)
-                        {
-                            return new OperationActionOutcome<Models.DiscardBackupRestoreResult>
-                            {
-                                Stage = Models.GitOperationStage.Failed,
-                                Summary = $"拒绝恢复越界路径：{file.RelativePath}",
-                                Payload = new Models.DiscardBackupRestoreResult { Success = false, BackupId = backupId, Summary = $"拒绝恢复越界路径：{file.RelativePath}" },
-                            };
-                        }
+                        if (!TryResolveSafeRepoTarget(repoPath, file.RelativePath, repoGitDir, repoCommonDir, out var absPath, out _, out _))
+                            return FailedRestore($"拒绝恢复越界或异常路径：{file.RelativePath}");
 
                         hasMutated = true;
-                        if (file.ExistsInWorktree && !file.IsSymlink)
+                        try
                         {
-                            var bytes = store.ReadWorktreePayloadBytes(file, out var readErr);
-                            if (!string.IsNullOrEmpty(readErr))
+                            if (file.ExistsInWorktree && !file.IsSymlink)
                             {
-                                return new OperationActionOutcome<Models.DiscardBackupRestoreResult>
+                                var bytes = store.ReadWorktreePayloadBytes(file, out var readErr);
+                                if (!string.IsNullOrEmpty(readErr))
+                                    return FailedRestore(readErr);
+
+                                if (TryGetDiskEntryInfo(absPath, out var conflictInfo) &&
+                                    conflictInfo.Exists &&
+                                    (conflictInfo.IsSymlink || conflictInfo.IsDirectory))
                                 {
-                                    Stage = Models.GitOperationStage.Failed,
-                                    Summary = readErr,
-                                    Payload = new Models.DiscardBackupRestoreResult { Success = false, BackupId = backupId, Summary = readErr },
-                                };
+                                    var (ok, err) = effectiveRecycle(absPath);
+                                    if (!ok || EntryExistsOnDisk(absPath))
+                                        return FailedRestore($"覆盖冲突条目时移至回收站失败：{err}");
+                                }
+
+                                var parent = Path.GetDirectoryName(absPath);
+                                if (!string.IsNullOrEmpty(parent) && !Directory.Exists(parent))
+                                    Directory.CreateDirectory(parent);
+
+                                await File.WriteAllBytesAsync(absPath, bytes, cancellationToken).ConfigureAwait(false);
+                                var actualSha = Models.DiscardBackupStore.ComputeFileSha256Hex(absPath);
+                                if (!string.Equals(actualSha, file.WorktreeSha256, StringComparison.OrdinalIgnoreCase))
+                                    return FailedRestore($"还原文件后内容校验失败：{file.RelativePath}");
                             }
+                            else if (file.ExistsInWorktree && file.IsSymlink)
+                            {
+                                var parent = Path.GetDirectoryName(absPath);
+                                if (!string.IsNullOrEmpty(parent) && !Directory.Exists(parent))
+                                    Directory.CreateDirectory(parent);
 
-                            var parent = Path.GetDirectoryName(absPath);
-                            if (!string.IsNullOrEmpty(parent) && !Directory.Exists(parent))
-                                Directory.CreateDirectory(parent);
+                                if (EntryExistsOnDisk(absPath))
+                                {
+                                    var (ok, err) = effectiveRecycle(absPath);
+                                    if (!ok || EntryExistsOnDisk(absPath))
+                                        return FailedRestore($"恢复符号链接前移至回收站失败：{err}");
+                                }
 
-                            await File.WriteAllBytesAsync(absPath, bytes, cancellationToken).ConfigureAwait(false);
-                        }
-                        else if (file.ExistsInWorktree && file.IsSymlink)
-                        {
-                            var parent = Path.GetDirectoryName(absPath);
-                            if (!string.IsNullOrEmpty(parent) && !Directory.Exists(parent))
-                                Directory.CreateDirectory(parent);
-
-                            if (File.Exists(absPath) || Directory.Exists(absPath))
+                                if (file.IsDirectorySymlink)
+                                    Directory.CreateSymbolicLink(absPath, file.SymlinkTarget);
+                                else
+                                    File.CreateSymbolicLink(absPath, file.SymlinkTarget);
+                            }
+                            else if (!file.ExistsInWorktree && EntryExistsOnDisk(absPath))
                             {
                                 var (ok, err) = effectiveRecycle(absPath);
-                                if (!ok)
-                                    return FailedRestore($"恢复符号链接前移至回收站失败：{err}");
+                                if (!ok || EntryExistsOnDisk(absPath))
+                                    return FailedRestore($"还原丢弃前“工作区已删除”状态时移至回收站失败：{err}");
                             }
-
-                            File.CreateSymbolicLink(absPath, file.SymlinkTarget);
                         }
-                        else if (!file.ExistsInWorktree && (File.Exists(absPath) || Directory.Exists(absPath)))
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
                         {
-                            var (ok, err) = effectiveRecycle(absPath);
-                            if (!ok)
-                            {
-                                return new OperationActionOutcome<Models.DiscardBackupRestoreResult>
-                                {
-                                    Stage = Models.GitOperationStage.Failed,
-                                    Summary = $"还原丢弃前“工作区已删除”状态时移至回收站失败：{err}",
-                                    Payload = new Models.DiscardBackupRestoreResult { Success = false, BackupId = backupId, Summary = err },
-                                };
-                            }
+                            return FailedRestore($"还原工作区文件失败（{file.RelativePath}）：{Models.GitConfigSnapshot.RedactText(ex.Message)}");
                         }
 
                         // For HEAD-baseline discards or index-altered states, restore exact index entry as well.
@@ -855,6 +1408,48 @@ namespace SourceGit.Commands
                         restoredPaths.Add(file.RelativePath);
                     }
 
+                    // Post-restore state verification before marking backup entry restored.
+                    var verifiedIndex = await ReadIndexEntriesAsync(repoPath, cancellationToken).ConfigureAwait(false);
+                    foreach (var file in entry.Files)
+                    {
+                        if (!TryResolveSafeRepoTarget(repoPath, file.RelativePath, repoGitDir, repoCommonDir, out var absPath, out _, out _))
+                            return FailedRestore($"还原后路径校验失败：{file.RelativePath}");
+
+                        if (file.ExistsInWorktree)
+                        {
+                            if (!TryGetDiskEntryInfo(absPath, out var diskInfo) || !diskInfo.Exists)
+                                return FailedRestore($"还原后文件缺失：{file.RelativePath}");
+
+                            if (file.IsSymlink)
+                            {
+                                if (!diskInfo.IsSymlink || !string.Equals(diskInfo.LinkTarget, file.SymlinkTarget, StringComparison.Ordinal))
+                                    return FailedRestore($"还原后符号链接目标不一致：{file.RelativePath}");
+                            }
+                            else if (!string.Equals(ComputeLiveWorktreeStateSha(absPath), file.WorktreeSha256, StringComparison.OrdinalIgnoreCase))
+                            {
+                                return FailedRestore($"还原后文件内容哈希校验失败：{file.RelativePath}");
+                            }
+                        }
+                        else if (EntryExistsOnDisk(absPath))
+                        {
+                            return FailedRestore($"还原后工作区仍存在冗余条目：{file.RelativePath}");
+                        }
+
+                        if (file.Baseline == Models.DiscardBaselineKind.RestoreToHead)
+                        {
+                            if (file.ExistsInIndex)
+                            {
+                                if (!verifiedIndex.TryGetValue(file.RelativePath, out var rec) ||
+                                    (!string.IsNullOrEmpty(file.IndexBlobOid) && !string.Equals(rec.BlobOid, file.IndexBlobOid, StringComparison.OrdinalIgnoreCase)))
+                                    return FailedRestore($"还原后暂存区条目校验失败：{file.RelativePath}");
+                            }
+                            else if (verifiedIndex.ContainsKey(file.RelativePath))
+                            {
+                                return FailedRestore($"还原后暂存区仍存在冗余条目：{file.RelativePath}");
+                            }
+                        }
+                    }
+
                     store.MarkRestored(backupId, utcNowOverride);
 
                     var msg = $"已从恢复库还原 {restoredPaths.Count} 个文件（含暂存区条目还原 {indexRestoredCount} 项）。";
@@ -889,35 +1484,46 @@ namespace SourceGit.Commands
             string absPath,
             Models.DiscardTargetItem target,
             Models.DiscardBaselineKind baseline,
+            Models.FileRemovalMode removalMode,
             Dictionary<string, IndexEntryRecord> indexInfo,
             CancellationToken cancellationToken)
         {
             try
             {
-                var fi = new FileInfo(absPath);
-                var symlinkTarget = fi.LinkTarget ?? string.Empty;
-                var isSymlink = !string.IsNullOrEmpty(symlinkTarget);
-                var existsOnDisk = fi.Exists || isSymlink;
-                byte[] wtBytes = null;
+                TryGetDiskEntryInfo(absPath, out var diskInfo);
+                if (diskInfo.Exists && !diskInfo.IsSymlink && diskInfo.IsDirectory)
+                    return null;
 
-                if (existsOnDisk && !isSymlink)
-                    wtBytes = await File.ReadAllBytesAsync(absPath, cancellationToken).ConfigureAwait(false);
+                byte[] wtBytes = null;
+                if (diskInfo.Exists && !diskInfo.IsSymlink)
+                {
+                    await using var stream = new FileStream(
+                        absPath,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.ReadWrite | FileShare.Delete,
+                        bufferSize: 4096,
+                        useAsync: true);
+                    using var ms = new MemoryStream();
+                    await stream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
+                    wtBytes = ms.ToArray();
+                }
 
                 var hasIndex = indexInfo.TryGetValue(target.Path, out var idx);
                 byte[] idxBytes = null;
                 if (hasIndex && !string.IsNullOrEmpty(idx.BlobOid))
-                {
                     idxBytes = await ReadGitBlobBytesAsync(repoPath, idx.BlobOid, cancellationToken).ConfigureAwait(false);
-                }
 
                 return new Models.DiscardBackupCaptureInput
                 {
                     RelativePath = target.Path,
                     OriginalPath = target.OriginalPath,
                     Baseline = baseline,
-                    ExistsInWorktree = existsOnDisk,
-                    IsSymlink = isSymlink,
-                    SymlinkTarget = symlinkTarget,
+                    RemovalMode = Models.FileRemovalModeExtensions.Normalize(removalMode),
+                    ExistsInWorktree = diskInfo.Exists,
+                    IsSymlink = diskInfo.IsSymlink,
+                    IsDirectorySymlink = diskInfo.IsDirectorySymlink,
+                    SymlinkTarget = diskInfo.LinkTarget,
                     WorktreeBytes = wtBytes,
                     ExistsInIndex = hasIndex,
                     IndexMode = idx?.Mode ?? string.Empty,
@@ -1026,8 +1632,11 @@ namespace SourceGit.Commands
 
         private static OperationActionOutcome<Models.DiscardExecutionResult> FailBeforeMutation(
             Models.DiscardBaselineKind baseline,
+            Models.FileRemovalMode removalMode,
             string reason,
-            string opId)
+            string opId,
+            List<string> failedPaths = null,
+            Dictionary<string, string> failureReasons = null)
         {
             return new OperationActionOutcome<Models.DiscardExecutionResult>
             {
@@ -1038,6 +1647,9 @@ namespace SourceGit.Commands
                 {
                     Success = false,
                     Baseline = baseline,
+                    RemovalMode = removalMode,
+                    FailedPaths = failedPaths ?? [],
+                    FailureReasons = failureReasons ?? new Dictionary<string, string>(PathComparer),
                     Summary = reason,
                     OperationRecordId = opId,
                 },
@@ -1050,26 +1662,556 @@ namespace SourceGit.Commands
             return (ok, err);
         }
 
-        private static string ResolveSafeRepoPathAny(string repoPath, string relPath)
+        private static (bool Success, string Error) DefaultDirectDeleteHandler(string path)
         {
-            if (string.IsNullOrWhiteSpace(repoPath) || string.IsNullOrWhiteSpace(relPath))
-                return null;
+            try
+            {
+                if (!TryGetDiskEntryInfo(path, out var info) || !info.Exists)
+                    return (true, string.Empty);
+
+                if (info.IsSymlink)
+                {
+                    if (info.IsDirectorySymlink)
+                        Directory.Delete(path, false);
+                    else
+                        File.Delete(path);
+                    return (true, string.Empty);
+                }
+
+                if (info.IsDirectory)
+                    return (false, "拒绝直接删除未展开的目录路径。");
+
+                var attrs = File.GetAttributes(path);
+                if ((attrs & FileAttributes.ReadOnly) != 0)
+                    File.SetAttributes(path, attrs & ~FileAttributes.ReadOnly);
+
+                File.Delete(path);
+                return (true, string.Empty);
+            }
+            catch (Exception ex)
+            {
+                return (false, Models.GitConfigSnapshot.RedactText(ex.Message));
+            }
+        }
+
+        private static (bool Success, string Error) RemoveFileOrSymlink(
+            string absPath,
+            Models.FileRemovalMode removalMode,
+            Func<string, (bool Success, string Error)> recycleHandler,
+            Func<string, (bool Success, string Error)> directDeleteHandler)
+        {
+            if (!TryGetDiskEntryInfo(absPath, out var info) || !info.Exists)
+                return (true, string.Empty);
+
+            if (Models.FileRemovalModeExtensions.Normalize(removalMode) == Models.FileRemovalMode.Direct)
+                return (directDeleteHandler ?? DefaultDirectDeleteHandler)(absPath);
+
+            return (recycleHandler ?? DefaultRecycleHandler)(absPath);
+        }
+
+        private static List<string> PruneCleanableEmptyDirectories(
+            string repoPath,
+            string repoGitDir,
+            string repoCommonDir,
+            IReadOnlyList<string> cleanableDirectories,
+            Models.ICommandLog log)
+        {
+            var removed = new List<string>();
+            if (cleanableDirectories == null || cleanableDirectories.Count == 0)
+                return removed;
+
+            var ordered = cleanableDirectories
+                .Where(d => !string.IsNullOrWhiteSpace(d))
+                .Distinct(PathComparer)
+                .OrderByDescending(d => d.Count(ch => ch == '/'))
+                .ThenByDescending(d => d.Length)
+                .ToList();
+
+            foreach (var dirRel in ordered)
+            {
+                if (!TryResolveSafeRepoTarget(repoPath, dirRel, repoGitDir, repoCommonDir, out var dirAbs, out _, out _))
+                    continue;
+
+                if (!TryGetDiskEntryInfo(dirAbs, out var info) || !info.Exists || info.IsSymlink || !info.IsDirectory)
+                    continue;
+
+                if (HasDotGitEntry(dirAbs) || HasAnyDirectoryEntries(dirAbs))
+                    continue;
+
+                try
+                {
+                    Directory.Delete(dirAbs, false);
+                    removed.Add(dirRel);
+                    log?.AppendLine($"[RemovedEmptyDir] {dirRel}");
+                }
+                catch
+                {
+                    // Leave non-deletable directories intact without failing already-removed files.
+                }
+            }
+
+            return removed;
+        }
+
+        private static async Task ExpandUntrackedCandidatesAsync(
+            string repoPath,
+            string repoGitDir,
+            string repoCommonDir,
+            Dictionary<string, IndexEntryRecord> indexInfo,
+            Dictionary<string, Models.Change> targetByPath,
+            List<(string RelPath, DiskEntryInfo Info, Models.Change Source)> directUntrackedLeaves,
+            Queue<string> dirQueue,
+            List<Models.DiscardTargetItem> untracked,
+            List<string> cleanableDirs,
+            List<string> skippedSubmodules,
+            List<string> skippedNestedRepos,
+            List<string> skippedIgnored,
+            CancellationToken cancellationToken)
+        {
+            var seenLeaves = new HashSet<string>(PathComparer);
+            var visitedDirs = new HashSet<string>(PathComparer);
+            var initialDirs = new List<string>();
+            while (dirQueue.Count > 0)
+            {
+                var d = dirQueue.Dequeue();
+                if (visitedDirs.Add(d))
+                    initialDirs.Add(d);
+            }
+
+            var initialCheckPaths = directUntrackedLeaves
+                .Select(x => x.RelPath)
+                .Concat(initialDirs)
+                .Distinct(PathComparer)
+                .ToList();
+            var initialIgnored = await CheckIgnoredPathsBatchAsync(repoPath, initialCheckPaths, cancellationToken)
+                .ConfigureAwait(false);
+
+            foreach (var leaf in directUntrackedLeaves)
+            {
+                if (initialIgnored.Contains(leaf.RelPath))
+                {
+                    AddUniquePath(skippedIgnored, leaf.RelPath);
+                    continue;
+                }
+
+                if (seenLeaves.Add(leaf.RelPath))
+                {
+                    untracked.Add(CreateUntrackedTargetItem(leaf.RelPath, leaf.Info, leaf.Source));
+                }
+            }
+
+            foreach (var dirRel in initialDirs)
+            {
+                if (initialIgnored.Contains(dirRel))
+                {
+                    AddUniquePath(skippedIgnored, dirRel);
+                    continue;
+                }
+
+                dirQueue.Enqueue(dirRel);
+                AddUniquePath(cleanableDirs, dirRel);
+            }
+
+            while (dirQueue.Count > 0)
+            {
+                var levelCount = dirQueue.Count;
+                var levelCandidates = new List<(string RelPath, DiskEntryInfo Info)>();
+
+                for (var i = 0; i < levelCount; i++)
+                {
+                    var dirRel = dirQueue.Dequeue();
+                    if (!TryResolveSafeRepoTarget(repoPath, dirRel, repoGitDir, repoCommonDir, out var dirAbs, out _, out _))
+                        continue;
+
+                    if (!TryGetDiskEntryInfo(dirAbs, out var dirInfo) || !dirInfo.Exists || dirInfo.IsSymlink || !dirInfo.IsDirectory)
+                        continue;
+
+                    if (HasDotGitEntry(dirAbs))
+                    {
+                        AddUniquePath(skippedNestedRepos, dirRel);
+                        continue;
+                    }
+
+                    string[] children;
+                    try
+                    {
+                        children = Directory.EnumerateFileSystemEntries(dirAbs)
+                            .OrderBy(p => Path.GetFileName(p), StringComparer.OrdinalIgnoreCase)
+                            .ToArray();
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+
+                    foreach (var childAbs in children)
+                    {
+                        var name = Path.GetFileName(childAbs);
+                        if (string.IsNullOrEmpty(name) ||
+                            string.Equals(name, ".", StringComparison.Ordinal) ||
+                            string.Equals(name, "..", StringComparison.Ordinal) ||
+                            string.Equals(name, ".git", StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        var childRel = NormalizeRelPath($"{dirRel}/{name}");
+                        if (!TryResolveSafeRepoTarget(repoPath, childRel, repoGitDir, repoCommonDir, out _, out _, out _))
+                            continue;
+
+                        if (indexInfo.TryGetValue(childRel, out var idxRec))
+                        {
+                            if (string.Equals(idxRec.Mode, "160000", StringComparison.Ordinal))
+                                AddUniquePath(skippedSubmodules, childRel);
+                            continue;
+                        }
+
+                        if (!TryGetDiskEntryInfo(childAbs, out var childInfo) || !childInfo.Exists)
+                            continue;
+
+                        if (!childInfo.IsSymlink && childInfo.IsDirectory && HasDotGitEntry(childAbs))
+                        {
+                            AddUniquePath(skippedNestedRepos, childRel);
+                            continue;
+                        }
+
+                        levelCandidates.Add((childRel, childInfo));
+                    }
+                }
+
+                if (levelCandidates.Count == 0)
+                    continue;
+
+                var levelIgnored = await CheckIgnoredPathsBatchAsync(
+                    repoPath,
+                    levelCandidates.Select(c => c.RelPath).Distinct(PathComparer).ToList(),
+                    cancellationToken).ConfigureAwait(false);
+
+                foreach (var candidate in levelCandidates)
+                {
+                    if (levelIgnored.Contains(candidate.RelPath))
+                    {
+                        AddUniquePath(skippedIgnored, candidate.RelPath);
+                        continue;
+                    }
+
+                    if (!candidate.Info.IsSymlink && candidate.Info.IsDirectory)
+                    {
+                        if (visitedDirs.Add(candidate.RelPath))
+                        {
+                            dirQueue.Enqueue(candidate.RelPath);
+                            AddUniquePath(cleanableDirs, candidate.RelPath);
+                        }
+                    }
+                    else if (seenLeaves.Add(candidate.RelPath))
+                    {
+                        targetByPath.TryGetValue(candidate.RelPath, out var source);
+                        untracked.Add(CreateUntrackedTargetItem(candidate.RelPath, candidate.Info, source));
+                    }
+                }
+            }
+        }
+
+        private static Models.DiscardTargetItem CreateUntrackedTargetItem(
+            string relPath,
+            DiskEntryInfo info,
+            Models.Change source)
+        {
+            return new Models.DiscardTargetItem
+            {
+                Path = relPath,
+                OriginalPath = string.IsNullOrWhiteSpace(source?.OriginalPath) ? string.Empty : NormalizeRelPath(source.OriginalPath),
+                Index = source?.Index ?? Models.ChangeState.Untracked,
+                WorkTree = source?.WorkTree ?? Models.ChangeState.Untracked,
+                IsSubmodule = false,
+                IsFolder = false,
+                IsSymlink = info.IsSymlink,
+                IsDirectorySymlink = info.IsDirectorySymlink,
+            };
+        }
+
+        private static async Task<HashSet<string>> CheckIgnoredPathsBatchAsync(
+            string repoPath,
+            IReadOnlyList<string> relPaths,
+            CancellationToken cancellationToken)
+        {
+            var ignored = new HashSet<string>(PathComparer);
+            if (relPaths == null || relPaths.Count == 0)
+                return ignored;
+
+            var stdin = CommandArgumentHelper.BuildNulPathspecBytes(relPaths);
+            if (stdin.Length == 0)
+                return ignored;
+
+            var res = await Command.RunGitDirectWithInputAsync(
+                repoPath,
+                TimeSpan.FromSeconds(15),
+                stdin,
+                cancellationToken,
+                "--no-pager",
+                "-c",
+                "core.quotepath=off",
+                "check-ignore",
+                "--stdin",
+                "-z").ConfigureAwait(false);
+
+            if (string.IsNullOrEmpty(res.StdOut))
+                return ignored;
+
+            foreach (var raw in res.StdOut.Split('\0', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var normalized = NormalizeRelPath(raw);
+                if (!string.IsNullOrEmpty(normalized))
+                    ignored.Add(normalized);
+            }
+
+            return ignored;
+        }
+
+        private static bool PreflightTargetsMatch(Models.DiscardPreflight expected, Models.DiscardPreflight current)
+        {
+            if (expected == null || current == null || expected.Baseline != current.Baseline)
+                return false;
+
+            if (expected.Baseline == Models.DiscardBaselineKind.MoveUntrackedToRecycleBin)
+            {
+                return PathSetsEqual(
+                           expected.UntrackedTargets.Select(t => t.Path),
+                           current.UntrackedTargets.Select(t => t.Path)) &&
+                       PathSetsEqual(
+                           expected.CleanableDirectories,
+                           current.CleanableDirectories);
+            }
+
+            return PathSetsEqual(
+                expected.TrackedTargets.Select(t => t.Path),
+                current.TrackedTargets.Select(t => t.Path));
+        }
+
+        private static bool PathSetsEqual(IEnumerable<string> left, IEnumerable<string> right)
+        {
+            var leftSet = new HashSet<string>(left ?? [], PathComparer);
+            return leftSet.SetEquals(right ?? []);
+        }
+
+        private static bool TryResolveSafeRepoTarget(
+            string repoPath,
+            string relPath,
+            string repoGitDir,
+            string repoCommonDir,
+            out string absPath,
+            out string failureReason,
+            out string symlinkAncestorRel)
+        {
+            absPath = null;
+            failureReason = string.Empty;
+            symlinkAncestorRel = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(repoPath) || string.IsNullOrWhiteSpace(relPath) || relPath.IndexOf('\0') >= 0)
+            {
+                failureReason = "目标路径为空或包含非法字符。";
+                return false;
+            }
+
+            var trimmed = relPath.Trim().Replace('\\', '/');
+            if (trimmed.StartsWith("/", StringComparison.Ordinal) || Path.IsPathRooted(trimmed))
+            {
+                failureReason = "拒绝处理绝对路径或根目录路径。";
+                return false;
+            }
+
+            var rawSegments = trimmed.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (rawSegments.Length == 0)
+            {
+                failureReason = "拒绝处理仓库根目录本身。";
+                return false;
+            }
+
+            for (var i = 0; i < rawSegments.Length; i++)
+            {
+                var seg = rawSegments[i];
+                if (string.Equals(seg, ".", StringComparison.Ordinal) ||
+                    string.Equals(seg, "..", StringComparison.Ordinal))
+                {
+                    failureReason = "拒绝处理包含 . 或 .. 的越界路径。";
+                    return false;
+                }
+
+                if (string.Equals(seg, ".git", StringComparison.OrdinalIgnoreCase))
+                {
+                    failureReason = "拒绝修改或删除 .git 元数据目录内容。";
+                    return false;
+                }
+
+                if (OperatingSystem.IsWindows() && seg.Contains(':', StringComparison.Ordinal))
+                {
+                    failureReason = "拒绝处理包含盘符或保留流名的非法路径。";
+                    return false;
+                }
+            }
 
             try
             {
-                var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(repoPath));
-                var prefix = root + Path.DirectorySeparatorChar;
-                var full = Path.GetFullPath(Path.Combine(root, relPath.Replace('/', Path.DirectorySeparatorChar)));
+                var rootFull = Path.TrimEndingDirectorySeparator(Path.GetFullPath(repoPath));
+                var prefix = rootFull + Path.DirectorySeparatorChar;
+                var candidateFull = Path.GetFullPath(Path.Combine(rootFull, Path.Combine(rawSegments)));
                 var comp = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-                if (!full.StartsWith(prefix, comp))
-                    return null;
+                if (!candidateFull.StartsWith(prefix, comp))
+                {
+                    failureReason = "拒绝处理仓库根目录之外的越界路径。";
+                    return false;
+                }
 
-                return full;
+                if (IsSameOrUnderDirectory(candidateFull, repoGitDir, comp) ||
+                    IsSameOrUnderDirectory(candidateFull, repoCommonDir, comp))
+                {
+                    failureReason = "拒绝处理 Git 内部元数据目录路径。";
+                    return false;
+                }
+
+                // Walk parent segments to forbid traversing through symlink/junction ancestor directories.
+                var cursor = rootFull;
+                for (var i = 0; i < rawSegments.Length - 1; i++)
+                {
+                    cursor = Path.Combine(cursor, rawSegments[i]);
+                    if (TryGetDiskEntryInfo(cursor, out var segInfo) &&
+                        segInfo.Exists &&
+                        (segInfo.IsSymlink || segInfo.IsReparsePoint))
+                    {
+                        symlinkAncestorRel = string.Join('/', rawSegments, 0, i + 1);
+                        failureReason = $"拒绝穿过符号链接或目录连接点路径：{symlinkAncestorRel}";
+                        return false;
+                    }
+                }
+
+                absPath = candidateFull;
+                return true;
             }
             catch
             {
-                return null;
+                failureReason = "解析目标路径失败，路径非法或受系统限制。";
+                return false;
             }
+        }
+
+        private static bool IsSameOrUnderDirectory(string candidateFull, string protectedDir, StringComparison comp)
+        {
+            if (string.IsNullOrWhiteSpace(protectedDir))
+                return false;
+
+            try
+            {
+                var fullProtected = Path.TrimEndingDirectorySeparator(Path.GetFullPath(protectedDir));
+                return string.Equals(candidateFull, fullProtected, comp) ||
+                       candidateFull.StartsWith(fullProtected + Path.DirectorySeparatorChar, comp);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool IsCoveredByExpandRoots(string symlinkAncestorRel, HashSet<string> expandRoots)
+        {
+            if (string.IsNullOrEmpty(symlinkAncestorRel) || expandRoots == null || expandRoots.Count == 0)
+                return false;
+
+            if (expandRoots.Contains(symlinkAncestorRel))
+                return true;
+
+            foreach (var root in expandRoots)
+            {
+                if (symlinkAncestorRel.StartsWith(root + "/", OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryGetDiskEntryInfo(string absPath, out DiskEntryInfo info)
+        {
+            info = default;
+            if (string.IsNullOrWhiteSpace(absPath))
+                return false;
+
+            try
+            {
+                var fi = new FileInfo(absPath);
+                var di = new DirectoryInfo(absPath);
+                var attrs = fi.Attributes;
+                var fileLinkTarget = fi.LinkTarget;
+                var dirLinkTarget = di.LinkTarget;
+                var hasLinkTarget = fileLinkTarget != null || dirLinkTarget != null;
+                var exists = (int)attrs != -1 || hasLinkTarget;
+                if (!exists)
+                    return false;
+
+                var isDir = (int)attrs != -1 && (attrs & FileAttributes.Directory) != 0;
+                var isReparse = hasLinkTarget || ((int)attrs != -1 && (attrs & FileAttributes.ReparsePoint) != 0);
+                var linkTarget = fileLinkTarget ?? dirLinkTarget ?? string.Empty;
+                var isSymlink = hasLinkTarget || (isReparse && isDir);
+                var isDirSymlink = isSymlink && isDir;
+
+                info = new DiskEntryInfo(
+                    Exists: true,
+                    IsDirectory: isDir,
+                    IsSymlink: isSymlink,
+                    IsDirectorySymlink: isDirSymlink,
+                    IsReparsePoint: isReparse,
+                    LinkTarget: linkTarget);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static bool EntryExistsOnDisk(string absPath) =>
+            TryGetDiskEntryInfo(absPath, out var info) && info.Exists;
+
+        private static bool HasDotGitEntry(string dirAbs)
+        {
+            var dotGit = Path.Combine(dirAbs, ".git");
+            return EntryExistsOnDisk(dotGit);
+        }
+
+        private static bool HasAnyDirectoryEntries(string dirAbs)
+        {
+            try
+            {
+                using var enumerator = Directory.EnumerateFileSystemEntries(dirAbs).GetEnumerator();
+                return enumerator.MoveNext();
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
+        private static string ComputeLiveWorktreeStateSha(string absPath)
+        {
+            if (string.IsNullOrEmpty(absPath) || !TryGetDiskEntryInfo(absPath, out var info) || !info.Exists)
+                return Models.DiscardBackupStore.AbsentMarker;
+
+            if (info.IsSymlink)
+                return Models.DiscardBackupStore.ComputeSha256Hex(Encoding.UTF8.GetBytes(info.LinkTarget ?? string.Empty));
+
+            if (info.IsDirectory)
+                return "<DIR>";
+
+            try
+            {
+                return Models.DiscardBackupStore.ComputeFileSha256Hex(absPath);
+            }
+            catch
+            {
+                return "<UNREADABLE>";
+            }
+        }
+
+        private static void AddUniquePath(List<string> list, string path)
+        {
+            if (!string.IsNullOrWhiteSpace(path) && !list.Contains(path, PathComparer))
+                list.Add(path);
         }
 
         private static bool HasRenameSource(Models.DiscardTargetItem target) =>
@@ -1106,6 +2248,14 @@ namespace SourceGit.Commands
             if (!string.IsNullOrWhiteSpace(res.StdErr))
                 log.AppendLine(res.StdErr.TrimEnd());
         }
+
+        private readonly record struct DiskEntryInfo(
+            bool Exists,
+            bool IsDirectory,
+            bool IsSymlink,
+            bool IsDirectorySymlink,
+            bool IsReparsePoint,
+            string LinkTarget);
 
         private sealed record IndexEntryRecord(string Mode, string BlobOid, string Stage);
     }

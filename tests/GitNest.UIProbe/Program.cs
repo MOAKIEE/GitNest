@@ -297,7 +297,8 @@ internal static partial class Program
     {
         var button = root.GetVisualDescendants()
             .OfType<Button>()
-            .First(b => b.IsEffectivelyVisible && string.Equals(b.Content?.ToString(), text, StringComparison.Ordinal));
+            .First(b => b is not Avalonia.Controls.Primitives.ToggleButton &&
+                        b.IsEffectivelyVisible && string.Equals(b.Content?.ToString(), text, StringComparison.Ordinal));
         button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent, button));
     }
 

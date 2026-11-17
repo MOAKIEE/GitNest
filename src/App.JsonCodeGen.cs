@@ -77,5 +77,6 @@ namespace SourceGit
     [JsonSerializable(typeof(Models.DiscardBackupEntry))]
     [JsonSerializable(typeof(Models.DiscardBackupFileEntry))]
     [JsonSerializable(typeof(List<Models.DiscardBackupEntry>))]
+    [JsonSerializable(typeof(Models.FileRemovalMode))]
     internal partial class JsonCodeGen : JsonSerializerContext { }
 }

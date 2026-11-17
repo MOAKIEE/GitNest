@@ -6,6 +6,7 @@ namespace SourceGit.ViewModels
     public class ChangeSelection
     {
         public List<Models.Change> Changes { get; }
+        public List<string> SelectedFolderPaths { get; }
         public bool IsSingleFolder { get; }
         public string SingleFolderPath { get; }
         public bool HasFolder { get; }
@@ -15,6 +16,7 @@ namespace SourceGit.ViewModels
         public ChangeSelection(IList selected)
         {
             var changes = new List<Models.Change>();
+            var folders = new List<string>();
 
             IsSingleFolder = false;
             SingleFolderPath = null;
@@ -32,8 +34,12 @@ namespace SourceGit.ViewModels
                     {
                         CollectChangesInNode(changes, node);
 
-                        if (node.IsFolder && !HasFolder)
+                        if (node.IsFolder)
+                        {
                             HasFolder = true;
+                            if (!string.IsNullOrWhiteSpace(node.FullPath) && !folders.Contains(node.FullPath))
+                                folders.Add(node.FullPath);
+                        }
                     }
                 }
 
@@ -45,6 +51,7 @@ namespace SourceGit.ViewModels
             }
 
             Changes = changes;
+            SelectedFolderPaths = folders;
         }
 
         public bool IsChanged(ChangeSelection other)

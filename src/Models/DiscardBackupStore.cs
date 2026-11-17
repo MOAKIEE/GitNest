@@ -12,8 +12,10 @@ namespace SourceGit.Models
         public string RelativePath { get; init; } = string.Empty;
         public string OriginalPath { get; init; } = string.Empty;
         public DiscardBaselineKind Baseline { get; init; } = DiscardBaselineKind.RestoreWorktreeToIndex;
+        public FileRemovalMode RemovalMode { get; init; } = FileRemovalMode.RecycleBin;
         public bool ExistsInWorktree { get; init; }
         public bool IsSymlink { get; init; }
+        public bool IsDirectorySymlink { get; init; }
         public string SymlinkTarget { get; init; } = string.Empty;
         public byte[] WorktreeBytes { get; init; }
         public bool ExistsInIndex { get; init; }
@@ -72,7 +74,7 @@ namespace SourceGit.Models
 
         public static string ComputeFileSha256Hex(string filePath)
         {
-            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             return Convert.ToHexString(SHA256.HashData(stream));
         }
 
@@ -83,11 +85,13 @@ namespace SourceGit.Models
             DiscardBaselineKind baseline,
             string summary,
             IReadOnlyList<DiscardBackupCaptureInput> inputs,
-            DateTime? utcNowOverride = null)
+            DateTime? utcNowOverride = null,
+            FileRemovalMode removalMode = FileRemovalMode.RecycleBin)
         {
             if (inputs == null || inputs.Count == 0)
                 return new DiscardBackupCaptureResult { Success = false, Error = "没有需要写入恢复库的文件。" };
 
+            var normalizedRemovalMode = FileRemovalModeExtensions.Normalize(removalMode);
             var nowUtc = EnsureUtc(utcNowOverride ?? DateTime.UtcNow);
             var backupId = $"{nowUtc:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("N")[..8]}";
             var backupPayloadDir = Path.Combine(_payloadRoot, backupId);
@@ -114,8 +118,10 @@ namespace SourceGit.Models
                             RelativePath = NormalizeRepoRelativePath(item.RelativePath),
                             OriginalPath = string.IsNullOrWhiteSpace(item.OriginalPath) ? string.Empty : NormalizeRepoRelativePath(item.OriginalPath),
                             Baseline = item.Baseline,
+                            RemovalMode = FileRemovalModeExtensions.Normalize(item.RemovalMode),
                             ExistsInWorktree = item.ExistsInWorktree,
                             IsSymlink = item.IsSymlink,
+                            IsDirectorySymlink = item.IsDirectorySymlink,
                             SymlinkTarget = item.SymlinkTarget ?? string.Empty,
                             WorktreeSha256 = string.Empty,
                             WorktreeByteLength = 0,
@@ -135,11 +141,13 @@ namespace SourceGit.Models
                             var payloadAbs = Path.Combine(backupPayloadDir, payloadRel);
                             File.WriteAllBytes(payloadAbs, item.WorktreeBytes);
 
+                            var expectedSha = ComputeSha256Hex(item.WorktreeBytes);
                             var verifiedLength = new FileInfo(payloadAbs).Length;
-                            if (verifiedLength != item.WorktreeBytes.LongLength)
-                                throw new IOException($"备份载荷写入校验长度不一致：{item.RelativePath}");
+                            if (verifiedLength != item.WorktreeBytes.LongLength ||
+                                !string.Equals(ComputeFileSha256Hex(payloadAbs), expectedSha, StringComparison.OrdinalIgnoreCase))
+                                throw new IOException($"备份载荷写入校验失败：{item.RelativePath}");
 
-                            entry.WorktreeSha256 = ComputeSha256Hex(item.WorktreeBytes);
+                            entry.WorktreeSha256 = expectedSha;
                             entry.WorktreeByteLength = item.WorktreeBytes.LongLength;
                             entry.BackupPayloadRelativePath = Path.Combine("payloads", backupId, payloadRel).Replace('\\', '/');
                         }
@@ -148,11 +156,21 @@ namespace SourceGit.Models
                             entry.WorktreeSha256 = ComputeSha256Hex(System.Text.Encoding.UTF8.GetBytes(entry.SymlinkTarget));
                         }
 
-                        if (item.ExistsInIndex && item.IndexBytes != null)
+                        if (item.ExistsInIndex)
                         {
+                            if (item.IndexBytes == null)
+                                throw new InvalidOperationException($"未能读取暂存区文件内容：{item.RelativePath}");
+
                             var idxRel = $"{i:D4}-idx.bin";
                             var idxAbs = Path.Combine(backupPayloadDir, idxRel);
                             File.WriteAllBytes(idxAbs, item.IndexBytes);
+
+                            var expectedIdxSha = ComputeSha256Hex(item.IndexBytes);
+                            var verifiedIdxLength = new FileInfo(idxAbs).Length;
+                            if (verifiedIdxLength != item.IndexBytes.LongLength ||
+                                !string.Equals(ComputeFileSha256Hex(idxAbs), expectedIdxSha, StringComparison.OrdinalIgnoreCase))
+                                throw new IOException($"暂存区备份载荷写入校验失败：{item.RelativePath}");
+
                             entry.IndexPayloadRelativePath = Path.Combine("payloads", backupId, idxRel).Replace('\\', '/');
                         }
 
@@ -170,12 +188,17 @@ namespace SourceGit.Models
                         GitCommonDir = NormalizePathKey(gitCommonDir),
                         HeadSha = (headSha ?? string.Empty).Trim(),
                         Baseline = baseline,
+                        RemovalMode = normalizedRemovalMode,
                         Summary = GitConfigSnapshot.RedactText(summary ?? string.Empty),
                         Files = fileEntries,
                     };
 
                     index.Entries.Insert(0, record);
                     SaveIndexLocked(index);
+
+                    var verifiedIndex = LoadIndexLocked();
+                    if (!verifiedIndex.Entries.Any(e => string.Equals(e.BackupId, backupId, StringComparison.Ordinal)))
+                        throw new IOException($"恢复库索引写入校验失败：{backupId}");
 
                     return new DiscardBackupCaptureResult
                     {
@@ -341,8 +364,14 @@ namespace SourceGit.Models
         public byte[] ReadIndexPayloadBytes(DiscardBackupFileEntry file, out string error)
         {
             error = string.Empty;
-            if (file == null || !file.ExistsInIndex || string.IsNullOrWhiteSpace(file.IndexPayloadRelativePath))
+            if (file == null || !file.ExistsInIndex)
                 return null;
+
+            if (string.IsNullOrWhiteSpace(file.IndexPayloadRelativePath))
+            {
+                error = $"暂存区恢复载荷路径缺失：{file.RelativePath}";
+                return null;
+            }
 
             var absPath = Path.GetFullPath(Path.Combine(_storeRoot, file.IndexPayloadRelativePath));
             if (!IsPathInsideRoot(absPath, _payloadRoot) || !File.Exists(absPath))
@@ -376,10 +405,11 @@ namespace SourceGit.Models
                     if (!string.IsNullOrEmpty(err))
                         missingOrCorruptPaths.Add(file.RelativePath);
                 }
-                else if (file.ExistsInIndex && !string.IsNullOrEmpty(file.IndexPayloadRelativePath))
+
+                if (file.ExistsInIndex)
                 {
                     _ = ReadIndexPayloadBytes(file, out var idxErr);
-                    if (!string.IsNullOrEmpty(idxErr))
+                    if (!string.IsNullOrEmpty(idxErr) && !missingOrCorruptPaths.Contains(file.RelativePath))
                         missingOrCorruptPaths.Add(file.RelativePath);
                 }
             }
@@ -482,6 +512,7 @@ namespace SourceGit.Models
                 GitCommonDir = src.GitCommonDir,
                 HeadSha = src.HeadSha,
                 Baseline = src.Baseline,
+                RemovalMode = FileRemovalModeExtensions.Normalize(src.RemovalMode),
                 Summary = src.Summary,
                 RestoredAtUtc = src.RestoredAtUtc.HasValue ? EnsureUtc(src.RestoredAtUtc.Value) : null,
                 Files = src.Files.Select(f => new DiscardBackupFileEntry
@@ -489,8 +520,10 @@ namespace SourceGit.Models
                     RelativePath = f.RelativePath,
                     OriginalPath = f.OriginalPath,
                     Baseline = f.Baseline,
+                    RemovalMode = FileRemovalModeExtensions.Normalize(f.RemovalMode),
                     ExistsInWorktree = f.ExistsInWorktree,
                     IsSymlink = f.IsSymlink,
+                    IsDirectorySymlink = f.IsDirectorySymlink,
                     SymlinkTarget = f.SymlinkTarget,
                     WorktreeSha256 = f.WorktreeSha256,
                     WorktreeByteLength = f.WorktreeByteLength,

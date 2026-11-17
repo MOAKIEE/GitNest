@@ -87,6 +87,40 @@ internal static partial class Program
               unstagedHeaders.All(h => !h.Contains("Assume unchanged", StringComparison.OrdinalIgnoreCase) && !h.Contains("不跟踪此文件的更改", StringComparison.Ordinal)),
               "Histories and WorkingCopy menus omit removed Rebase and AssumeUnchanged actions");
 
+        var prevRemovalMode = VM.Preferences.Instance.FileRemovalMode;
+        try
+        {
+            VM.Preferences.Instance.FileRemovalMode = FileRemovalMode.RecycleBin;
+            var singleUntrackedSel = new VM.ChangeSelection(new List<Change> { new Change { Path = "new.txt", WorkTree = ChangeState.Untracked } });
+            var multiUntrackedSel = new VM.ChangeSelection(new List<Change>
+            {
+                new Change { Path = "new1.txt", WorkTree = ChangeState.Untracked },
+                new Change { Path = "new2.txt", WorkTree = ChangeState.Untracked },
+            });
+            var mixedSel = new VM.ChangeSelection(new List<Change>
+            {
+                new Change { Path = "README.md", WorkTree = ChangeState.Modified },
+                new Change { Path = "new1.txt", WorkTree = ChangeState.Untracked },
+            });
+
+            var recycleSingleMenu = ExtractMenuHeaders(workingCopyView.CreateContextMenuForUnstagedChanges(repo, wcVm, singleUntrackedSel));
+            Check(recycleSingleMenu.Contains(App.Text("FileCM.MoveToRecycleBin")),
+                  "Untracked context menu uses MoveToRecycleBin wording under RecycleBin default");
+
+            VM.Preferences.Instance.FileRemovalMode = FileRemovalMode.Direct;
+            var directSingleMenu = ExtractMenuHeaders(workingCopyView.CreateContextMenuForUnstagedChanges(repo, wcVm, singleUntrackedSel));
+            var directMultiMenu = ExtractMenuHeaders(workingCopyView.CreateContextMenuForUnstagedChanges(repo, wcVm, multiUntrackedSel));
+            var mixedMenu = ExtractMenuHeaders(workingCopyView.CreateContextMenuForUnstagedChanges(repo, wcVm, mixedSel));
+            Check(directSingleMenu.Contains(App.Text("FileCM.DirectDeleteUntracked")) &&
+                  directMultiMenu.Contains(App.Text("FileCM.DirectDeleteUntrackedMulti", 2)) &&
+                  mixedMenu.Contains(App.Text("FileCM.DiscardOrRecycleMulti", 2)),
+                  "WorkingCopy unstaged menus reflect Direct Delete vs mixed selection copy dynamically");
+        }
+        finally
+        {
+            VM.Preferences.Instance.FileRemovalMode = prevRemovalMode;
+        }
+
         // 3. CommitMessageToolBox history picker (without templates / AI button)
         var toolBox = workingCopyView.GetVisualDescendants().OfType<Views.CommitMessageToolBox>().First();
         var pickerHelperBtn = toolBox.GetVisualDescendants().OfType<Button>()
@@ -142,6 +176,27 @@ internal static partial class Program
         var languagePicker = prefWin.GetVisualDescendants().OfType<ComboBox>().Single(c => ReferenceEquals(c.ItemsSource, Locale.Supported));
         Check(prefTabControl.Items.Count == 5 && languagePicker.Items.Count == 2,
               $"Preferences exposes 5 tabs and 2 languages (tabs={prefTabControl.Items.Count}, langs={languagePicker.Items.Count})");
+
+        var removalPicker = prefWin.GetVisualDescendants().OfType<ComboBox>()
+            .FirstOrDefault(c => c.Items.Count == 2 &&
+                                 c.Items.OfType<ComboBoxItem>().Any(i => Equals(i.Content, App.Text("Preferences.General.FileRemovalMode.Direct"))));
+        Check(removalPicker != null &&
+              VM.Preferences.Instance.FileRemovalMode == FileRemovalMode.RecycleBin,
+              "Preferences General tab exposes FileRemovalMode selector with RecycleBin default");
+
+        removalPicker!.SelectedIndex = 1;
+        Pump();
+        Check(VM.Preferences.Instance.FileRemovalMode == FileRemovalMode.Direct &&
+              prefWin.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == App.Text("Preferences.General.FileRemovalMode.Note")),
+              "Switching FileRemovalMode ComboBox updates Preferences immediately without restart and displays backup note");
+
+        App.SetLocale("en_US");
+        Pump();
+        Check(removalPicker.Items.OfType<ComboBoxItem>().Any(i => Equals(i.Content, App.Text("Preferences.General.FileRemovalMode.Direct"))),
+              "Preferences FileRemovalMode options update live on locale switch");
+        App.SetLocale("zh_CN");
+        removalPicker.SelectedIndex = 0;
+        Pump();
         Screenshot(prefWin, "surface-preferences-light");
         prefWin.Close();
 

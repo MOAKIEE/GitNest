@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using SourceGit.Commands;
 using SourceGit.Models;
 
@@ -242,5 +243,335 @@ internal static partial class Program
                   "Recycle failure on locked file refuses permanent delete fallback and preserves file on disk");
         }
         File.Delete(lockedPath);
+
+        // 7. FileRemovalMode.Direct: backup-first deletion, restore, unborn HEAD, directory expansion, junctions, IndexAddedOnly, and path safety
+        var directRoot = Path.Combine(discardRoot, "direct-suite");
+        var directStore = new DiscardBackupStore(Path.Combine(directRoot, "backups"));
+        var directJournal = new OperationJournalStore(Path.Combine(directRoot, "journal.json"));
+
+        var missingIndexCapture = directStore.Capture(
+            repo, Path.Combine(repo, ".git"), string.Empty,
+            DiscardBaselineKind.RestoreToHead, "Missing index payload",
+            [new DiscardBackupCaptureInput { RelativePath = "missing-index.txt", ExistsInIndex = true }],
+            utcNowOverride: t0);
+        Check(!missingIndexCapture.Success && directStore.TryGet(missingIndexCapture.BackupId) == null,
+              "Backup capture rejects missing index bytes before accepting a recoverable entry");
+        Check(!directStore.VerifyPayloadIntegrity(
+                  new DiscardBackupEntry
+                  {
+                      Files = [new DiscardBackupFileEntry { RelativePath = "missing-index.txt", ExistsInIndex = true }],
+                  }, out var missingIndexPaths) && missingIndexPaths.SequenceEqual(["missing-index.txt"]),
+              "Backup integrity validation rejects index entries with missing payload paths");
+
+        // 7a. Untracked single & multi Direct Delete saves 30d backup, never calls recycleHandler, and restores identically
+        var u1 = "direct-one.txt";
+        var u2 = "新增 直接删除 文档.txt";
+        await File.WriteAllTextAsync(Path.Combine(repo, u1), "direct content 1\n", Utf8NoBom);
+        await File.WriteAllTextAsync(Path.Combine(repo, u2), "direct content 2 中文\n", Utf8NoBom);
+        var recycleCalls = 0;
+        var directRes = await DiscardBackupService.ExecuteDiscardAsync(
+            repo,
+            [
+                new Change { Path = u1, Index = ChangeState.Untracked, WorkTree = ChangeState.Untracked },
+                new Change { Path = u2, Index = ChangeState.Untracked, WorkTree = ChangeState.Untracked },
+            ],
+            DiscardBaselineKind.MoveUntrackedToRecycleBin,
+            backupStore: directStore,
+            recycleHandler: _ => { recycleCalls++; return (true, string.Empty); },
+            journalStore: directJournal,
+            utcNowOverride: t0,
+            removalMode: FileRemovalMode.Direct);
+        Check(directRes.Success &&
+              recycleCalls == 0 &&
+              directRes.RemovalMode == FileRemovalMode.Direct &&
+              !File.Exists(Path.Combine(repo, u1)) &&
+              !File.Exists(Path.Combine(repo, u2)) &&
+              directRes.DirectDeletedPaths.Contains(u1) &&
+              directRes.DirectDeletedPaths.Contains(u2) &&
+              directRes.RecycledPaths.Count == 0 &&
+              !string.IsNullOrEmpty(directRes.BackupId),
+              "Direct delete removes untracked files after backup without invoking Recycle Bin or double counting");
+
+        var directBackupEntry = directStore.TryGet(directRes.BackupId);
+        Check(directBackupEntry is { RemovalMode: FileRemovalMode.Direct, Baseline: DiscardBaselineKind.MoveUntrackedToRecycleBin } &&
+              directBackupEntry.Files.Count == 2,
+              "Untracked direct delete writes 30-day backup entry recording RemovalMode.Direct");
+
+        var directRestore = await DiscardBackupService.RestoreBackupAsync(
+            repo,
+            directRes.BackupId,
+            backupStore: directStore,
+            journalStore: directJournal,
+            utcNowOverride: t0.AddDays(1));
+        Check(directRestore.Success &&
+              await File.ReadAllTextAsync(Path.Combine(repo, u1), Utf8NoBom) == "direct content 1\n" &&
+              await File.ReadAllTextAsync(Path.Combine(repo, u2), Utf8NoBom) == "direct content 2 中文\n",
+              "Untracked direct-deleted files restore cleanly from 30-day local backup");
+        File.Delete(Path.Combine(repo, u1));
+        File.Delete(Path.Combine(repo, u2));
+
+        // 7b. RecycleBin failure never falls back to Direct Delete
+        var failRecycleFile = "recycle-fail-keep.txt";
+        await File.WriteAllTextAsync(Path.Combine(repo, failRecycleFile), "must stay on recycle error", Utf8NoBom);
+        var recycleFailCalls = 0;
+        var directFallbackCalls = 0;
+        var recycleFailRes = await DiscardBackupService.ExecuteDiscardAsync(
+            repo,
+            [new Change { Path = failRecycleFile, Index = ChangeState.Untracked, WorkTree = ChangeState.Untracked }],
+            DiscardBaselineKind.MoveUntrackedToRecycleBin,
+            backupStore: directStore,
+            recycleHandler: _ => { recycleFailCalls++; return (false, "Recycle Bin unavailable"); },
+            journalStore: directJournal,
+            utcNowOverride: t0,
+            removalMode: FileRemovalMode.RecycleBin,
+            directDeleteHandler: _ => { directFallbackCalls++; return (true, string.Empty); });
+        Check(!recycleFailRes.Success &&
+              recycleFailCalls == 1 &&
+              directFallbackCalls == 0 &&
+              recycleFailRes.FailedPaths.Contains(failRecycleFile) &&
+              recycleFailRes.FailureReasons.ContainsKey(failRecycleFile) &&
+              File.Exists(Path.Combine(repo, failRecycleFile)),
+              "RecycleBin failure never falls back to Direct Delete and preserves file + failure reason");
+
+        // Retrying the remaining failed file after switching to Direct succeeds cleanly
+        var retryDirectRes = await DiscardBackupService.ExecuteDiscardAsync(
+            repo,
+            [new Change { Path = failRecycleFile, Index = ChangeState.Untracked, WorkTree = ChangeState.Untracked }],
+            DiscardBaselineKind.MoveUntrackedToRecycleBin,
+            backupStore: directStore,
+            recycleHandler: _ => { recycleFailCalls++; return (true, string.Empty); },
+            journalStore: directJournal,
+            utcNowOverride: t0,
+            removalMode: FileRemovalMode.Direct);
+        Check(retryDirectRes.Success &&
+              !File.Exists(Path.Combine(repo, failRecycleFile)) &&
+              retryDirectRes.DirectDeletedPaths.Contains(failRecycleFile),
+              "Switching failed item to Direct Delete deletes it cleanly on retry");
+
+        // 7c. Backup write failure blocks Direct Delete completely before calling directDeleteHandler
+        var keepOnBackupErr = "backup-fail-direct.txt";
+        await File.WriteAllTextAsync(Path.Combine(repo, keepOnBackupErr), "do not delete", Utf8NoBom);
+        var blockedDirectCalls = 0;
+        var backupBlockedDirect = await DiscardBackupService.ExecuteDiscardAsync(
+            repo,
+            [new Change { Path = keepOnBackupErr, Index = ChangeState.Untracked, WorkTree = ChangeState.Untracked }],
+            DiscardBaselineKind.MoveUntrackedToRecycleBin,
+            backupStore: failingStore,
+            journalStore: directJournal,
+            utcNowOverride: t0,
+            removalMode: FileRemovalMode.Direct,
+            directDeleteHandler: _ => { blockedDirectCalls++; return (true, string.Empty); });
+        Check(!backupBlockedDirect.Success &&
+              blockedDirectCalls == 0 &&
+              File.Exists(Path.Combine(repo, keepOnBackupErr)),
+              "Backup failure aborts Direct Delete before calling delete handler");
+        File.Delete(Path.Combine(repo, keepOnBackupErr));
+
+        // 7d. Unborn HEAD supports Direct Delete + 30d backup + restore
+        var unbornUntracked = "unborn-direct.txt";
+        await File.WriteAllTextAsync(Path.Combine(unbornRepo, unbornUntracked), "unborn untracked payload\n", Utf8NoBom);
+        var unbornDirectRes = await DiscardBackupService.ExecuteDiscardAsync(
+            unbornRepo,
+            [new Change { Path = unbornUntracked, Index = ChangeState.Untracked, WorkTree = ChangeState.Untracked }],
+            DiscardBaselineKind.MoveUntrackedToRecycleBin,
+            backupStore: directStore,
+            journalStore: directJournal,
+            utcNowOverride: t0,
+            removalMode: FileRemovalMode.Direct);
+        var unbornRestoreRes = await DiscardBackupService.RestoreBackupAsync(
+            unbornRepo,
+            unbornDirectRes.BackupId,
+            backupStore: directStore,
+            journalStore: directJournal,
+            utcNowOverride: t0);
+        Check(unbornDirectRes.Success && unbornRestoreRes.Success &&
+              await File.ReadAllTextAsync(Path.Combine(unbornRepo, unbornUntracked), Utf8NoBom) == "unborn untracked payload\n",
+              "Unborn HEAD repo backs up, directly deletes, and restores untracked files");
+
+        // 7e. Directory expansion skips ignored files/local excludes/nested repos, handles empty dirs, and rejects mid-flight dir changes
+        var excludePath = Path.Combine(repo, ".git", "info", "exclude");
+        await File.WriteAllTextAsync(excludePath, "*.excluded\n", Utf8NoBom);
+        var mixDir = Path.Combine(repo, "mixdir");
+        var mixSub = Path.Combine(mixDir, "sub");
+        var mixEmpty = Path.Combine(mixDir, "emptysub");
+        var mixNested = Path.Combine(mixDir, "nestedrepo");
+        Directory.CreateDirectory(mixSub);
+        Directory.CreateDirectory(mixEmpty);
+        await InitRepoAsync(realGit, mixNested, "main", "Bob", "bob@example.invalid");
+        await File.WriteAllTextAsync(Path.Combine(mixNested, "inner.txt"), "nested commit file\n", Utf8NoBom);
+        await File.WriteAllTextAsync(Path.Combine(mixDir, "del1.txt"), "delete me 1\n", Utf8NoBom);
+        await File.WriteAllTextAsync(Path.Combine(mixSub, "del2.txt"), "delete me 2\n", Utf8NoBom);
+        await File.WriteAllTextAsync(Path.Combine(mixDir, "keep.ignored"), "ignored data\n", Utf8NoBom);
+        await File.WriteAllTextAsync(Path.Combine(mixDir, "keep.excluded"), "excluded data\n", Utf8NoBom);
+
+        var mixInspect = await DiscardBackupService.InspectDiscardAsync(
+            repo,
+            [
+                new Change { Path = "mixdir", Index = ChangeState.Untracked, WorkTree = ChangeState.Untracked },
+                new Change { Path = "mixdir/del1.txt", Index = ChangeState.Untracked, WorkTree = ChangeState.Untracked },
+            ],
+            DiscardBaselineKind.MoveUntrackedToRecycleBin,
+            FileRemovalMode.Direct,
+            ["mixdir"]);
+        Check(mixInspect.CanProceed &&
+              mixInspect.UntrackedTargets.Select(t => t.Path).Order().SequenceEqual(["mixdir/del1.txt", "mixdir/sub/del2.txt"]) &&
+              mixInspect.SkippedNestedRepoPaths.Contains("mixdir/nestedrepo") &&
+              mixInspect.SkippedIgnoredPaths.Contains("mixdir/keep.ignored") &&
+              mixInspect.SkippedIgnoredPaths.Contains("mixdir/keep.excluded"),
+              "Directory BFS expansion deduplicates leaves and skips nested repos plus .gitignore and local exclude files");
+
+        // Directory drift between inspect and execute aborts safely
+        await File.WriteAllTextAsync(Path.Combine(mixDir, "arrived-late.txt"), "created after preflight\n", Utf8NoBom);
+        var dirDriftRes = await DiscardBackupService.ExecuteDiscardAsync(
+            repo,
+            [new Change { Path = "mixdir", Index = ChangeState.Untracked, WorkTree = ChangeState.Untracked }],
+            DiscardBaselineKind.MoveUntrackedToRecycleBin,
+            backupStore: directStore,
+            journalStore: directJournal,
+            utcNowOverride: t0,
+            expectedPreflight: mixInspect,
+            removalMode: FileRemovalMode.Direct,
+            selectedFolderPaths: ["mixdir"]);
+        Check(!dirDriftRes.Success && dirDriftRes.BlockedBySnapshot &&
+              File.Exists(Path.Combine(mixDir, "del1.txt")) &&
+              File.Exists(Path.Combine(mixDir, "arrived-late.txt")),
+              "Directory content drift between confirmation and execution aborts safely without deleting files");
+        File.Delete(Path.Combine(mixDir, "arrived-late.txt"));
+
+        var mixExec = await DiscardBackupService.ExecuteDiscardAsync(
+            repo,
+            [new Change { Path = "mixdir", Index = ChangeState.Untracked, WorkTree = ChangeState.Untracked }],
+            DiscardBaselineKind.MoveUntrackedToRecycleBin,
+            backupStore: directStore,
+            journalStore: directJournal,
+            utcNowOverride: t0,
+            expectedPreflight: mixInspect,
+            removalMode: FileRemovalMode.Direct,
+            selectedFolderPaths: ["mixdir"]);
+        Check(mixExec.Success &&
+              !File.Exists(Path.Combine(mixDir, "del1.txt")) &&
+              !File.Exists(Path.Combine(mixSub, "del2.txt")) &&
+              !Directory.Exists(mixEmpty) &&
+              !Directory.Exists(mixSub) &&
+              Directory.Exists(mixDir) &&
+              File.Exists(Path.Combine(mixDir, "keep.ignored")) &&
+              File.Exists(Path.Combine(mixDir, "keep.excluded")) &&
+              File.Exists(Path.Combine(mixNested, "inner.txt")),
+              "Mixed folder cleanup removes only empty subdirs and non-ignored leaves while preserving ignored files and nested repo");
+
+        var pureEmptyDir = Path.Combine(repo, "clean-all-dir");
+        Directory.CreateDirectory(Path.Combine(pureEmptyDir, "empty"));
+        await File.WriteAllTextAsync(Path.Combine(pureEmptyDir, "only.txt"), "clean all\n", Utf8NoBom);
+        var cleanAllRes = await DiscardBackupService.ExecuteDiscardAsync(
+            repo,
+            [],
+            DiscardBaselineKind.MoveUntrackedToRecycleBin,
+            backupStore: directStore,
+            journalStore: directJournal,
+            utcNowOverride: t0,
+            removalMode: FileRemovalMode.Direct,
+            selectedFolderPaths: ["clean-all-dir"]);
+        Check(cleanAllRes.Success && !Directory.Exists(pureEmptyDir),
+              "Folder cleanup removes parent directory once empty");
+
+        // 7f. RestoreToHead with IndexAddedOnly uses Direct removal mode and restores disk + index cleanly
+        var headDirectFile = "staged-new-direct.txt";
+        await File.WriteAllTextAsync(Path.Combine(repo, headDirectFile), "staged new direct content\n", Utf8NoBom);
+        await GitInAsync(realGit, repo, "add", headDirectFile);
+        var headAddedChange = (await new QueryLocalChanges(repo).GetResultAsync()).Single(c => c.Path == headDirectFile);
+        var headAddedPreflight = await DiscardBackupService.InspectDiscardAsync(
+            repo,
+            [headAddedChange],
+            DiscardBaselineKind.RestoreToHead,
+            FileRemovalMode.Direct);
+        var headAddedRecycleCalls = 0;
+        var headAddedRes = await DiscardBackupService.ExecuteDiscardAsync(
+            repo,
+            [headAddedChange],
+            DiscardBaselineKind.RestoreToHead,
+            backupStore: directStore,
+            recycleHandler: _ => { headAddedRecycleCalls++; return (true, string.Empty); },
+            journalStore: directJournal,
+            utcNowOverride: t0,
+            expectedPreflight: headAddedPreflight,
+            removalMode: FileRemovalMode.Direct);
+        Check(headAddedPreflight.IncludesFileRemoval &&
+              headAddedRes.Success &&
+              headAddedRecycleCalls == 0 &&
+              !File.Exists(Path.Combine(repo, headDirectFile)) &&
+              headAddedRes.DirectDeletedPaths.Contains(headDirectFile) &&
+              string.IsNullOrWhiteSpace(await GitInAsync(realGit, repo, "ls-files", headDirectFile)),
+              "RestoreToHead applies Direct Delete to IndexAddedOnly files without invoking Recycle Bin");
+        var headAddedRestore = await DiscardBackupService.RestoreBackupAsync(
+            repo,
+            headAddedRes.BackupId,
+            backupStore: directStore,
+            journalStore: directJournal,
+            utcNowOverride: t0);
+        Check(headAddedRestore.Success &&
+              await File.ReadAllTextAsync(Path.Combine(repo, headDirectFile), Utf8NoBom) == "staged new direct content\n" &&
+              await GitInAsync(realGit, repo, "show", $":{headDirectFile}") == "staged new direct content\n",
+              "Restoring IndexAddedOnly Direct-delete backup recovers both worktree and index");
+        await GitInAsync(realGit, repo, "reset", "--hard", "HEAD");
+        await GitInAsync(realGit, repo, "clean", "-fd");
+
+        // 7g. Security boundary + Junction / symlink protection
+        var outsideDir = Path.Combine(directRoot, "outside-target");
+        Directory.CreateDirectory(outsideDir);
+        var outsideSecret = Path.Combine(outsideDir, "outside-secret.txt");
+        await File.WriteAllTextAsync(outsideSecret, "must never be deleted", Utf8NoBom);
+
+        foreach (var badPath in new[] { ".", ".git/config", "../outside-target/outside-secret.txt", Path.Combine(outsideDir, "outside-secret.txt") })
+        {
+            var secPre = await DiscardBackupService.InspectDiscardAsync(
+                repo,
+                [new Change { Path = badPath, Index = ChangeState.Untracked, WorkTree = ChangeState.Untracked }],
+                DiscardBaselineKind.MoveUntrackedToRecycleBin,
+                FileRemovalMode.Direct);
+            Check(!secPre.CanProceed && secPre.InvalidPaths.Count > 0,
+                  $"Path safety validation rejects dangerous path '{badPath}'");
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            var juncRoot = Path.Combine(repo, "juncparent");
+            var juncPath = Path.Combine(juncRoot, "junc");
+            Directory.CreateDirectory(juncRoot);
+            await File.WriteAllTextAsync(Path.Combine(juncRoot, "local.txt"), "local leaf\n", Utf8NoBom);
+            var mk = Process.Start(new ProcessStartInfo("cmd.exe", $"/c mklink /J \"{juncPath}\" \"{outsideDir}\"")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            });
+            mk!.WaitForExit();
+            if (mk.ExitCode == 0 && Directory.Exists(juncPath))
+            {
+                var traversePre = await DiscardBackupService.InspectDiscardAsync(
+                    repo,
+                    [new Change { Path = "juncparent/junc/outside-secret.txt", Index = ChangeState.Untracked, WorkTree = ChangeState.Untracked }],
+                    DiscardBaselineKind.MoveUntrackedToRecycleBin,
+                    FileRemovalMode.Direct);
+                Check(!traversePre.CanProceed && File.Exists(outsideSecret),
+                      "Explicit traversal into directory junction is blocked before touching outside target");
+
+                var juncFolderRes = await DiscardBackupService.ExecuteDiscardAsync(
+                    repo,
+                    [new Change { Path = "juncparent/junc/outside-secret.txt", Index = ChangeState.Untracked, WorkTree = ChangeState.Untracked }],
+                    DiscardBaselineKind.MoveUntrackedToRecycleBin,
+                    backupStore: directStore,
+                    journalStore: directJournal,
+                    utcNowOverride: t0,
+                    removalMode: FileRemovalMode.Direct,
+                    selectedFolderPaths: ["juncparent"]);
+                Check(juncFolderRes.Success &&
+                      !Directory.Exists(juncPath) &&
+                      !Directory.Exists(juncRoot) &&
+                      File.Exists(outsideSecret) &&
+                      await File.ReadAllTextAsync(outsideSecret, Utf8NoBom) == "must never be deleted",
+                      "Cleaning folder with Windows junction deletes only the junction link without deleting external directory contents");
+            }
+        }
     }
 }

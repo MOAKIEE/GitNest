@@ -327,6 +327,24 @@ namespace SourceGit.ViewModels
             set => SetProperty(ref _gitDefaultCloneDir, value);
         }
 
+        public Models.FileRemovalMode FileRemovalMode
+        {
+            get => _fileRemovalMode;
+            set
+            {
+                var normalized = Models.FileRemovalModeExtensions.Normalize(value);
+                if (SetProperty(ref _fileRemovalMode, normalized))
+                    OnPropertyChanged(nameof(FileRemovalModeIndex));
+            }
+        }
+
+        [JsonIgnore]
+        public int FileRemovalModeIndex
+        {
+            get => (int)Models.FileRemovalModeExtensions.Normalize(_fileRemovalMode);
+            set => FileRemovalMode = Models.FileRemovalModeExtensions.Normalize((Models.FileRemovalMode)value);
+        }
+
         public bool UseLibsecretInsteadOfGCM
         {
             get => Native.OS.CredentialHelper.Equals("libsecret", StringComparison.Ordinal);
@@ -825,6 +843,7 @@ namespace SourceGit.ViewModels
         private Models.ChangeViewMode _changeViewMode = Models.ChangeViewMode.List;
 
         private string _gitDefaultCloneDir = string.Empty;
+        private Models.FileRemovalMode _fileRemovalMode = Models.FileRemovalMode.RecycleBin;
         private int _shellOrTerminalType = -1;
     }
 }

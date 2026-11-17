@@ -11,7 +11,7 @@
     <Grid ColumnDefinitions="*,Auto">
       <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
         <Path Width="16" Height="16" Data="{StaticResource Icons.Undo}"/>
-        <TextBlock FontSize="18" FontWeight="Bold" Classes="bold" Text="{DynamicResource Text.Discard}"/>
+        <TextBlock FontSize="18" FontWeight="Bold" Classes="bold" Text="{Binding DialogTitle, Mode=OneWay}"/>
       </StackPanel>
 
       <Button Grid.Column="1"
@@ -26,218 +26,322 @@
       </Button>
     </Grid>
 
-    <!-- Baseline Selection & Preflight -->
-    <StackPanel Orientation="Vertical"
-                Spacing="8"
-                IsVisible="{Binding !HasResultView}">
-      <!-- Baseline Selector -->
-      <Border Background="{DynamicResource Brush.Contents}"
-              BorderBrush="{DynamicResource Brush.Border1}"
-              BorderThickness="1"
-              CornerRadius="4"
-              Padding="10,8">
-        <StackPanel Orientation="Vertical" Spacing="6">
-          <TextBlock FontSize="12" FontWeight="Bold" Text="{DynamicResource Text.Discard.BaselineTitle}"/>
+    <ScrollViewer MaxHeight="450" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+      <StackPanel Orientation="Vertical" Spacing="10">
+        <!-- Baseline Selection & Preflight -->
+        <StackPanel Orientation="Vertical"
+                    Spacing="8"
+                    IsVisible="{Binding !HasResultView}">
+          <!-- Baseline Selector -->
+          <Border Background="{DynamicResource Brush.Contents}"
+                  BorderBrush="{DynamicResource Brush.Border1}"
+                  BorderThickness="1"
+                  CornerRadius="4"
+                  Padding="10,8">
+            <StackPanel Orientation="Vertical" Spacing="6">
+              <TextBlock FontSize="12" FontWeight="Bold" Text="{DynamicResource Text.Discard.BaselineTitle}"/>
 
-          <RadioButton GroupName="DiscardBaseline"
-                       Height="24"
-                       Content="{DynamicResource Text.Discard.Baseline.ToIndex}"
-                       IsChecked="{Binding IsBaselineWorktreeToIndex, Mode=TwoWay}"
-                       IsVisible="{Binding CanSelectWorktreeToIndex}"/>
+              <RadioButton GroupName="DiscardBaseline"
+                           Height="24"
+                           Content="{DynamicResource Text.Discard.Baseline.ToIndex}"
+                           IsChecked="{Binding IsBaselineWorktreeToIndex, Mode=TwoWay}"
+                           IsVisible="{Binding CanSelectWorktreeToIndex}"/>
 
-          <RadioButton GroupName="DiscardBaseline"
-                       Height="24"
-                       Content="{DynamicResource Text.Discard.Baseline.ToHead}"
-                       IsChecked="{Binding IsBaselineToHead, Mode=TwoWay}"
-                       IsVisible="{Binding CanSelectToHead}"/>
+              <RadioButton GroupName="DiscardBaseline"
+                           Height="24"
+                           Content="{DynamicResource Text.Discard.Baseline.ToHead}"
+                           IsChecked="{Binding IsBaselineToHead, Mode=TwoWay}"
+                           IsVisible="{Binding CanSelectToHead}"/>
 
-          <RadioButton GroupName="DiscardBaseline"
-                       Height="24"
-                       Content="{DynamicResource Text.Discard.Baseline.Recycle}"
-                       IsChecked="{Binding IsBaselineRecycleUntracked, Mode=TwoWay}"
-                       IsVisible="{Binding CanSelectRecycleUntracked}"/>
+              <RadioButton GroupName="DiscardBaseline"
+                           Height="24"
+                           Content="{DynamicResource Text.Discard.Baseline.CleanUntracked}"
+                           IsChecked="{Binding IsBaselineRecycleUntracked, Mode=TwoWay}"
+                           IsVisible="{Binding CanSelectRecycleUntracked}"/>
 
+              <Border Background="{DynamicResource Brush.Window}"
+                      BorderBrush="{DynamicResource Brush.Border2}"
+                      BorderThickness="1"
+                      CornerRadius="4"
+                      Padding="8,6">
+                <TextBlock FontSize="11.5"
+                           Text="{Binding BaselineExplanation}"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource Brush.FG2}"/>
+              </Border>
+            </StackPanel>
+          </Border>
+
+          <!-- Removal Mode Selector (only shown when operation removes files) -->
+          <Border Background="{DynamicResource Brush.Contents}"
+                  BorderBrush="{DynamicResource Brush.Border1}"
+                  BorderThickness="1"
+                  CornerRadius="4"
+                  Padding="10,8"
+                  IsVisible="{Binding ShowRemovalModeSelector}">
+            <StackPanel Orientation="Vertical" Spacing="6">
+              <TextBlock FontSize="12" FontWeight="Bold" Text="{DynamicResource Text.Discard.RemovalModeTitle}"/>
+
+              <StackPanel Orientation="Horizontal" Spacing="16">
+                <RadioButton GroupName="DiscardRemovalMode"
+                             Height="24"
+                             Content="{DynamicResource Text.Preferences.General.FileRemovalMode.RecycleBin}"
+                             IsChecked="{Binding IsRemovalModeRecycleBin, Mode=TwoWay}"/>
+
+                <RadioButton GroupName="DiscardRemovalMode"
+                             Height="24"
+                             Content="{DynamicResource Text.Preferences.General.FileRemovalMode.Direct}"
+                             IsChecked="{Binding IsRemovalModeDirect, Mode=TwoWay}"/>
+              </StackPanel>
+
+              <Border Background="#1AE05252"
+                      BorderBrush="#66E05252"
+                      BorderThickness="1"
+                      CornerRadius="4"
+                      Padding="8,6"
+                      IsVisible="{Binding IsDirectRemovalMode}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Path Width="14" Height="14" Data="{StaticResource Icons.Error}" Fill="#E05252" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                  <TextBlock FontSize="11.5" Text="{DynamicResource Text.Discard.DirectRemovalWarning}" TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </Border>
+
+          <!-- Preflight Loading -->
+          <StackPanel Orientation="Horizontal"
+                      Spacing="6"
+                      IsVisible="{Binding IsLoadingPreflight}">
+            <Path Width="13" Height="13" Data="{StaticResource Icons.Waiting}"/>
+            <TextBlock FontSize="12" Text="{DynamicResource Text.Discard.LoadingPreflight}" Foreground="{DynamicResource Brush.FG2}"/>
+          </StackPanel>
+
+          <!-- Unborn HEAD Block -->
+          <Border Background="#1AE05252"
+                  BorderBrush="#66E05252"
+                  BorderThickness="1"
+                  CornerRadius="4"
+                  Padding="10,8"
+                  IsVisible="{Binding ShowUnbornHeadBlock}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Path Width="14" Height="14" Data="{StaticResource Icons.Error}" Fill="#E05252" VerticalAlignment="Top" Margin="0,2,0,0"/>
+              <TextBlock FontSize="12" Text="{Binding UnbornHeadNotice}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+
+          <!-- Load Error -->
+          <Border Background="#1AE05252"
+                  BorderBrush="#66E05252"
+                  BorderThickness="1"
+                  CornerRadius="4"
+                  Padding="10,8"
+                  IsVisible="{Binding HasLoadError}">
+            <TextBlock FontSize="12" Text="{Binding LoadErrorMessage}" TextWrapping="Wrap"/>
+          </Border>
+
+          <!-- Index-Added Only Warning -->
+          <Border Background="#18D97706"
+                  BorderBrush="#66D97706"
+                  BorderThickness="1"
+                  CornerRadius="4"
+                  Padding="8,6"
+                  IsVisible="{Binding HasIndexAddedOnlyTargets}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Width="13" Height="13" Data="{StaticResource Icons.Info}" Fill="#D97706" VerticalAlignment="Top" Margin="0,2,0,0"/>
+              <TextBlock FontSize="11.5" Text="{Binding IndexAddedOnlyNotice}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+
+          <!-- Skipped Submodules Notice -->
+          <Border Background="#18D97706"
+                  BorderBrush="#66D97706"
+                  BorderThickness="1"
+                  CornerRadius="4"
+                  Padding="8,6"
+                  IsVisible="{Binding HasSkippedSubmodules}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Width="13" Height="13" Data="{StaticResource Icons.Submodule}" Fill="#D97706" VerticalAlignment="Top" Margin="0,2,0,0"/>
+              <TextBlock FontSize="11.5" Text="{Binding SkippedSubmodulesSummary}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+
+          <!-- Skipped Nested Repos Notice -->
+          <Border Background="#18D97706"
+                  BorderBrush="#66D97706"
+                  BorderThickness="1"
+                  CornerRadius="4"
+                  Padding="8,6"
+                  IsVisible="{Binding HasSkippedNestedRepos}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Width="13" Height="13" Data="{StaticResource Icons.Submodule}" Fill="#D97706" VerticalAlignment="Top" Margin="0,2,0,0"/>
+              <TextBlock FontSize="11.5" Text="{Binding SkippedNestedReposSummary}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+
+          <!-- Skipped Ignored Files Notice -->
           <Border Background="{DynamicResource Brush.Window}"
                   BorderBrush="{DynamicResource Brush.Border2}"
                   BorderThickness="1"
                   CornerRadius="4"
-                  Padding="8,6">
-            <TextBlock FontSize="11.5"
-                       Text="{Binding BaselineExplanation}"
+                  Padding="8,6"
+                  IsVisible="{Binding HasSkippedIgnoredPaths}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Width="13" Height="13" Data="{StaticResource Icons.Info}" Fill="{DynamicResource Brush.FG2}" VerticalAlignment="Top" Margin="0,2,0,0"/>
+              <TextBlock FontSize="11.5" Text="{Binding SkippedIgnoredSummary}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.FG2}"/>
+            </StackPanel>
+          </Border>
+
+          <!-- Empty Targets Notice -->
+          <Border Background="{DynamicResource Brush.Contents}"
+                  BorderBrush="{DynamicResource Brush.Border1}"
+                  BorderThickness="1"
+                  CornerRadius="4"
+                  Padding="10,8"
+                  IsVisible="{Binding HasNoTargetsForBaseline}">
+            <TextBlock FontSize="12"
+                       Text="{Binding NoTargetsNotice}"
                        TextWrapping="Wrap"
                        Foreground="{DynamicResource Brush.FG2}"/>
           </Border>
-        </StackPanel>
-      </Border>
 
-      <!-- Preflight Loading -->
-      <StackPanel Orientation="Horizontal"
-                  Spacing="6"
-                  IsVisible="{Binding IsLoadingPreflight}">
-        <Path Width="13" Height="13" Data="{StaticResource Icons.Waiting}"/>
-        <TextBlock FontSize="12" Text="{DynamicResource Text.Discard.LoadingPreflight}" Foreground="{DynamicResource Brush.FG2}"/>
-      </StackPanel>
+          <!-- Explicit Target List -->
+          <Border Background="{DynamicResource Brush.Contents}"
+                  BorderBrush="{DynamicResource Brush.Border1}"
+                  BorderThickness="1"
+                  CornerRadius="4"
+                  Padding="10,8"
+                  IsVisible="{Binding !HasNoTargetsForBaseline}">
+            <StackPanel Orientation="Vertical" Spacing="6">
+              <TextBlock FontSize="12"
+                         FontWeight="Bold"
+                         Text="{Binding TargetCountSummary}"
+                         TextWrapping="Wrap"/>
 
-      <!-- Unborn HEAD Block -->
-      <Border Background="#1AE05252"
-              BorderBrush="#66E05252"
-              BorderThickness="1"
-              CornerRadius="4"
-              Padding="10,8"
-              IsVisible="{Binding ShowUnbornHeadBlock}">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <Path Width="14" Height="14" Data="{StaticResource Icons.Error}" Fill="#E05252" VerticalAlignment="Top" Margin="0,2,0,0"/>
-          <TextBlock FontSize="12" Text="{Binding UnbornHeadNotice}" TextWrapping="Wrap"/>
-        </StackPanel>
-      </Border>
+              <ScrollViewer MaxHeight="160" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding TargetRows}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:DiscardTargetRow">
+                      <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                        <StackPanel Grid.Column="0" Orientation="Vertical" Spacing="1" Margin="0,0,8,0">
+                          <TextBlock FontSize="12"
+                                     FontFamily="{DynamicResource Fonts.Monospace}"
+                                     Text="{Binding Path}"
+                                     TextTrimming="CharacterEllipsis"/>
+                          <TextBlock FontSize="11"
+                                     Text="{Binding Detail}"
+                                     Foreground="{DynamicResource Brush.FG2}"/>
+                        </StackPanel>
+                        <Border Grid.Column="1"
+                                Padding="6,2"
+                                CornerRadius="3"
+                                VerticalAlignment="Center"
+                                Background="{DynamicResource Brush.Window}"
+                                BorderBrush="{DynamicResource Brush.Border2}"
+                                BorderThickness="1">
+                          <TextBlock FontSize="10.5" Text="{Binding RoleLabel}"/>
+                        </Border>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
 
-      <!-- Load Error -->
-      <Border Background="#1AE05252"
-              BorderBrush="#66E05252"
-              BorderThickness="1"
-              CornerRadius="4"
-              Padding="10,8"
-              IsVisible="{Binding HasLoadError}">
-        <TextBlock FontSize="12" Text="{Binding LoadErrorMessage}" TextWrapping="Wrap"/>
-      </Border>
-
-      <!-- Index-Added Only Warning -->
-      <Border Background="#18D97706"
-              BorderBrush="#66D97706"
-              BorderThickness="1"
-              CornerRadius="4"
-              Padding="8,6"
-              IsVisible="{Binding HasIndexAddedOnlyTargets}">
-        <StackPanel Orientation="Horizontal" Spacing="6">
-          <Path Width="13" Height="13" Data="{StaticResource Icons.Info}" Fill="#D97706" VerticalAlignment="Top" Margin="0,2,0,0"/>
-          <TextBlock FontSize="11.5" Text="{Binding IndexAddedOnlyNotice}" TextWrapping="Wrap"/>
-        </StackPanel>
-      </Border>
-
-      <!-- Skipped Submodules Notice -->
-      <Border Background="#18D97706"
-              BorderBrush="#66D97706"
-              BorderThickness="1"
-              CornerRadius="4"
-              Padding="8,6"
-              IsVisible="{Binding HasSkippedSubmodules}">
-        <StackPanel Orientation="Horizontal" Spacing="6">
-          <Path Width="13" Height="13" Data="{StaticResource Icons.Submodule}" Fill="#D97706" VerticalAlignment="Top" Margin="0,2,0,0"/>
-          <TextBlock FontSize="11.5" Text="{Binding SkippedSubmodulesSummary}" TextWrapping="Wrap"/>
-        </StackPanel>
-      </Border>
-
-      <!-- Empty Targets Notice -->
-      <Border Background="{DynamicResource Brush.Contents}"
-              BorderBrush="{DynamicResource Brush.Border1}"
-              BorderThickness="1"
-              CornerRadius="4"
-              Padding="10,8"
-              IsVisible="{Binding HasNoTargetsForBaseline}">
-        <TextBlock FontSize="12"
-                   Text="{Binding NoTargetsNotice}"
-                   TextWrapping="Wrap"
-                   Foreground="{DynamicResource Brush.FG2}"/>
-      </Border>
-
-      <!-- Explicit Target List -->
-      <Border Background="{DynamicResource Brush.Contents}"
-              BorderBrush="{DynamicResource Brush.Border1}"
-              BorderThickness="1"
-              CornerRadius="4"
-              Padding="10,8"
-              IsVisible="{Binding !HasNoTargetsForBaseline}">
-        <StackPanel Orientation="Vertical" Spacing="6">
-          <TextBlock FontSize="12"
-                     FontWeight="Bold"
-                     Text="{Binding TargetCountSummary}"
-                     TextWrapping="Wrap"/>
-
-          <ScrollViewer MaxHeight="160" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding TargetRows}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate DataType="vm:DiscardTargetRow">
-                  <Grid ColumnDefinitions="*,Auto" Margin="0,2">
-                    <StackPanel Grid.Column="0" Orientation="Vertical" Spacing="1" Margin="0,0,8,0">
-                      <TextBlock FontSize="12"
-                                 FontFamily="{DynamicResource Fonts.Monospace}"
-                                 Text="{Binding Path}"
-                                 TextTrimming="CharacterEllipsis"/>
-                      <TextBlock FontSize="11"
-                                 Text="{Binding Detail}"
-                                 Foreground="{DynamicResource Brush.FG2}"/>
-                    </StackPanel>
-                    <Border Grid.Column="1"
-                            Padding="6,2"
-                            CornerRadius="3"
-                            VerticalAlignment="Center"
-                            Background="{DynamicResource Brush.Window}"
-                            BorderBrush="{DynamicResource Brush.Border2}"
-                            BorderThickness="1">
-                      <TextBlock FontSize="10.5" Text="{Binding RoleLabel}"/>
-                    </Border>
-                  </Grid>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </ScrollViewer>
-
-          <StackPanel Orientation="Vertical" Spacing="2">
-            <TextBlock FontSize="11"
-                       Text="{DynamicResource Text.Discard.IgnoredSafeNote}"
-                       TextWrapping="Wrap"
-                       Foreground="{DynamicResource Brush.FG2}"/>
-            <TextBlock FontSize="11"
-                       Text="{DynamicResource Text.Discard.BackupRetentionNotice}"
-                       TextWrapping="Wrap"
-                       Foreground="{DynamicResource Brush.FG2}"/>
-          </StackPanel>
-        </StackPanel>
-      </Border>
-    </StackPanel>
-
-    <!-- Non-Auto-Closing Result Card (Warnings / Submodule Skip / Recycle Failures) -->
-    <Border Background="{DynamicResource Brush.Contents}"
-            BorderBrush="{DynamicResource Brush.Border1}"
-            BorderThickness="1"
-            CornerRadius="4"
-            Padding="12,10"
-            IsVisible="{Binding HasResultView}">
-      <StackPanel Orientation="Vertical" Spacing="8">
-        <StackPanel Orientation="Horizontal" Spacing="8">
-          <Path Width="16" Height="16" Data="{StaticResource Icons.Info}" IsVisible="{Binding IsResultSuccess}"/>
-          <Path Width="16" Height="16" Data="{StaticResource Icons.Error}" Fill="#E05252" IsVisible="{Binding !IsResultSuccess}"/>
-          <TextBlock FontSize="13.5" FontWeight="Bold" Text="{Binding ResultTitle}"/>
+              <StackPanel Orientation="Vertical" Spacing="2">
+                <TextBlock FontSize="11"
+                           Text="{DynamicResource Text.Discard.IgnoredSafeNote}"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource Brush.FG2}"/>
+                <TextBlock FontSize="11"
+                           Text="{DynamicResource Text.Discard.BackupRetentionNotice}"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource Brush.FG2}"/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
         </StackPanel>
 
-        <TextBlock FontSize="12" Text="{Binding ResultSummary}" TextWrapping="Wrap"/>
-
-        <Border Background="{DynamicResource Brush.Window}"
-                BorderBrush="{DynamicResource Brush.Border2}"
+        <!-- Non-Auto-Closing Result Card (Warnings / Submodule Skip / Failures + Retry) -->
+        <Border Background="{DynamicResource Brush.Contents}"
+                BorderBrush="{DynamicResource Brush.Border1}"
                 BorderThickness="1"
                 CornerRadius="4"
-                Padding="8,5"
-                IsVisible="{Binding HasResultBackupId}">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <TextBlock FontSize="11.5" Text="{DynamicResource Text.Discard.Result.BackupId}" Foreground="{DynamicResource Brush.FG2}"/>
-            <TextBlock FontSize="11.5" FontFamily="{DynamicResource Fonts.Monospace}" Text="{Binding ResultBackupId}"/>
+                Padding="12,10"
+                IsVisible="{Binding HasResultView}">
+          <StackPanel Orientation="Vertical" Spacing="8">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Path Width="16" Height="16" Data="{StaticResource Icons.Info}" IsVisible="{Binding IsResultSuccess}"/>
+              <Path Width="16" Height="16" Data="{StaticResource Icons.Error}" Fill="#E05252" IsVisible="{Binding !IsResultSuccess}"/>
+              <TextBlock FontSize="13.5" FontWeight="Bold" Text="{Binding ResultTitle}"/>
+            </StackPanel>
+
+            <TextBlock FontSize="12" Text="{Binding ResultSummary}" TextWrapping="Wrap"/>
+
+            <Border Background="{DynamicResource Brush.Window}"
+                    BorderBrush="{DynamicResource Brush.Border2}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="8,5"
+                    IsVisible="{Binding HasResultBackupId}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock FontSize="11.5" Text="{DynamicResource Text.Discard.Result.BackupId}" Foreground="{DynamicResource Brush.FG2}"/>
+                <TextBlock FontSize="11.5" FontFamily="{DynamicResource Fonts.Monospace}" Text="{Binding ResultBackupId}"/>
+              </StackPanel>
+            </Border>
+
+            <ScrollViewer MaxHeight="160" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+              <ItemsControl ItemsSource="{Binding ResultLines}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="x:String">
+                    <TextBlock FontSize="11.5"
+                               FontFamily="{DynamicResource Fonts.Monospace}"
+                               Margin="0,2"
+                               Text="{Binding}"
+                               TextWrapping="Wrap"/>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Retry Panel for Partial/Full Failures -->
+            <Border Background="{DynamicResource Brush.Window}"
+                    BorderBrush="{DynamicResource Brush.Border2}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="8,6"
+                    IsVisible="{Binding HasRetryableFailures}">
+              <StackPanel Orientation="Vertical" Spacing="6">
+                <TextBlock FontSize="12" FontWeight="Bold" Text="{Binding RetryNotice}" TextWrapping="Wrap"/>
+
+                <StackPanel Orientation="Vertical" Spacing="6" IsVisible="{Binding IncludesFileRemoval}">
+                  <TextBlock FontSize="11.5" FontWeight="SemiBold" Text="{DynamicResource Text.Discard.RemovalModeTitle}"/>
+                  <StackPanel Orientation="Horizontal" Spacing="16">
+                    <RadioButton GroupName="DiscardRetryRemovalMode"
+                                 Height="24"
+                                 Content="{DynamicResource Text.Preferences.General.FileRemovalMode.RecycleBin}"
+                                 IsChecked="{Binding IsRemovalModeRecycleBin, Mode=TwoWay}"/>
+                    <RadioButton GroupName="DiscardRetryRemovalMode"
+                                 Height="24"
+                                 Content="{DynamicResource Text.Preferences.General.FileRemovalMode.Direct}"
+                                 IsChecked="{Binding IsRemovalModeDirect, Mode=TwoWay}"/>
+                  </StackPanel>
+
+                  <Border Background="#1AE05252"
+                          BorderBrush="#66E05252"
+                          BorderThickness="1"
+                          CornerRadius="4"
+                          Padding="8,6"
+                          IsVisible="{Binding IsDirectRemovalMode}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <Path Width="14" Height="14" Data="{StaticResource Icons.Error}" Fill="#E05252" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                      <TextBlock FontSize="11.5" Text="{DynamicResource Text.Discard.DirectRemovalWarning}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </StackPanel>
+            </Border>
           </StackPanel>
         </Border>
-
-        <ScrollViewer MaxHeight="170" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-          <ItemsControl ItemsSource="{Binding ResultLines}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate DataType="x:String">
-                <TextBlock FontSize="11.5"
-                           FontFamily="{DynamicResource Fonts.Monospace}"
-                           Margin="0,2"
-                           Text="{Binding}"
-                           TextWrapping="Wrap"/>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </ScrollViewer>
       </StackPanel>
-    </Border>
+    </ScrollViewer>
   </StackPanel>
 </UserControl>

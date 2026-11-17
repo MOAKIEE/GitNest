@@ -1,8 +1,59 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SourceGit.Models
 {
+    [JsonConverter(typeof(FileRemovalModeJsonConverter))]
+    public enum FileRemovalMode
+    {
+        RecycleBin = 0,
+        Direct = 1,
+    }
+
+    public static class FileRemovalModeExtensions
+    {
+        public static FileRemovalMode Normalize(FileRemovalMode mode)
+        {
+            return mode == FileRemovalMode.Direct ? FileRemovalMode.Direct : FileRemovalMode.RecycleBin;
+        }
+    }
+
+    public sealed class FileRemovalModeJsonConverter : JsonConverter<FileRemovalMode>
+    {
+        public override FileRemovalMode Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            switch (reader.TokenType)
+            {
+                case JsonTokenType.Number:
+                    if (reader.TryGetInt32(out var numeric))
+                        return numeric == (int)FileRemovalMode.Direct ? FileRemovalMode.Direct : FileRemovalMode.RecycleBin;
+                    return FileRemovalMode.RecycleBin;
+
+                case JsonTokenType.String:
+                    var text = reader.GetString()?.Trim();
+                    if (string.Equals(text, nameof(FileRemovalMode.Direct), StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(text, "1", StringComparison.Ordinal))
+                        return FileRemovalMode.Direct;
+                    return FileRemovalMode.RecycleBin;
+
+                case JsonTokenType.StartObject:
+                case JsonTokenType.StartArray:
+                    reader.Skip();
+                    return FileRemovalMode.RecycleBin;
+
+                default:
+                    return FileRemovalMode.RecycleBin;
+            }
+        }
+
+        public override void Write(Utf8JsonWriter writer, FileRemovalMode value, JsonSerializerOptions options)
+        {
+            writer.WriteNumberValue(value == FileRemovalMode.Direct ? (int)FileRemovalMode.Direct : (int)FileRemovalMode.RecycleBin);
+        }
+    }
+
     public enum StashApplyStatus
     {
         CleanApplied = 0,
@@ -108,6 +159,8 @@ namespace SourceGit.Models
         public ChangeState WorkTree { get; init; } = ChangeState.None;
         public bool IsSubmodule { get; init; }
         public bool IsFolder { get; init; }
+        public bool IsSymlink { get; init; }
+        public bool IsDirectorySymlink { get; init; }
         public bool IsUntracked => Index == ChangeState.Untracked || WorkTree == ChangeState.Untracked;
         public bool IsIndexAddedOnly { get; set; }
     }
@@ -115,13 +168,22 @@ namespace SourceGit.Models
     public sealed class DiscardPreflight
     {
         public DiscardBaselineKind Baseline { get; init; }
+        public FileRemovalMode RemovalMode { get; init; } = FileRemovalMode.RecycleBin;
         public bool CanProceed { get; init; }
         public bool HasUnbornHead { get; init; }
         public string BlockingReason { get; init; } = string.Empty;
         public List<DiscardTargetItem> TrackedTargets { get; init; } = [];
         public List<DiscardTargetItem> UntrackedTargets { get; init; } = [];
         public List<string> SkippedSubmodulePaths { get; init; } = [];
+        public List<string> SkippedNestedRepoPaths { get; init; } = [];
+        public List<string> SkippedIgnoredPaths { get; init; } = [];
+        public List<string> InvalidPaths { get; init; } = [];
+        public List<string> CleanableDirectories { get; init; } = [];
         public List<string> IndexAddedOnlyPaths { get; init; } = [];
+        public bool IncludesFileRemoval =>
+            (Baseline == DiscardBaselineKind.MoveUntrackedToRecycleBin &&
+             (UntrackedTargets.Count > 0 || (CanProceed && CleanableDirectories.Count > 0))) ||
+            (Baseline == DiscardBaselineKind.RestoreToHead && IndexAddedOnlyPaths.Count > 0);
         public OperationConfirmationSnapshot ConfirmationSnapshot { get; init; }
     }
 
@@ -130,8 +192,10 @@ namespace SourceGit.Models
         public string RelativePath { get; set; } = string.Empty;
         public string OriginalPath { get; set; } = string.Empty;
         public DiscardBaselineKind Baseline { get; set; } = DiscardBaselineKind.RestoreWorktreeToIndex;
+        public FileRemovalMode RemovalMode { get; set; } = FileRemovalMode.RecycleBin;
         public bool ExistsInWorktree { get; set; }
         public bool IsSymlink { get; set; }
+        public bool IsDirectorySymlink { get; set; }
         public string SymlinkTarget { get; set; } = string.Empty;
         public string WorktreeSha256 { get; set; } = string.Empty;
         public long WorktreeByteLength { get; set; }
@@ -154,6 +218,7 @@ namespace SourceGit.Models
         public string GitCommonDir { get; set; } = string.Empty;
         public string HeadSha { get; set; } = string.Empty;
         public DiscardBaselineKind Baseline { get; set; } = DiscardBaselineKind.RestoreWorktreeToIndex;
+        public FileRemovalMode RemovalMode { get; set; } = FileRemovalMode.RecycleBin;
         public string Summary { get; set; } = string.Empty;
         public List<DiscardBackupFileEntry> Files { get; set; } = [];
         public DateTime? RestoredAtUtc { get; set; }
@@ -201,10 +266,16 @@ namespace SourceGit.Models
         public bool Success { get; init; }
         public bool BlockedBySnapshot { get; init; }
         public DiscardBaselineKind Baseline { get; init; }
+        public FileRemovalMode RemovalMode { get; init; } = FileRemovalMode.RecycleBin;
         public string BackupId { get; init; } = string.Empty;
         public List<string> ProcessedPaths { get; init; } = [];
+        public List<string> RestoredPaths { get; init; } = [];
         public List<string> RecycledPaths { get; init; } = [];
+        public List<string> DirectDeletedPaths { get; init; } = [];
+        public List<string> SkippedPaths { get; init; } = [];
         public List<string> FailedPaths { get; init; } = [];
+        public Dictionary<string, string> FailureReasons { get; init; } =
+            new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
         public string Summary { get; init; } = string.Empty;
         public string OperationRecordId { get; init; } = string.Empty;
     }

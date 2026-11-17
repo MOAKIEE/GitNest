@@ -109,7 +109,7 @@ namespace SourceGit.Views
                 else if (e.Key is Key.Delete or Key.Back)
                 {
                     var next = UnstagedChangesView.GetNextChangeWithoutSelection();
-                    vm.Discard(changes, next);
+                    vm.Discard(changes, next, selection.SelectedFolderPaths);
                     e.Handled = true;
                 }
                 else if (e.Key is Key.O && e.KeyModifiers == cmdKey && changes.Count == 1)
@@ -444,9 +444,10 @@ namespace SourceGit.Views
                     };
 
                     var isSingleUntracked = change.WorkTree == Models.ChangeState.Untracked;
+                    var isDirectRemovalMode = ViewModels.Preferences.Instance.FileRemovalMode == Models.FileRemovalMode.Direct;
                     var discard = new MenuItem();
                     discard.Header = isSingleUntracked
-                        ? App.Text("FileCM.MoveToRecycleBin")
+                        ? App.Text(isDirectRemovalMode ? "FileCM.DirectDeleteUntracked" : "FileCM.MoveToRecycleBin")
                         : App.Text("FileCM.DiscardToIndex");
                     discard.Icon = this.CreateMenuIcon(isSingleUntracked ? "Icons.Clear" : "Icons.Undo");
                     discard.Tag = "Back/Delete";
@@ -458,7 +459,8 @@ namespace SourceGit.Views
                             next,
                             isSingleUntracked
                                 ? Models.DiscardBaselineKind.MoveUntrackedToRecycleBin
-                                : Models.DiscardBaselineKind.RestoreWorktreeToIndex);
+                                : Models.DiscardBaselineKind.RestoreWorktreeToIndex,
+                            selection.SelectedFolderPaths);
                         e.Handled = true;
                     };
 
@@ -471,7 +473,7 @@ namespace SourceGit.Views
                         discardToHead.Click += (_, e) =>
                         {
                             var next = UnstagedChangesView.GetNextChangeWithoutSelection();
-                            vm.DiscardWithBaseline(changes, next, Models.DiscardBaselineKind.RestoreToHead);
+                            vm.DiscardWithBaseline(changes, next, Models.DiscardBaselineKind.RestoreToHead, selection.SelectedFolderPaths);
                             e.Handled = true;
                         };
                     }
@@ -742,11 +744,13 @@ namespace SourceGit.Views
                 };
 
                 var anyTracked = changes.Exists(c => c.WorkTree != Models.ChangeState.Untracked);
+                var anyUntracked = changes.Exists(c => c.WorkTree == Models.ChangeState.Untracked);
                 var allUntracked = !anyTracked;
+                var isDirectRemovalMode = ViewModels.Preferences.Instance.FileRemovalMode == Models.FileRemovalMode.Direct;
                 var discard = new MenuItem();
                 discard.Header = allUntracked
-                    ? App.Text("FileCM.MoveToRecycleBinMulti", changes.Count)
-                    : anyTracked && changes.Exists(c => c.WorkTree == Models.ChangeState.Untracked)
+                    ? App.Text(isDirectRemovalMode ? "FileCM.DirectDeleteUntrackedMulti" : "FileCM.MoveToRecycleBinMulti", changes.Count)
+                    : anyTracked && anyUntracked
                         ? App.Text("FileCM.DiscardOrRecycleMulti", changes.Count)
                         : App.Text("FileCM.DiscardToIndexMulti", changes.Count);
                 discard.Icon = this.CreateMenuIcon(allUntracked ? "Icons.Clear" : "Icons.Undo");
@@ -754,7 +758,7 @@ namespace SourceGit.Views
                 discard.Click += (_, e) =>
                 {
                     var next = UnstagedChangesView.GetNextChangeWithoutSelection();
-                    vm.Discard(changes, next);
+                    vm.Discard(changes, next, selection.SelectedFolderPaths);
                     e.Handled = true;
                 };
 
@@ -767,7 +771,7 @@ namespace SourceGit.Views
                     discardToHead.Click += (_, e) =>
                     {
                         var next = UnstagedChangesView.GetNextChangeWithoutSelection();
-                        vm.DiscardWithBaseline(changes, next, Models.DiscardBaselineKind.RestoreToHead);
+                        vm.DiscardWithBaseline(changes, next, Models.DiscardBaselineKind.RestoreToHead, selection.SelectedFolderPaths);
                         e.Handled = true;
                     };
                 }
@@ -919,7 +923,7 @@ namespace SourceGit.Views
                 discardToHead.Icon = this.CreateMenuIcon("Icons.Reset");
                 discardToHead.Click += (_, e) =>
                 {
-                    vm.DiscardWithBaseline(changes, null, Models.DiscardBaselineKind.RestoreToHead);
+                    vm.DiscardWithBaseline(changes, null, Models.DiscardBaselineKind.RestoreToHead, selection.SelectedFolderPaths);
                     e.Handled = true;
                 };
 
@@ -1038,7 +1042,7 @@ namespace SourceGit.Views
                 discardToHead.Icon = this.CreateMenuIcon("Icons.Reset");
                 discardToHead.Click += (_, e) =>
                 {
-                    vm.DiscardWithBaseline(changes, null, Models.DiscardBaselineKind.RestoreToHead);
+                    vm.DiscardWithBaseline(changes, null, Models.DiscardBaselineKind.RestoreToHead, selection.SelectedFolderPaths);
                     e.Handled = true;
                 };
 

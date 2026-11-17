@@ -7,12 +7,18 @@ namespace SourceGit.Commands
     public static class Discard
     {
         /// <summary>
-        /// Safely restores local changes according to separated baselines and stores tracked baselines
-        /// in the 30-day local recovery store before modifying the repository. Never runs destructive `git clean -fdx`
-        /// or permanent `File.Delete` on untracked items.
+        /// Safely restores local changes according to separated baselines and stores targets
+        /// in the 30-day local recovery store before modifying the repository. Never runs implicit `git clean -fdx`.
         /// </summary>
-        public static async Task AllAsync(string repo, bool includeModified, bool includeUntracked, bool includeIgnored, Models.ICommandLog log)
+        public static async Task AllAsync(
+            string repo,
+            bool includeModified,
+            bool includeUntracked,
+            bool includeIgnored,
+            Models.ICommandLog log,
+            Models.FileRemovalMode removalMode = Models.FileRemovalMode.RecycleBin)
         {
+            var effectiveMode = Models.FileRemovalModeExtensions.Normalize(removalMode);
             var changes = await new QueryLocalChanges(repo).GetResultAsync().ConfigureAwait(false);
 
             if (includeModified)
@@ -24,7 +30,8 @@ namespace SourceGit.Commands
                         repo,
                         tracked,
                         Models.DiscardBaselineKind.RestoreToHead,
-                        outerLog: log).ConfigureAwait(false);
+                        outerLog: log,
+                        removalMode: effectiveMode).ConfigureAwait(false);
 
                     if (!res.Success)
                         Models.Notification.Send(repo, res.Summary, true);
@@ -40,7 +47,8 @@ namespace SourceGit.Commands
                         repo,
                         untracked,
                         Models.DiscardBaselineKind.MoveUntrackedToRecycleBin,
-                        outerLog: log).ConfigureAwait(false);
+                        outerLog: log,
+                        removalMode: effectiveMode).ConfigureAwait(false);
 
                     if (!res.Success)
                         Models.Notification.Send(repo, res.Summary, true);
@@ -54,14 +62,19 @@ namespace SourceGit.Commands
         }
 
         /// <summary>
-        /// Discard selected changes cleanly: tracked unstaged edits restore to index after saving to the 30-day
-        /// recovery store; untracked entries move only via the OS Recycle Bin.
+        /// Discard selected changes cleanly: tracked unstaged edits restore to index and untracked entries
+        /// are backed up into the 30-day local recovery store before removal via the chosen removal mode.
         /// </summary>
-        public static async Task ChangesAsync(string repo, List<Models.Change> changes, Models.ICommandLog log)
+        public static async Task ChangesAsync(
+            string repo,
+            List<Models.Change> changes,
+            Models.ICommandLog log,
+            Models.FileRemovalMode removalMode = Models.FileRemovalMode.RecycleBin)
         {
             if (changes == null || changes.Count == 0)
                 return;
 
+            var effectiveMode = Models.FileRemovalModeExtensions.Normalize(removalMode);
             var untracked = changes.Where(c => c.WorkTree == Models.ChangeState.Untracked || c.Index == Models.ChangeState.Untracked).ToList();
             var tracked = changes.Where(c => c.WorkTree != Models.ChangeState.Untracked && c.Index != Models.ChangeState.Untracked).ToList();
 
@@ -71,7 +84,8 @@ namespace SourceGit.Commands
                     repo,
                     tracked,
                     Models.DiscardBaselineKind.RestoreWorktreeToIndex,
-                    outerLog: log).ConfigureAwait(false);
+                    outerLog: log,
+                    removalMode: effectiveMode).ConfigureAwait(false);
 
                 if (!res.Success)
                     Models.Notification.Send(repo, res.Summary, true);
@@ -83,7 +97,8 @@ namespace SourceGit.Commands
                     repo,
                     untracked,
                     Models.DiscardBaselineKind.MoveUntrackedToRecycleBin,
-                    outerLog: log).ConfigureAwait(false);
+                    outerLog: log,
+                    removalMode: effectiveMode).ConfigureAwait(false);
 
                 if (!res.Success)
                     Models.Notification.Send(repo, res.Summary, true);

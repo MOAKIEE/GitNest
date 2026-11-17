@@ -649,6 +649,10 @@
   <x:String x:Key="Text.Preferences.General.Check4UpdatesOnStartup" xml:space="preserve">启动时检测软件更新</x:String>
   <x:String x:Key="Text.Preferences.General.DateFormat" xml:space="preserve">日期时间格式</x:String>
   <x:String x:Key="Text.Preferences.General.EnableCompactFolders" xml:space="preserve">在变更列表树中启用紧凑文件夹模式</x:String>
+  <x:String x:Key="Text.Preferences.General.FileRemovalMode" xml:space="preserve">文件删除方式</x:String>
+  <x:String x:Key="Text.Preferences.General.FileRemovalMode.Direct" xml:space="preserve">直接删除</x:String>
+  <x:String x:Key="Text.Preferences.General.FileRemovalMode.Note" xml:space="preserve">删除前保存 30 天本地恢复备份；直接删除不经过系统回收站。</x:String>
+  <x:String x:Key="Text.Preferences.General.FileRemovalMode.RecycleBin" xml:space="preserve">移入系统回收站</x:String>
   <x:String x:Key="Text.Preferences.General.Locale" xml:space="preserve">显示语言</x:String>
   <x:String x:Key="Text.Preferences.General.MaxHistoryCommits" xml:space="preserve">最大历史提交数</x:String>
   <x:String x:Key="Text.Preferences.General.ShowChangesPageByDefault" xml:space="preserve">默认显示【本地更改】页</x:String>
@@ -1185,47 +1189,72 @@
   <x:String x:Key="Text.FileCM.DiscardToHeadMulti" xml:space="preserve">将所选 {0} 项恢复到 HEAD...</x:String>
   <x:String x:Key="Text.FileCM.MoveToRecycleBin" xml:space="preserve">将未跟踪文件移入回收站...</x:String>
   <x:String x:Key="Text.FileCM.MoveToRecycleBinMulti" xml:space="preserve">将 {0} 个未跟踪文件移入回收站...</x:String>
-  <x:String x:Key="Text.FileCM.DiscardOrRecycleMulti" xml:space="preserve">丢弃或回收所选 {0} 项更改...</x:String>
+  <x:String x:Key="Text.FileCM.DirectDeleteUntracked" xml:space="preserve">直接删除未跟踪文件...</x:String>
+  <x:String x:Key="Text.FileCM.DirectDeleteUntrackedMulti" xml:space="preserve">直接删除 {0} 个未跟踪文件...</x:String>
+  <x:String x:Key="Text.FileCM.DiscardOrRecycleMulti" xml:space="preserve">丢弃 / 删除所选 {0} 项更改...</x:String>
 
+  <x:String x:Key="Text.Discard.Title.RecycleBin" xml:space="preserve">移入回收站</x:String>
+  <x:String x:Key="Text.Discard.Title.DirectDelete" xml:space="preserve">直接删除文件</x:String>
   <x:String x:Key="Text.Discard.BaselineTitle" xml:space="preserve">恢复基线与作用范围</x:String>
   <x:String x:Key="Text.Discard.Baseline.ToIndex" xml:space="preserve">仅回退工作区到暂存区（保留已暂存修改）</x:String>
   <x:String x:Key="Text.Discard.Baseline.ToIndex.Desc" xml:space="preserve">仅丢弃工作区中的未暂存编辑，已暂存 (Staged) 内容原样保留，不影响 .gitignore 忽略文件。</x:String>
   <x:String x:Key="Text.Discard.Baseline.ToHead" xml:space="preserve">同时回退工作区与暂存区到 HEAD</x:String>
-  <x:String x:Key="Text.Discard.Baseline.ToHead.Desc" xml:space="preserve">将受跟踪文件同时重置回最近一次提交 (HEAD)；新加入暂存区但未提交的文件会先备份后移入回收站。</x:String>
-  <x:String x:Key="Text.Discard.Baseline.Recycle" xml:space="preserve">将未跟踪文件移入系统回收站</x:String>
-  <x:String x:Key="Text.Discard.Baseline.Recycle.Desc" xml:space="preserve">仅将选中的未跟踪文件移入系统回收站并保存 30 天备份快照；.gitignore / exclude 忽略文件不受影响。</x:String>
+  <x:String x:Key="Text.Discard.Baseline.ToHead.Desc" xml:space="preserve">将受跟踪文件同时重置回最近一次提交 (HEAD)；新加入暂存区但未提交的文件会先备份并按下方删除方式移除。</x:String>
+  <x:String x:Key="Text.Discard.Baseline.CleanUntracked" xml:space="preserve">清理未跟踪文件</x:String>
+  <x:String x:Key="Text.Discard.Baseline.CleanUntracked.Recycle.Desc" xml:space="preserve">仅清理选中的未跟踪文件或符号链接（自动跳过 .git、被忽略文件、子模块和嵌套仓库），删除前将保存 30 天本地恢复备份后再移入系统回收站。</x:String>
+  <x:String x:Key="Text.Discard.Baseline.CleanUntracked.Direct.Desc" xml:space="preserve">仅清理选中的未跟踪文件或符号链接（自动跳过 .git、被忽略文件、子模块和嵌套仓库），删除前将保存 30 天本地恢复备份并直接从磁盘删除。</x:String>
   <x:String x:Key="Text.Discard.BaselineLabel.ToIndex" xml:space="preserve">工作区 → 暂存区</x:String>
   <x:String x:Key="Text.Discard.BaselineLabel.ToHead" xml:space="preserve">工作区 + 暂存区 → HEAD</x:String>
+  <x:String x:Key="Text.Discard.BaselineLabel.ToHeadDirect" xml:space="preserve">工作区 + 暂存区 → HEAD（直接删除）</x:String>
   <x:String x:Key="Text.Discard.BaselineLabel.Recycle" xml:space="preserve">未跟踪文件 → 回收站</x:String>
+  <x:String x:Key="Text.Discard.BaselineLabel.DirectDelete" xml:space="preserve">未跟踪文件 → 直接删除</x:String>
+  <x:String x:Key="Text.Discard.RemovalModeTitle" xml:space="preserve">本次删除方式</x:String>
+  <x:String x:Key="Text.Discard.DirectRemovalWarning" xml:space="preserve">所选文件将直接删除，不经过系统回收站。可在 30 天内从本地恢复备份中恢复。</x:String>
   <x:String x:Key="Text.Discard.Confirm.ToIndex" xml:space="preserve">恢复到暂存区</x:String>
   <x:String x:Key="Text.Discard.Confirm.ToHead" xml:space="preserve">回退到 HEAD</x:String>
   <x:String x:Key="Text.Discard.Confirm.Recycle" xml:space="preserve">移入回收站</x:String>
+  <x:String x:Key="Text.Discard.Confirm.DirectDelete" xml:space="preserve">直接删除</x:String>
+  <x:String x:Key="Text.Discard.Confirm.Retry" xml:space="preserve">重试剩余项</x:String>
+  <x:String x:Key="Text.Discard.Confirm.RetryRecycle" xml:space="preserve">重试移入回收站</x:String>
+  <x:String x:Key="Text.Discard.Confirm.RetryDirectDelete" xml:space="preserve">改用直接删除并重试</x:String>
   <x:String x:Key="Text.Discard.LoadingPreflight" xml:space="preserve">正在分析目标文件与恢复基线...</x:String>
   <x:String x:Key="Text.Discard.OpenBackupLibrary" xml:space="preserve">丢弃恢复库</x:String>
-  <x:String x:Key="Text.Discard.BackupRetentionNotice" xml:space="preserve">执行丢弃或移入回收站前会自动创建本地备份并保留 30 天，可在“日志 → 丢弃恢复”中找回；子模块与忽略文件不会被改动。</x:String>
+  <x:String x:Key="Text.Discard.BackupRetentionNotice" xml:space="preserve">执行丢弃或删除操作前会自动创建本地备份并保留 30 天，可在“日志 → 丢弃恢复”中找回；.git、子模块、嵌套仓库与忽略文件不会被改动。</x:String>
   <x:String x:Key="Text.Discard.IgnoredSafeNote" xml:space="preserve">当前策略安全边界：不提供清理被忽略文件的选项，已有 .gitignore / exclude 文件保持不变。</x:String>
-  <x:String x:Key="Text.Discard.UnbornHeadBlock" xml:space="preserve">当前仓库尚无提交记录（Unborn HEAD），无法按 HEAD 基线重置。请选择“恢复到暂存区”或“移入回收站”。</x:String>
+  <x:String x:Key="Text.Discard.UnbornHeadBlock" xml:space="preserve">当前仓库尚无提交记录（Unborn HEAD），无法按 HEAD 基线重置。请选择“仅回退工作区到暂存区”或“清理未跟踪文件”。</x:String>
   <x:String x:Key="Text.Discard.SkippedSubmodules" xml:space="preserve">已跳过子模块（需手动进入子模块处理）：{0}</x:String>
+  <x:String x:Key="Text.Discard.SkippedNestedRepos" xml:space="preserve">已跳过嵌套 Git 仓库（不会进入清理）：{0}</x:String>
+  <x:String x:Key="Text.Discard.SkippedIgnored" xml:space="preserve">已跳过 {0} 个被 Git 忽略的文件或目录（如：{1}）。</x:String>
   <x:String x:Key="Text.Discard.IndexAddedOnlyNotice" xml:space="preserve">其中 {0} 个新增已暂存文件在 HEAD 中尚不存在，执行后将先备份再从暂存区移除并移入回收站。</x:String>
+  <x:String x:Key="Text.Discard.IndexAddedOnlyNotice.Direct" xml:space="preserve">其中 {0} 个新增已暂存文件在 HEAD 中尚不存在，执行后将先写入 30 天恢复备份再从暂存区移除并直接删除。</x:String>
   <x:String x:Key="Text.Discard.TargetSummary.ToIndex" xml:space="preserve">将回退 {0} 个已跟踪文件在工作区的未暂存改动（保留暂存区）</x:String>
   <x:String x:Key="Text.Discard.TargetSummary.ToHead" xml:space="preserve">将重置 {0} 个已跟踪文件到 HEAD，并将 {1} 个新增文件移入回收站</x:String>
-  <x:String x:Key="Text.Discard.TargetSummary.Recycle" xml:space="preserve">将 {0} 个未跟踪文件移入系统回收站（附带 30 天本地备份）</x:String>
+  <x:String x:Key="Text.Discard.TargetSummary.ToHeadDirect" xml:space="preserve">将重置 {0} 个已跟踪文件到 HEAD，并将 {1} 个新增文件直接删除（已保存 30 天备份）</x:String>
+  <x:String x:Key="Text.Discard.TargetSummary.Recycle" xml:space="preserve">将 {0} 个未跟踪项目移入系统回收站（附带 30 天本地备份）</x:String>
+  <x:String x:Key="Text.Discard.TargetSummary.DirectDelete" xml:space="preserve">将 {0} 个未跟踪项目直接删除（不经过系统回收站，附带 30 天本地备份）</x:String>
   <x:String x:Key="Text.Discard.Empty.ToIndex" xml:space="preserve">当前目标中没有需要回退到暂存区的未暂存修改。</x:String>
   <x:String x:Key="Text.Discard.Empty.ToHead" xml:space="preserve">当前目标中没有可重置到 HEAD 的已跟踪修改。</x:String>
-  <x:String x:Key="Text.Discard.Empty.Untracked" xml:space="preserve">当前目标中没有可移入回收站的未跟踪文件。</x:String>
+  <x:String x:Key="Text.Discard.Empty.Untracked" xml:space="preserve">当前目标中没有可清理的未跟踪文件或空目录。</x:String>
   <x:String x:Key="Text.Discard.Empty.WorkingCopy" xml:space="preserve">当前选择范围内没有可处理的本地更改。</x:String>
   <x:String x:Key="Text.Discard.Role.TrackedToIndex" xml:space="preserve">回退到暂存区</x:String>
   <x:String x:Key="Text.Discard.Role.TrackedToHead" xml:space="preserve">重置到 HEAD</x:String>
   <x:String x:Key="Text.Discard.Role.IndexAddedRecycle" xml:space="preserve">新增暂存 → 回收站</x:String>
   <x:String x:Key="Text.Discard.Role.IndexAddedRecycle.Detail" xml:space="preserve">HEAD 中无此文件，备份后移入系统回收站</x:String>
+  <x:String x:Key="Text.Discard.Role.IndexAddedDirectDelete" xml:space="preserve">新增暂存 → 直接删除</x:String>
+  <x:String x:Key="Text.Discard.Role.IndexAddedDirectDelete.Detail" xml:space="preserve">HEAD 中无此文件，备份 30 天快照后直接从磁盘删除</x:String>
   <x:String x:Key="Text.Discard.Role.UntrackedRecycle" xml:space="preserve">未跟踪 → 回收站</x:String>
   <x:String x:Key="Text.Discard.Role.UntrackedRecycle.Detail" xml:space="preserve">先备份 30 天快照，再移入系统回收站</x:String>
+  <x:String x:Key="Text.Discard.Role.UntrackedDirectDelete" xml:space="preserve">未跟踪 → 直接删除</x:String>
+  <x:String x:Key="Text.Discard.Role.UntrackedDirectDelete.Detail" xml:space="preserve">先保存 30 天恢复备份，再直接从磁盘删除（不经回收站）</x:String>
+  <x:String x:Key="Text.Discard.Role.UntrackedSymlink.Detail" xml:space="preserve">仅删除符号链接/连接点本身，绝不进入其指向的目标目录</x:String>
+  <x:String x:Key="Text.Discard.Role.EmptyDir.Detail" xml:space="preserve">仅当目录为空时安全移除空目录本身</x:String>
   <x:String x:Key="Text.Discard.Role.SubmoduleSkipped" xml:space="preserve">子模块（跳过）</x:String>
   <x:String x:Key="Text.Discard.Role.SubmoduleSkipped.Detail" xml:space="preserve">为保护嵌套工作区，子模块不自动丢弃</x:String>
   <x:String x:Key="Text.Discard.Result.BackupId" xml:space="preserve">30 天恢复备份编号：</x:String>
   <x:String x:Key="Text.Discard.Result.DoneWithWarningsTitle" xml:space="preserve">丢弃完成（附带提醒）</x:String>
   <x:String x:Key="Text.Discard.Result.PartialTitle" xml:space="preserve">部分完成 — 个别文件未能处理</x:String>
   <x:String x:Key="Text.Discard.Result.FailedTitle" xml:space="preserve">丢弃失败</x:String>
+  <x:String x:Key="Text.Discard.Retry.Notice" xml:space="preserve">仍有 {0} 个项目未能完成删除（原文件保留在磁盘）。可在下方切换删除方式后仅重试剩余失败项。</x:String>
 
   <x:String x:Key="Text.ViewLogs.TabDiscardBackups" xml:space="preserve">丢弃恢复 (30 天)</x:String>
   <x:String x:Key="Text.ViewLogs.DiscardBackups.PruneExpired" xml:space="preserve">清理过期备份</x:String>

@@ -113,7 +113,64 @@ internal static partial class Program
         AssertNoClippedPrimaryButtons(delHost, "DeleteBranch Popup (200% equivalent)");
         ScreenshotAtDpi(delHost, "hidpi-200-popup-light", 2.0);
         delHost.Close();
-        _window = null;
+
+        // Preferences window & Discard Direct Delete popup at 150% Light and 200% Dark DPI
+        var prevDpiRemoval = VM.Preferences.Instance.FileRemovalMode;
+        try
+        {
+            VM.Preferences.Instance.FileRemovalMode = SourceGit.Models.FileRemovalMode.Direct;
+            App.SetTheme("Light", "");
+            var prefWin = _window = new Views.Preferences
+            {
+                DataContext = VM.Preferences.Instance,
+                ShowInTaskbar = false,
+                Title = "GitNest High-DPI 150% Preferences",
+            };
+            prefWin.Show();
+            Pump();
+            AssertNoClippedPrimaryButtons(prefWin, "Preferences (150% equivalent)");
+            ScreenshotAtDpi(prefWin, "hidpi-150-preferences-light", 1.5);
+            prefWin.Close();
+
+            var hidpiUntracked = Path.Combine(repoPath, "hidpi-untracked.txt");
+            File.WriteAllText(hidpiUntracked, "high dpi direct delete preview\n");
+            App.SetTheme("Dark", "");
+            var discardDpiVm = new VM.Discard(
+                repo,
+                [new SourceGit.Models.Change { Path = "hidpi-untracked.txt", Index = SourceGit.Models.ChangeState.Untracked, WorkTree = SourceGit.Models.ChangeState.Untracked }],
+                null,
+                SourceGit.Models.DiscardBaselineKind.MoveUntrackedToRecycleBin);
+            var discardDpiView = new Views.Discard { DataContext = discardDpiVm };
+            var discardHost = _window = new Window
+            {
+                Content = new Border
+                {
+                    Padding = new Thickness(16),
+                    Width = 640,
+                    Child = discardDpiView,
+                },
+                SizeToContent = SizeToContent.WidthAndHeight,
+                ShowInTaskbar = false,
+                Title = "GitNest High-DPI 200% Discard Direct",
+            };
+            discardHost.Show();
+            Await(() => !discardDpiVm.IsLoadingPreflight && discardDpiVm.HasPreflight);
+            Pump();
+            Check(discardHost.GetVisualDescendants().OfType<RadioButton>().Any(r =>
+                      r.GroupName == "DiscardRemovalMode" &&
+                      r.IsEffectivelyVisible &&
+                      r.IsChecked == true),
+                  "High-DPI Discard Direct popup renders visible removal mode selector");
+            AssertNoClippedPrimaryButtons(discardHost, "Discard Direct Popup (200% equivalent)");
+            ScreenshotAtDpi(discardHost, "hidpi-200-discard-direct-dark", 2.0);
+            discardHost.Close();
+        }
+        finally
+        {
+            App.SetTheme("Light", "");
+            VM.Preferences.Instance.FileRemovalMode = prevDpiRemoval;
+            _window = null;
+        }
     }
 
     private static void AssertNoClippedPrimaryButtons(Window window, string stage)

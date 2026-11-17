@@ -28,8 +28,12 @@ namespace SourceGit.ViewModels
 
         public string BaselineLabel => Entry.Baseline switch
         {
-            Models.DiscardBaselineKind.RestoreToHead => App.Text("Discard.BaselineLabel.ToHead"),
-            Models.DiscardBaselineKind.MoveUntrackedToRecycleBin => App.Text("Discard.BaselineLabel.Recycle"),
+            Models.DiscardBaselineKind.RestoreToHead => Entry.RemovalMode == Models.FileRemovalMode.Direct
+                ? App.Text("Discard.BaselineLabel.ToHeadDirect")
+                : App.Text("Discard.BaselineLabel.ToHead"),
+            Models.DiscardBaselineKind.MoveUntrackedToRecycleBin => Entry.RemovalMode == Models.FileRemovalMode.Direct
+                ? App.Text("Discard.BaselineLabel.DirectDelete")
+                : App.Text("Discard.BaselineLabel.Recycle"),
             _ => App.Text("Discard.BaselineLabel.ToIndex"),
         };
 
@@ -380,9 +384,13 @@ namespace SourceGit.ViewModels
                     ? "含暂存区快照"
                     : "无暂存条目";
                 var stateLabel = f.Baseline == Models.DiscardBaselineKind.MoveUntrackedToRecycleBin
-                    ? "回收站还原"
+                    ? (f.RemovalMode == Models.FileRemovalMode.Direct || item.Entry.RemovalMode == Models.FileRemovalMode.Direct
+                        ? "未跟踪 · 直接删除"
+                        : "未跟踪 · 移入回收站")
                     : f.Baseline == Models.DiscardBaselineKind.RestoreToHead
-                        ? "工作区 + 暂存区"
+                        ? (f.RemovalMode == Models.FileRemovalMode.Direct
+                            ? "工作区 + 暂存区（直接删除）"
+                            : "工作区 + 暂存区")
                         : "仅工作区";
 
                 SelectedDiscardBackupFiles.Add(new DiscardBackupFileRow

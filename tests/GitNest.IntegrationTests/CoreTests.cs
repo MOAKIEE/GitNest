@@ -128,8 +128,39 @@ internal static partial class Program
         var prefs = new VM.Preferences();
         var serializedPrefs = System.Text.Json.JsonSerializer.Serialize(prefs, JsonCodeGen.Default.Preferences);
         var roundTrippedPrefs = System.Text.Json.JsonSerializer.Deserialize(serializedPrefs, JsonCodeGen.Default.Preferences);
-        Check(prefs.UseGitHubStyleAvatar && roundTrippedPrefs is { UseGitHubStyleAvatar: true },
-              "Preferences.UseGitHubStyleAvatar defaults enabled and round-trips through JsonCodeGen");
+        Check(prefs.UseGitHubStyleAvatar && roundTrippedPrefs is { UseGitHubStyleAvatar: true } &&
+              prefs.FileRemovalMode == FileRemovalMode.RecycleBin &&
+              roundTrippedPrefs is { FileRemovalMode: FileRemovalMode.RecycleBin },
+              "Preferences.UseGitHubStyleAvatar and FileRemovalMode defaults round-trip through JsonCodeGen");
+
+        var missingRemovalPrefs = System.Text.Json.JsonSerializer.Deserialize("{\"UseGitHubStyleAvatar\":false}", JsonCodeGen.Default.Preferences);
+        Check(missingRemovalPrefs is { FileRemovalMode: FileRemovalMode.RecycleBin, UseGitHubStyleAvatar: false },
+              "Old Preferences JSON without FileRemovalMode defaults to RecycleBin while preserving other settings");
+
+        foreach (var badJson in new[]
+                 {
+                     "{\"FileRemovalMode\":99,\"UseGitHubStyleAvatar\":false}",
+                     "{\"FileRemovalMode\":-1,\"UseGitHubStyleAvatar\":false}",
+                     "{\"FileRemovalMode\":\"Bogus\",\"UseGitHubStyleAvatar\":false}",
+                     "{\"FileRemovalMode\":null,\"UseGitHubStyleAvatar\":false}",
+                     "{\"FileRemovalMode\":{},\"UseGitHubStyleAvatar\":false}"
+                 })
+        {
+            var recovered = System.Text.Json.JsonSerializer.Deserialize(badJson, JsonCodeGen.Default.Preferences);
+            Check(recovered is { FileRemovalMode: FileRemovalMode.RecycleBin, UseGitHubStyleAvatar: false },
+                  $"Invalid FileRemovalMode JSON ({badJson}) falls back to RecycleBin without resetting other preferences");
+        }
+
+        var namedDirect = System.Text.Json.JsonSerializer.Deserialize("{\"FileRemovalMode\":\"Direct\",\"UseGitHubStyleAvatar\":false}", JsonCodeGen.Default.Preferences);
+        Check(namedDirect is { FileRemovalMode: FileRemovalMode.Direct, UseGitHubStyleAvatar: false },
+              "Valid named string FileRemovalMode \"Direct\" is accepted without resetting other preferences");
+
+        prefs.FileRemovalMode = FileRemovalMode.Direct;
+        Check(prefs.FileRemovalModeIndex == 1, "Preferences.FileRemovalModeIndex reflects Direct mode");
+        var directJson = System.Text.Json.JsonSerializer.Serialize(prefs, JsonCodeGen.Default.Preferences);
+        var roundTripDirect = System.Text.Json.JsonSerializer.Deserialize(directJson, JsonCodeGen.Default.Preferences);
+        Check(roundTripDirect is { FileRemovalMode: FileRemovalMode.Direct, FileRemovalModeIndex: 1 },
+              "Preferences.FileRemovalMode.Direct round-trips through JsonCodeGen");
         Check(typeof(AvatarManager).GetMethod("Request") != null &&
               typeof(AvatarManager).GetMethod("SetFromLocal") != null &&
               typeof(AvatarManager).GetMethod("Subscribe") != null &&
